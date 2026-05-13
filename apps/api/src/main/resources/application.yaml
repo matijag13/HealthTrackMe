@@ -1,0 +1,38 @@
+spring:
+  application:
+    name: HealthTrackMe API
+
+  datasource:
+    url: jdbc:postgresql://localhost:5432/healthtrackme
+    username: postgres
+    password: postgres
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+    show-sql: false
+
+  flyway:
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+    enabled: true
+
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false
+    default-property-inclusion: non_null
+
+server:
+  servlet:
+    context-path: /
+  port: 8080
+
+logging:
+  level:
+    root: INFO
+    com.healthwithme.api: DEBUG
