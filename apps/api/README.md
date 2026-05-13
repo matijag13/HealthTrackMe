@@ -2,6 +2,22 @@
 
 A comprehensive Spring Boot + Kotlin backend for health tracking application with features for symptom tracking, medicine management, wearable device integration, and health analytics.
 
+## Run with Maven Wrapper
+
+This project uses the Maven Wrapper to ensure a consistent Maven version (3.9.15).
+Use the wrapper from the `apps/api` directory:
+
+```bash
+./mvnw clean test
+./mvnw spring-boot:run
+```
+
+If the wrapper JAR is missing, generate it locally (requires a machine with Maven installed):
+
+```bash
+mvn -N io.takari:maven:wrapper -Dmaven=3.9.15
+```
+
 ## Project Structure
 
 ```
@@ -64,7 +80,7 @@ To add external libraries, edit `build.gradle.kts`:
 dependencies {
     // Add your dependency here
     implementation("group:artifact:version")
-    
+
     // Example: Adding Jackson for JSON processing
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin:2.14.0")
 }
@@ -163,6 +179,7 @@ V3__add_medicines.sql
 ```
 
 Example structure:
+
 ```sql
 -- V1__init_database.sql
 CREATE TABLE users (
@@ -206,41 +223,49 @@ class UserServiceTest {
 ## Current Features Implemented
 
 ### 1. **User Management**
+
 - User registration and profile management
 - User types: PATIENT, ATHLETE, ELDERLY, HEALTHCARE_WORKER
 - Medical conditions and allergies tracking
 
 ### 2. **Health Journal**
+
 - Record daily health entries with symptoms
 - Track mood, energy level, sleep, stress
 - Add personal notes
 
 ### 3. **Medicine Management**
+
 - Add medicines with dosage and frequency
 - Track active medications
 - Record side effects
 
 ### 4. **Wearable Device Integration**
+
 - Register and manage wearable devices
 - Device types: SMARTWATCH, FITNESS_TRACKER, HEART_MONITOR, etc.
 - Sync device data
 
 ### 5. **Sport Activities**
+
 - Log workout activities with details
 - Track duration, distance, calories, heart rate
 - Activity statistics
 
 ### 6. **Health Alerts**
+
 - Automatic alerts for unusual trends
 - Alert severity levels: LOW, MEDIUM, HIGH, CRITICAL
 - Mark alerts as read
 
 ### 7. **Data Export**
+
 - Export health entries to CSV
 - Export sport activities to CSV
 - Generate comprehensive health summary
 
 ### 8. **Health Analysis**
+
 - Analyze stress trends
 - Monitor sleep quality
 - Track energy levels
@@ -249,6 +274,7 @@ class UserServiceTest {
 ## Running the Application
 
 ### Prerequisites
+
 - Java 21+
 - PostgreSQL 13+
 - Gradle
@@ -256,12 +282,14 @@ class UserServiceTest {
 ### Setup
 
 1. **Clone the repository**
+
 ```bash
 git clone <repository-url>
 cd apps/api
 ```
 
 2. **Configure database** in `application.yaml`:
+
 ```yaml
 datasource:
   url: jdbc:postgresql://localhost:5432/healthtrackme
@@ -270,11 +298,13 @@ datasource:
 ```
 
 3. **Build the project**
+
 ```bash
 ./gradlew clean build
 ```
 
 4. **Run the application**
+
 ```bash
 ./gradlew bootRun
 ```
@@ -284,37 +314,44 @@ The API will be available at `http://localhost:8080`
 ## API Endpoints
 
 ### Users
+
 - `POST /api/v1/users` - Create user
 - `GET /api/v1/users/{id}` - Get user
 - `PUT /api/v1/users/{id}` - Update user
 - `DELETE /api/v1/users/{id}` - Deactivate user
 
 ### Health Entries
+
 - `POST /api/v1/health-entries/users/{userId}` - Create entry
 - `GET /api/v1/health-entries/{id}` - Get entry
 - `GET /api/v1/health-entries/users/{userId}` - Get user's entries
 
 ### Medicines
+
 - `POST /api/v1/medicines/users/{userId}` - Add medicine
 - `GET /api/v1/medicines/{id}` - Get medicine
 - `GET /api/v1/medicines/users/{userId}` - Get user's medicines
 
 ### Wearable Devices
+
 - `POST /api/v1/wearable-devices/users/{userId}` - Register device
 - `GET /api/v1/wearable-devices/{id}` - Get device
 - `POST /api/v1/wearable-devices/{id}/sync` - Sync device
 
 ### Sport Activities
+
 - `POST /api/v1/sport-activities/users/{userId}` - Create activity
 - `GET /api/v1/sport-activities/{id}` - Get activity
 - `GET /api/v1/sport-activities/users/{userId}/stats` - Get statistics
 
 ### Alerts
+
 - `GET /api/v1/health-alerts/users/{userId}` - Get user alerts
 - `GET /api/v1/health-alerts/users/{userId}/unread` - Get unread alerts
 - `PUT /api/v1/health-alerts/{id}/read` - Mark alert as read
 
 ### Export
+
 - `GET /api/v1/export/health-entries/csv/{userId}` - Export health entries
 - `GET /api/v1/export/sport-activities/csv/{userId}` - Export activities
 - `GET /api/v1/export/summary/{userId}` - Get health summary
@@ -328,4 +365,3 @@ The API will be available at `http://localhost:8080`
 4. **API Documentation**: Generate Swagger/OpenAPI documentation
 5. **Frontend Integration**: Connect with mobile/web frontend
 6. **DevOps**: Set up Docker and deployment pipeline
-
