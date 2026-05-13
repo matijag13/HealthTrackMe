@@ -75,7 +75,7 @@ class ExportController(
             )
         } catch (e: Exception) {
             ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
-                ApiResponse(success = false, message = e.message, data = null)
+                ApiResponse(success = false, message = (e.message ?: "Internal server error"), data = null)
             )
         }
     }

@@ -22,7 +22,7 @@ class UserService(
         
         val user = User(
             email = request.email,
-            password = passwordEncoder.encode(request.password),
+            passwordHash = passwordEncoder.encode(request.password),
             firstName = request.firstName,
             lastName = request.lastName,
             dateOfBirth = request.dateOfBirth,

@@ -22,7 +22,7 @@ class UserController(private val userService: UserService) {
             )
         } catch (e: Exception) {
             ResponseEntity.badRequest().body(
-                ApiResponse(success = false, message = e.message, data = null)
+                 ApiResponse(success = false, message = (e.message ?: "Bad request"), data = null)
             )
         }
     }

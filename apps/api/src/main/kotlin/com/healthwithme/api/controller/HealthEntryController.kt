@@ -20,7 +20,7 @@ class HealthEntryController(private val healthEntryService: HealthEntryService) 
                 ApiResponse(success = true, message = "Entry created", data = entry)
             )
         } catch (e: Exception) {
-            ResponseEntity.badRequest().body(ApiResponse(success = false, message = e.message, data = null))
+            ResponseEntity.badRequest().body(ApiResponse(success = false, message = (e.message ?: "Bad request"), data = null))
         }
     }
 

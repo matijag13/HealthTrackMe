@@ -5,6 +5,7 @@ data class WearableDeviceDto(
     val deviceName: String,
     val deviceType: String,
     val deviceId: String,
+    val serialNumber: String?,
     val isActive: Boolean,
     val lastSyncTime: String?,
     val connectedAt: String

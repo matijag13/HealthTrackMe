@@ -20,7 +20,7 @@ class WearableDeviceController(private val deviceService: WearableDeviceService)
                 ApiResponse(success = true, message = "Device registered", data = device)
             )
         } catch (e: Exception) {
-            ResponseEntity.badRequest().body(ApiResponse(success = false, message = e.message, data = null))
+            ResponseEntity.badRequest().body(ApiResponse(success = false, message = (e.message ?: "Bad request"), data = null))
         }
     }
 
