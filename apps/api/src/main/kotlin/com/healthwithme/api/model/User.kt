@@ -14,13 +14,23 @@ data class User(
     val email: String = "",
     
     @Column(nullable = false)
-    val password: String = "",
+    val passwordHash: String = "",
     
     @Column(nullable = false)
     val firstName: String = "",
     
     @Column(nullable = false)
     val lastName: String = "",
+
+    @Column(nullable = false)
+    @Enumerated(EnumType.STRING)
+    val role: UserRole = UserRole.USER,
+
+    @Column(nullable = false)
+    val gdprConsentAccepted: Boolean = false,
+
+    @Column(nullable = true)
+    val gdprConsentAcceptedAt: LocalDateTime? = null,
     
     @Column(nullable = false)
     val dateOfBirth: String = "",
@@ -46,6 +56,15 @@ data class User(
     
     @OneToMany(mappedBy = "user", cascade = [CascadeType.ALL])
     val healthEntries: MutableList<HealthEntry> = mutableListOf(),
+
+    @OneToMany(mappedBy = "user", cascade = [CascadeType.ALL])
+    val medications: MutableList<Medication> = mutableListOf(),
+
+    @OneToMany(mappedBy = "user", cascade = [CascadeType.ALL])
+    val sleepRecords: MutableList<SleepRecord> = mutableListOf(),
+
+    @OneToMany(mappedBy = "user", cascade = [CascadeType.ALL])
+    val activityLogs: MutableList<ActivityLog> = mutableListOf(),
     
     @OneToMany(mappedBy = "user", cascade = [CascadeType.ALL])
     val medicines: MutableList<Medicine> = mutableListOf(),
@@ -53,6 +72,11 @@ data class User(
     @OneToMany(mappedBy = "user", cascade = [CascadeType.ALL])
     val wearableDevices: MutableList<WearableDevice> = mutableListOf()
 )
+
+enum class UserRole {
+    USER,
+    ADMIN
+}
 
 enum class UserType {
     PATIENT,
