@@ -20,7 +20,7 @@ class SportActivityController(private val activityService: SportActivityService)
                 ApiResponse(success = true, message = "Activity created", data = activity)
             )
         } catch (e: Exception) {
-            ResponseEntity.badRequest().body(ApiResponse(success = false, message = e.message, data = null))
+            ResponseEntity.badRequest().body(ApiResponse(success = false, message = (e.message ?: "Bad request"), data = null))
         }
     }
 

@@ -20,7 +20,7 @@ class MedicineController(private val medicineService: MedicineService) {
                 ApiResponse(success = true, message = "Medicine added", data = medicine)
             )
         } catch (e: Exception) {
-            ResponseEntity.badRequest().body(ApiResponse(success = false, message = e.message, data = null))
+            ResponseEntity.badRequest().body(ApiResponse(success = false, message = (e.message ?: "Bad request"), data = null))
         }
     }
 

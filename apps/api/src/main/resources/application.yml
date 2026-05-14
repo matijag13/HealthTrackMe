@@ -1,0 +1,28 @@
+spring:
+  datasource:
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/healthtrackme}
+    username: ${DATABASE_USERNAME:healthtrackme}
+    password: ${DATABASE_PASSWORD:healthtrackme}
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: none
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: true
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+
+server:
+  port: 8080
+
+security:
+  jwt:
+    secret: ${JWT_SECRET:change-me-in-env}
+
+app:
+  data-retention:
+    # TODO: Implement user-level hard-delete workflow for "delete my data" GDPR requests.
+    delete-my-data-enabled: false

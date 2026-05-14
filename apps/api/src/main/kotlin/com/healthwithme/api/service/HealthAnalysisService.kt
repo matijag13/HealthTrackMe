@@ -99,7 +99,13 @@ class HealthAnalysisService(
     }
 
     private fun analyzeSymptomPatterns(userId: Long, entries: List<HealthEntry>) {
-        val allSymptoms = entries.flatMap { it.symptoms }
+        val allSymptoms = entries.flatMap { entry ->
+            entry.symptoms
+                ?.split(",")
+                ?.map { it.trim() }
+                ?.filter { it.isNotBlank() }
+                ?: emptyList()
+        }
         
         if (allSymptoms.isEmpty()) return
         

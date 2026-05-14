@@ -7,6 +7,7 @@ import com.healthwithme.api.model.HealthEntry
 import com.healthwithme.api.repository.HealthEntryRepository
 import com.healthwithme.api.repository.UserRepository
 import org.springframework.stereotype.Service
+import java.time.LocalDate
 import java.time.LocalDateTime
 
 @Service
@@ -21,14 +22,15 @@ class HealthEntryService(
         
         val entry = HealthEntry(
             user = user,
-            entryDate = request.entryDate,
-            symptoms = request.symptoms.toMutableList(),
+            entryDate = LocalDate.parse(request.entryDate),
+            wellbeingScore = request.wellbeingScore,
+            symptoms = request.symptoms.joinToString(","),
             mood = request.mood,
             energyLevel = request.energyLevel,
             sleepHours = request.sleepHours,
             sleepQuality = request.sleepQuality,
             stressLevel = request.stressLevel,
-            notes = request.notes,
+            doctorNotes = request.notes,
             createdAt = LocalDateTime.now(),
             updatedAt = LocalDateTime.now()
         )
@@ -57,13 +59,14 @@ class HealthEntryService(
             .orElseThrow { IllegalArgumentException("Health entry not found") }
         
         val updatedEntry = entry.copy(
-            symptoms = request.symptoms?.toMutableList() ?: entry.symptoms,
+            wellbeingScore = request.wellbeingScore ?: entry.wellbeingScore,
+            symptoms = request.symptoms?.joinToString(",") ?: entry.symptoms,
             mood = request.mood ?: entry.mood,
             energyLevel = request.energyLevel ?: entry.energyLevel,
             sleepHours = request.sleepHours ?: entry.sleepHours,
             sleepQuality = request.sleepQuality ?: entry.sleepQuality,
             stressLevel = request.stressLevel ?: entry.stressLevel,
-            notes = request.notes ?: entry.notes,
+            doctorNotes = request.notes ?: entry.doctorNotes,
             updatedAt = LocalDateTime.now()
         )
         
@@ -83,21 +86,30 @@ class HealthEntryService(
         userRepository.findById(userId)
             .orElseThrow { IllegalArgumentException("User not found") }
         
-        return healthEntryRepository.findByUserIdAndEntryDateBetween(userId, startDate, endDate)
+        return healthEntryRepository.findByUserIdAndEntryDateBetween(
+            userId,
+            LocalDate.parse(startDate),
+            LocalDate.parse(endDate)
+        )
             .map { toHealthEntryDto(it) }
     }
 
     private fun toHealthEntryDto(entry: HealthEntry): HealthEntryDto {
         return HealthEntryDto(
             id = entry.id,
-            entryDate = entry.entryDate,
-            symptoms = entry.symptoms,
+            entryDate = entry.entryDate.toString(),
+            wellbeingScore = entry.wellbeingScore,
+            symptoms = entry.symptoms
+                ?.split(",")
+                ?.map { it.trim() }
+                ?.filter { it.isNotBlank() }
+                ?: emptyList(),
             mood = entry.mood,
             energyLevel = entry.energyLevel,
             sleepHours = entry.sleepHours,
             sleepQuality = entry.sleepQuality,
             stressLevel = entry.stressLevel,
-            notes = entry.notes,
+            notes = entry.doctorNotes,
             createdAt = entry.createdAt.toString(),
             updatedAt = entry.updatedAt.toString()
         )

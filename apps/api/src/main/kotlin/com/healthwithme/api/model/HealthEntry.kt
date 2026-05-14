@@ -1,6 +1,9 @@
 package com.healthwithme.api.model
 
 import jakarta.persistence.*
+import jakarta.validation.constraints.Max
+import jakarta.validation.constraints.Min
+import java.time.LocalDate
 import java.time.LocalDateTime
 
 @Entity
@@ -15,18 +18,25 @@ data class HealthEntry(
     val user: User? = null,
     
     @Column(nullable = false)
-    val entryDate: String = "",
-    
-    @ElementCollection
-    @CollectionTable(name = "health_symptoms", joinColumns = [JoinColumn(name = "health_entry_id")])
-    @Column(name = "symptom")
-    val symptoms: MutableList<String> = mutableListOf(),
+    val entryDate: LocalDate = LocalDate.now(),
+
+    @field:Min(1)
+    @field:Max(10)
+    @Column(nullable = false)
+    val wellbeingScore: Int = 1,
+
+    // TODO: Migrate to PostgreSQL JSONB + at-rest encryption for sensitive symptom data.
+    @Column(columnDefinition = "TEXT")
+    val symptoms: String? = null,
     
     @Column(nullable = true)
     val mood: String? = null,
     
     @Column(nullable = true)
     val energyLevel: Int? = null, // 1-10
+
+    @Column(nullable = true)
+    val stressLevel: Int? = null, // 1-10
     
     @Column(nullable = true)
     val sleepHours: Double? = null,
@@ -34,11 +44,9 @@ data class HealthEntry(
     @Column(nullable = true)
     val sleepQuality: String? = null, // POOR, FAIR, GOOD, EXCELLENT
     
-    @Column(nullable = true)
-    val stressLevel: Int? = null, // 1-10
-    
-    @Column(nullable = true)
-    val notes: String? = null,
+    // TODO: Encrypt doctor notes at rest before production rollout.
+    @Column(columnDefinition = "TEXT")
+    val doctorNotes: String? = null,
     
     @Column(nullable = false)
     val createdAt: LocalDateTime = LocalDateTime.now(),
