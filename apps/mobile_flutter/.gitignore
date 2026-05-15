@@ -1,0 +1,50 @@
+# Vrstni red build/output datotek
+build/
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+*.iml
+.idea/
+.vs/
+.vscode/
+.DS_Store
+
+# Pubspec lock
+pubspec.lock
+
+# Android
+android/.gradle
+android/local.properties
+android/app/debug
+android/app/profile
+android/app/release
+android/.android/
+.android/
+
+# iOS
+ios/.symlinks/
+ios/.generated/
+ios/Flutter/Flutter.framework
+ios/Flutter/Flutter.podspec
+ios/Flutter/flutter_export_environment.sh
+ios/ServiceDefinitions.json
+ios/Runner.xcodeproj/project.xcworkspace/xcshareddata/WorkspaceSettings.xcsettings
+
+# macOS
+macos/Flutter/Flutter-Debug.xcconfig
+macos/Flutter/Flutter-Release.xcconfig
+
+# Windows
+windows/flutter/generated_plugins.cmake
+windows/flutter/generated_plugin_cmake_version.cmake
+
+# Coverage
+coverage/
+
+# Symbols
+app.*.symbols
+
+# Obfuscation related
+app.*.map.json
+
