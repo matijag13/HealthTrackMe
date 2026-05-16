@@ -155,12 +155,10 @@ class _DiaryScreenState extends State<DiaryScreen> {
                             .map(
                               (symptom) => SymptomChip(
                                 label: symptom,
-                                isSelected:
-                                    selectedSymptoms.contains(symptom),
+                                isSelected: selectedSymptoms.contains(symptom),
                                 onTap: () {
                                   setState(() {
-                                    if (selectedSymptoms
-                                        .contains(symptom)) {
+                                    if (selectedSymptoms.contains(symptom)) {
                                       selectedSymptoms.remove(symptom);
                                     } else {
                                       selectedSymptoms.add(symptom);
@@ -279,4 +277,3 @@ class _DiaryScreenState extends State<DiaryScreen> {
     super.dispose();
   }
 }
-

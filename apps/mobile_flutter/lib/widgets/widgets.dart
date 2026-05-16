@@ -48,7 +48,7 @@ class WellnessRing extends StatelessWidget {
                   child: CircularProgressIndicator(
                     value: progress,
                     strokeWidth: 7,
-                    backgroundColor: Colors.white.withOpacity(0.15),
+                    backgroundColor: Colors.white.withValues(alpha: 0.15),
                     valueColor: AlwaysStoppedAnimation<Color>(AppColors.teal),
                   ),
                 ),
@@ -68,7 +68,7 @@ class WellnessRing extends StatelessWidget {
                       '/ $total',
                       style: TextStyle(
                         fontSize: 8,
-                        color: Colors.white.withOpacity(0.6),
+                        color: Colors.white.withValues(alpha: 0.6),
                       ),
                     ),
                   ],
@@ -95,7 +95,7 @@ class WellnessRing extends StatelessWidget {
                   subtitle,
                   style: TextStyle(
                     fontSize: 11,
-                    color: Colors.white.withOpacity(0.6),
+                    color: Colors.white.withValues(alpha: 0.6),
                     height: 1.4,
                   ),
                   maxLines: 2,
@@ -550,4 +550,3 @@ class TrendItem extends StatelessWidget {
     );
   }
 }
-

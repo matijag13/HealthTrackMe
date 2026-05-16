@@ -17,39 +17,40 @@ class AppColors {
 
 class AppTheme {
   static ThemeData get lightTheme {
-	return ThemeData(
-	  useMaterial3: true,
-	  scaffoldBackgroundColor: AppColors.background,
-	  colorScheme: ColorScheme.fromSeed(
-		seedColor: AppColors.blue,
-		primary: AppColors.blue,
-		secondary: AppColors.teal,
-		surface: AppColors.card,
-		error: AppColors.danger,
-	  ),
-	  cardTheme: CardThemeData(
-		color: AppColors.card,
-		elevation: 0,
-		shape: RoundedRectangleBorder(
-		  borderRadius: BorderRadius.circular(14),
-		),
-	  ),
-	  appBarTheme: const AppBarTheme(
-		backgroundColor: AppColors.navy,
-		foregroundColor: Colors.white,
-		elevation: 0,
-	  ),
-	  textTheme: const TextTheme(
-		bodySmall: TextStyle(color: AppColors.text),
-		bodyMedium: TextStyle(color: AppColors.text),
-		titleMedium: TextStyle(color: AppColors.text, fontWeight: FontWeight.w600),
-		titleLarge: TextStyle(color: AppColors.text, fontWeight: FontWeight.w700),
-		labelSmall: TextStyle(color: AppColors.muted),
-	  ),
-	  snackBarTheme: const SnackBarThemeData(
-		behavior: SnackBarBehavior.floating,
-	  ),
-	);
+    return ThemeData(
+      useMaterial3: true,
+      scaffoldBackgroundColor: AppColors.background,
+      colorScheme: ColorScheme.fromSeed(
+        seedColor: AppColors.blue,
+        primary: AppColors.blue,
+        secondary: AppColors.teal,
+        surface: AppColors.card,
+        error: AppColors.danger,
+      ),
+      cardTheme: CardThemeData(
+        color: AppColors.card,
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(14),
+        ),
+      ),
+      appBarTheme: const AppBarTheme(
+        backgroundColor: AppColors.navy,
+        foregroundColor: Colors.white,
+        elevation: 0,
+      ),
+      textTheme: const TextTheme(
+        bodySmall: TextStyle(color: AppColors.text),
+        bodyMedium: TextStyle(color: AppColors.text),
+        titleMedium:
+            TextStyle(color: AppColors.text, fontWeight: FontWeight.w600),
+        titleLarge:
+            TextStyle(color: AppColors.text, fontWeight: FontWeight.w700),
+        labelSmall: TextStyle(color: AppColors.muted),
+      ),
+      snackBarTheme: const SnackBarThemeData(
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
   }
 }
-

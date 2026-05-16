@@ -80,7 +80,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
               current: 75,
               total: 100,
               title: 'Zdravstveni indeks',
-              subtitle: 'Danes se počutite nadpovprečno dobro. Nadaljevajte z redno aktivnostjo.',
+              subtitle:
+                  'Danes se počutite nadpovprečno dobro. Nadaljevajte z redno aktivnostjo.',
             ),
             SizedBox(height: 12),
 
@@ -88,9 +89,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
               future: healthEntries,
               builder: (context, snapshot) {
                 final count = snapshot.data?.length ?? 0;
-                final lastEntry = (snapshot.data != null && snapshot.data!.isNotEmpty)
-                    ? snapshot.data!.first
-                    : null;
+                final lastEntry =
+                    (snapshot.data != null && snapshot.data!.isNotEmpty)
+                        ? snapshot.data!.first
+                        : null;
                 return Card(
                   child: Padding(
                     padding: const EdgeInsets.all(14),
@@ -161,7 +163,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
             AlertCard(
               icon: '⚠️',
               title: 'Opozorilo — srčni utrip',
-              message: 'Zadnja 3 dni je vaš utrip v mirovanju nad 85 bpm. Priporočamo obisk zdravnika.',
+              message:
+                  'Zadnja 3 dni je vaš utrip v mirovanju nad 85 bpm. Priporočamo obisk zdravnika.',
             ),
             SizedBox(height: 12),
 
@@ -169,20 +172,24 @@ class _DashboardScreenState extends State<DashboardScreen> {
               future: alerts,
               builder: (context, snapshot) {
                 final alertCount = snapshot.data?.length ?? 0;
-                final alertText = (snapshot.data != null && snapshot.data!.isNotEmpty)
-                    ? snapshot.data!.first.message
-                    : 'Ni aktivnih opozoril.';
+                final alertText =
+                    (snapshot.data != null && snapshot.data!.isNotEmpty)
+                        ? snapshot.data!.first.message
+                        : 'Ni aktivnih opozoril.';
                 return Card(
                   child: Padding(
                     padding: const EdgeInsets.all(14),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('OPOMBE IN OPOZORILA', style: Theme.of(context).textTheme.labelSmall),
+                        Text('OPOMBE IN OPOZORILA',
+                            style: Theme.of(context).textTheme.labelSmall),
                         const SizedBox(height: 8),
-                        Text('Aktivna opozorila: $alertCount', style: Theme.of(context).textTheme.titleMedium),
+                        Text('Aktivna opozorila: $alertCount',
+                            style: Theme.of(context).textTheme.titleMedium),
                         const SizedBox(height: 4),
-                        Text(alertText, style: Theme.of(context).textTheme.bodySmall),
+                        Text(alertText,
+                            style: Theme.of(context).textTheme.bodySmall),
                       ],
                     ),
                   ),
@@ -249,16 +256,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     SizedBox(height: 12),
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [55, 70, 45, 80, 65, 90, 75]
-                          .asMap()
-                          .entries
-                          .map((e) {
+                      children:
+                          [55, 70, 45, 80, 65, 90, 75].asMap().entries.map((e) {
                         final height = e.value;
                         return Expanded(
                           child: Container(
                             height: (height / 100) * 48,
                             decoration: BoxDecoration(
-                              color: e.key == 6 ? AppColors.teal : AppColors.blue,
+                              color:
+                                  e.key == 6 ? AppColors.teal : AppColors.blue,
                               borderRadius: BorderRadius.vertical(
                                 top: Radius.circular(4),
                               ),
@@ -272,15 +278,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        'Pon', 'Tor', 'Sre', 'Čet', 'Pet', 'Sob', 'Ned'
+                        'Pon',
+                        'Tor',
+                        'Sre',
+                        'Čet',
+                        'Pet',
+                        'Sob',
+                        'Ned'
                       ]
                           .map((day) => Expanded(
-                            child: Text(
-                              day,
-                              textAlign: TextAlign.center,
-                              style: Theme.of(context).textTheme.labelSmall,
-                            ),
-                          ))
+                                child: Text(
+                                  day,
+                                  textAlign: TextAlign.center,
+                                  style: Theme.of(context).textTheme.labelSmall,
+                                ),
+                              ))
                           .toList(),
                     ),
                   ],
@@ -301,4 +313,3 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return AppColors.blue;
   }
 }
-

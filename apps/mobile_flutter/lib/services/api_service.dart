@@ -21,7 +21,9 @@ class ApiService {
 
   static String _resolveDefaultBaseUrl() {
     if (kIsWeb) return _webDefault;
-    return defaultTargetPlatform == TargetPlatform.android ? _androidDefault : _webDefault;
+    return defaultTargetPlatform == TargetPlatform.android
+        ? _androidDefault
+        : _webDefault;
   }
 
   String get baseUrl => _baseUrl;
@@ -47,9 +49,11 @@ class ApiService {
 
   Future<bool> canReachBackend() async {
     try {
-      final response = await http.get(
-        Uri.parse('$baseUrl/health-entries'),
-      ).timeout(const Duration(seconds: 4));
+      final response = await http
+          .get(
+            Uri.parse('$baseUrl/health-entries'),
+          )
+          .timeout(const Duration(seconds: 4));
       return response.statusCode >= 100;
     } catch (_) {
       return false;
@@ -114,7 +118,8 @@ class ApiService {
   Future<HealthReport> getMonthlyReport(DateTime month) async {
     try {
       final response = await http.get(
-        Uri.parse('$baseUrl/reports/monthly?month=${month.year}-${month.month.toString().padLeft(2, '0')}'),
+        Uri.parse(
+            '$baseUrl/reports/monthly?month=${month.year}-${month.month.toString().padLeft(2, '0')}'),
       );
 
       if (response.statusCode == 200) {
@@ -148,4 +153,3 @@ class ApiService {
     }
   }
 }
-

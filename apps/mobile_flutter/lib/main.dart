@@ -122,7 +122,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   void initState() {
     super.initState();
-    _baseUrlController.text = _apiService.baseUrl.replaceFirst(RegExp(r'/api/?$'), '');
+    _baseUrlController.text =
+        _apiService.baseUrl.replaceFirst(RegExp(r'/api/?$'), '');
   }
 
   @override
@@ -142,7 +143,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Future<void> _resetBaseUrl() async {
     await _apiService.resetBaseUrl();
-    _baseUrlController.text = _apiService.baseUrl.replaceFirst(RegExp(r'/api/?$'), '');
+    _baseUrlController.text =
+        _apiService.baseUrl.replaceFirst(RegExp(r'/api/?$'), '');
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Vrnjeno na privzeto nastavitev')),
@@ -157,7 +159,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     setState(() => _checking = false);
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(reachable ? 'Backend dosegljiv ✅' : 'Backend ni dosegljiv ❌'),
+        content:
+            Text(reachable ? 'Backend dosegljiv ✅' : 'Backend ni dosegljiv ❌'),
       ),
     );
   }
@@ -220,7 +223,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               ? const SizedBox(
                                   width: 16,
                                   height: 16,
-                                  child: CircularProgressIndicator(strokeWidth: 2),
+                                  child:
+                                      CircularProgressIndicator(strokeWidth: 2),
                                 )
                               : const Icon(Icons.wifi_tethering),
                           label: const Text('Test povezave'),
@@ -243,11 +247,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Kako testiraš app', style: TextStyle(fontWeight: FontWeight.w700)),
+                    Text('Kako testiraš app',
+                        style: TextStyle(fontWeight: FontWeight.w700)),
                     SizedBox(height: 8),
-                    Text('• računalnik: zaženi v Chrome/Edge, osnovni naslov je localhost'),
+                    Text(
+                        '• računalnik: zaženi v Chrome/Edge, osnovni naslov je localhost'),
                     Text('• Android emulator: uporabi 10.0.2.2 ali Privzeto'),
-                    Text('• fizični telefon: uporabi LAN IP tvojega računalnika'),
+                    Text(
+                        '• fizični telefon: uporabi LAN IP tvojega računalnika'),
                   ],
                 ),
               ),
@@ -258,4 +265,3 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 }
-

@@ -48,7 +48,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
               'Maj 2025',
               style: TextStyle(
                 fontSize: 12,
-                color: Colors.white.withOpacity(0.7),
+                color: Colors.white.withValues(alpha: 0.7),
               ),
             ),
           ],
@@ -86,7 +86,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                     'Mesečni povzetek · Maj 2025',
                     style: TextStyle(
                       fontSize: 11,
-                      color: Colors.white.withOpacity(0.8),
+                      color: Colors.white.withValues(alpha: 0.8),
                     ),
                   ),
                   SizedBox(height: 10),
@@ -97,12 +97,12 @@ class _ReportsScreenState extends State<ReportsScreen> {
                       icon: Icon(Icons.download, size: 16),
                       label: Text('Izvozi PDF'),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.white.withOpacity(0.2),
+                        backgroundColor: Colors.white.withValues(alpha: 0.2),
                         foregroundColor: Colors.white,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(8),
                           side: BorderSide(
-                            color: Colors.white.withOpacity(0.4),
+                            color: Colors.white.withValues(alpha: 0.4),
                           ),
                         ),
                       ),
@@ -143,7 +143,8 @@ class _ReportsScreenState extends State<ReportsScreen> {
                             TrendItem(
                               icon: '❤️',
                               name: 'Srčni utrip',
-                              value: 'Povp. ${data.averageHeartRate.toStringAsFixed(0)} bpm · Max ${data.maxHeartRate} bpm',
+                              value:
+                                  'Povp. ${data.averageHeartRate.toStringAsFixed(0)} bpm · Max ${data.maxHeartRate} bpm',
                               badge: '↑ Povišan',
                               badgeColor: Color(0xFFFFF3E0),
                               badgeTextColor: Color(0xFFE67E22),
@@ -152,7 +153,8 @@ class _ReportsScreenState extends State<ReportsScreen> {
                             TrendItem(
                               icon: '😴',
                               name: 'Spanje',
-                              value: 'Povp. ${(data.averageSleep.inHours)}h ${(data.averageSleep.inMinutes % 60).toString().padLeft(2, '0')}min',
+                              value:
+                                  'Povp. ${(data.averageSleep.inHours)}h ${(data.averageSleep.inMinutes % 60).toString().padLeft(2, '0')}min',
                               badge: '✓ Normalno',
                               badgeColor: Color(0xFFE8F8F0),
                               badgeTextColor: AppColors.success,
@@ -170,7 +172,8 @@ class _ReportsScreenState extends State<ReportsScreen> {
                             TrendItem(
                               icon: '💊',
                               name: 'Adherenca zdravil',
-                              value: '${(data.medicationAdherence * 100).toStringAsFixed(0)}% upoštevanje terapije',
+                              value:
+                                  '${(data.medicationAdherence * 100).toStringAsFixed(0)}% upoštevanje terapije',
                               badge: '✓ Dobro',
                               badgeColor: Color(0xFFE8F8F0),
                               badgeTextColor: AppColors.success,
@@ -354,4 +357,3 @@ class _ReportsScreenState extends State<ReportsScreen> {
     );
   }
 }
-
