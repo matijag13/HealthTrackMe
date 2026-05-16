@@ -13,6 +13,7 @@ Responsive Flutter frontend za HealthTrackMe. Deluje v brskalniku, na Android em
 ## 🎨 Design
 
 Aplikacija je oblikovana na podlagi mockupa s sledeči barvnega shemo:
+
 - **Navy**: #1A3A5C (glavni)
 - **Blue**: #4A90D9 (akcije)
 - **Teal**: #2EC4B6 (akcenti)
@@ -21,6 +22,7 @@ Aplikacija je oblikovana na podlagi mockupa s sledeči barvnega shemo:
 ## 📦 Setup in Installation
 
 ### Predpogoji
+
 - Flutter SDK 3.0+
 - Android Studio ali vsaj Android platform tools, če boš uporabljal emulator/telefon
 - Chrome ali Edge za web testiranje
@@ -80,6 +82,7 @@ lib/
 Aplikacija uporablja `ApiService`, ki si zapomni backend URL.
 
 ### Privzete vrednosti
+
 - **Brskalnik / računalnik:** `http://localhost:8080/api`
 - **Android emulator:** `http://10.0.2.2:8080/api`
 - **Fizični telefon:** nastavi LAN IP računalnika v zavihku **Nastavitve**
@@ -87,6 +90,7 @@ Aplikacija uporablja `ApiService`, ki si zapomni backend URL.
 Če backend teče na istem računalniku, lahko URL spremeniš v aplikaciji v zavihku **Nastavitve**.
 
 ### Uporabljeni endpoints
+
 - `GET /api/health-entries` - Pridobi vnose o zdravju
 - `POST /api/health-entries` - Ustvari nov vnos
 - `GET /api/medicines` - Pridobi seznam zdravil
@@ -101,6 +105,41 @@ Trenutno: enostaven `ApiService` singleton + `StatefulWidget`
 
 Priporočilo za kasnejšo nadgradnjo: Provider ali Riverpod
 
+## 🧪 Testiranje
+
+Frontend vsebuje widget test v datoteki `test/widget_test.dart`.
+
+Test preverja:
+
+- uspešen zagon aplikacije
+- prisotnost `BottomNavigationBar`
+- navigacijo med zavihki
+- prikaz placeholderja za zaslon z zdravili (Medicines screen placeholder)
+
+Ukazi za preverjanje in testiranje kode:
+
+```bash
+flutter test
+flutter analyze
+dart format .
+```
+
+## 🔄 Frontend CI/CD
+
+Projekt ima vzpostavljen GitHub Actions workflow za frontend:
+`.github/workflows/frontend-ci.yml`
+
+Pipeline se sproži ob vsaki spremembi v mapi `apps/mobile_flutter/**`.
+
+Pipeline izvaja naslednje korake:
+
+- `flutter pub get`
+- `dart format --output=none --set-exit-if-changed .`
+- `flutter analyze`
+- `flutter test`
+- `flutter build apk --debug`
+- upload debug APK artifacta
+
 ## 🚀 Naslednji koraki
 
 1. [x] Implementacija osnovnih zaslonov
@@ -108,8 +147,8 @@ Priporočilo za kasnejšo nadgradnjo: Provider ali Riverpod
 3. [x] Demo fallback podatki
 4. [ ] Dodajanje animacij in transitions
 5. [ ] Offline mode / caching za shranjene vnose
-6. [ ] Unit in widget testi
-7. [ ] CI/CD pipeline
+6. [x] Unit in widget testi
+7. [x] CI/CD pipeline
 
 ## ▶️ Hiter zagon
 
@@ -135,4 +174,3 @@ flutter run -d chrome
 ## 📝 Licence
 
 Projekt je del praktikuma na FERI
-

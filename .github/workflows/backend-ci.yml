@@ -1,4 +1,4 @@
-name: Backend CI Pipline
+name: Backend CI Pipeline
 
 on:
   push:
