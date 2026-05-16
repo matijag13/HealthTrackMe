@@ -1,0 +1,53 @@
+name: Frontend CI Pipeline
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "apps/mobile_flutter/**"
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "apps/mobile_flutter/**"
+
+jobs:
+  build_and_test:
+    name: Flutter Build & Test
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: apps/mobile_flutter
+
+    steps:
+      - name: Prenos repozitorija
+        uses: actions/checkout@v4
+
+      - name: Namestitev Flutter orodij
+        uses: subosito/flutter-action@v2
+        with:
+          channel: "stable"
+
+      - name: Pridobivanje paketov (pub get)
+        run: flutter pub get
+
+      - name: Preverjanje formatiranja (dart format)
+        run: dart format --output=none --set-exit-if-changed .
+
+      - name: Analiza kode (flutter analyze)
+        run: flutter analyze
+
+      - name: Zagon testov (flutter test)
+        run: flutter test
+
+      - name: Gradnja APK-ja za testiranje (Debug)
+        run: flutter build apk --debug
+
+      - name: Shrani ustvarjen Debug APK v artefakte
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-debug-apk
+          path: apps/mobile_flutter/build/app/outputs/flutter-apk/app-debug.apk
+          retention-days: 7
