@@ -2,22 +2,6 @@
 
 A comprehensive Spring Boot + Kotlin backend for health tracking application with features for symptom tracking, medicine management, wearable device integration, and health analytics.
 
-## Run with Maven Wrapper
-
-This project uses the Maven Wrapper to ensure a consistent Maven version (3.9.15).
-Use the wrapper from the `apps/api` directory:
-
-```bash
-./mvnw clean test
-./mvnw spring-boot:run
-```
-
-If the wrapper JAR is missing, generate it locally (requires a machine with Maven installed):
-
-```bash
-mvn -N io.takari:maven:wrapper -Dmaven=3.9.15
-```
-
 ## Project Structure
 
 ```
@@ -67,26 +51,27 @@ src/main/kotlin/com/healthwithme/api/
 
 src/main/resources/
 ├── application.yaml    # Database and app configuration
-└── db/migration/       # Flyway database migrations (not yet created)
+└── db/migration/       # Flyway database migrations
 ```
 
 ## Adding Outside Files to the Project
 
 ### 1. **Adding External Libraries/Dependencies**
 
-To add external libraries, edit `build.gradle.kts`:
+To add external libraries, edit `pom.xml`:
 
-```kotlin
-dependencies {
-    // Add your dependency here
-    implementation("group:artifact:version")
-
-    // Example: Adding Jackson for JSON processing
-    implementation("com.fasterxml.jackson.module:jackson-module-kotlin:2.14.0")
-}
+```xml
+<dependencies>
+    <!-- Add your dependency here -->
+    <dependency>
+        <groupId>group</groupId>
+        <artifactId>artifact</artifactId>
+        <version>version</version>
+    </dependency>
+</dependencies>
 ```
 
-Then run: `./gradlew clean build`
+Then run: `./mvnw clean compile` (on Windows: `.\mvnw.cmd clean compile`)
 
 ### 2. **Adding Configuration Files**
 
@@ -275,9 +260,9 @@ class UserServiceTest {
 
 ### Prerequisites
 
-- Java 21+
+- Java 25+
 - PostgreSQL 13+
-- Gradle
+- Maven Wrapper
 
 ### Setup
 
@@ -292,24 +277,64 @@ cd apps/api
 
 ```yaml
 datasource:
-  url: jdbc:postgresql://localhost:5432/healthtrackme
-  username: postgres
-  password: postgres
+  url: ${DATABASE_URL}
+  username: ${DATABASE_USERNAME}
+  password: ${DATABASE_PASSWORD}
 ```
 
-3. **Build the project**
+Actual values are stored locally in a `.env` file, and in production as environment variables in GitHub Secrets or the hosting environment.
+
+3. **Run the application**
+
+Linux/macOS:
 
 ```bash
-./gradlew clean build
+./mvnw clean test
+./mvnw spring-boot:run
 ```
 
-4. **Run the application**
+Windows:
 
-```bash
-./gradlew bootRun
+```cmd
+.\mvnw.cmd clean test
+.\mvnw.cmd spring-boot:run
 ```
 
 The API will be available at `http://localhost:8080`
+
+## Database
+
+The backend uses PostgreSQL, Spring Data JPA/Hibernate, and Flyway migrations. The `users` table is the central table, while health entries, medicines, sleep, and sport activities are connected to the user via foreign key relationships.
+
+<div align="center">
+  <img src="../../docs/database/ER-diagram.png" alt="ER Diagram" width="700">
+</div>
+
+## Testing
+
+Linux/macOS:
+
+```bash
+./mvnw clean test
+```
+
+Windows:
+
+```cmd
+.\mvnw.cmd clean test
+```
+
+## CI/CD
+
+The backend uses a GitHub Actions workflow:
+`.github/workflows/backend-ci.yml`
+
+The pipeline checks:
+
+- Maven build
+- Tests
+- Docker image build
+- PostgreSQL service in the CI environment
 
 ## API Endpoints
 
@@ -356,12 +381,3 @@ The API will be available at `http://localhost:8080`
 - `GET /api/v1/export/sport-activities/csv/{userId}` - Export activities
 - `GET /api/v1/export/summary/{userId}` - Get health summary
 - `GET /api/v1/export/all/{userId}` - Export all data
-
-## Next Steps
-
-1. **Create Database Migrations**: Set up Flyway migrations for table creation
-2. **Implement Authentication**: Add JWT or OAuth2 security
-3. **Add Testing**: Write unit and integration tests
-4. **API Documentation**: Generate Swagger/OpenAPI documentation
-5. **Frontend Integration**: Connect with mobile/web frontend
-6. **DevOps**: Set up Docker and deployment pipeline
