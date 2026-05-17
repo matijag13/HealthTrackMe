@@ -3,15 +3,19 @@ services:
     image: postgres:16-alpine
     container_name: healthtrackme-postgres
     environment:
-      POSTGRES_DB: healthtrackme
-      POSTGRES_USER: healthtrackme
-      POSTGRES_PASSWORD: healthtrackme
+      POSTGRES_DB: ${POSTGRES_DB:-healthtrackme}
+      POSTGRES_USER: ${POSTGRES_USER:-healthtrackme}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-healthtrackme}
     ports:
       - "5432:5432"
     volumes:
       - healthtrackme_pg_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U healthtrackme -d healthtrackme"]
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER:-healthtrackme} -d ${POSTGRES_DB:-healthtrackme}",
+        ]
       interval: 10s
       timeout: 5s
       retries: 5
