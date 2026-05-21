@@ -12,20 +12,25 @@ src/main/kotlin/com/healthwithme/api/
 │   ├── Medicine.kt
 │   ├── WearableDevice.kt
 │   ├── SportActivity.kt
-│   └── HealthAlert.kt
+│   ├── HealthAlert.kt
+│   ├── HealthShieldStatus.kt
+│   └── HealthShieldDailyPoints.kt
 ├── dto/                # Data Transfer Objects
 │   ├── UserDto.kt
 │   ├── HealthEntryDto.kt
 │   ├── MedicineDto.kt
 │   ├── WearableDeviceDto.kt
-│   └── AlertAndActivityDto.kt
+│   ├── AlertAndActivityDto.kt
+│   └── HealthShieldDto.kt
 ├── repository/         # JPA Repositories for data access
 │   ├── UserRepository.kt
 │   ├── HealthEntryRepository.kt
 │   ├── MedicineRepository.kt
 │   ├── WearableDeviceRepository.kt
 │   ├── HealthAlertRepository.kt
-│   └── SportActivityRepository.kt
+│   ├── SportActivityRepository.kt
+│   ├── HealthShieldStatusRepository.kt
+│   └── HealthShieldDailyPointsRepository.kt
 ├── service/            # Business logic layer
 │   ├── UserService.kt
 │   ├── HealthEntryService.kt
@@ -33,7 +38,8 @@ src/main/kotlin/com/healthwithme/api/
 │   ├── WearableDeviceService.kt
 │   ├── HealthAlertService.kt
 │   ├── SportActivityService.kt
-│   └── HealthAnalysisService.kt
+│   ├── HealthAnalysisService.kt
+│   └── HealthShieldService.kt
 ├── controller/         # REST API endpoints
 │   ├── UserController.kt
 │   ├── HealthEntryController.kt
@@ -41,7 +47,8 @@ src/main/kotlin/com/healthwithme/api/
 │   ├── WearableDeviceController.kt
 │   ├── HealthAlertController.kt
 │   ├── SportActivityController.kt
-│   └── ExportController.kt
+│   ├── ExportController.kt
+│   └── HealthShieldController.kt
 ├── config/             # Spring configuration
 │   └── SecurityConfig.kt
 ├── exception/          # Exception handling
@@ -221,9 +228,9 @@ class UserServiceTest {
 
 ### 3. **Medicine Management**
 
-- Add medicines with dosage and frequency
-- Track active medications
-- Record side effects
+- Manage medicines, vitamins, supplements, and other tracked health items.
+- Items are distinguished by item_type.
+- Track active medications and record side effects.
 
 ### 4. **Wearable Device Integration**
 
@@ -256,6 +263,10 @@ class UserServiceTest {
 - Track energy levels
 - Detect symptom patterns
 
+### 9. **Health Shield**
+
+Health Shield provides a backend endpoint for returning the user's current health consistency status, including shield level, total consistency points, daily points breakdown, progress to the next level, and inactivity penalty information.
+
 ## Running the Application
 
 ### Prerequisites
@@ -276,13 +287,14 @@ cd apps/api
 2. **Configure database** in `application.yaml`:
 
 ```yaml
-datasource:
-  url: ${DATABASE_URL}
-  username: ${DATABASE_USERNAME}
-  password: ${DATABASE_PASSWORD}
+spring:
+  datasource:
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/healthtrackme}
+    username: ${DATABASE_USERNAME:healthtrackme}
+    password: ${DATABASE_PASSWORD:healthtrackme}
 ```
 
-Actual values are stored locally in a `.env` file, and in production as environment variables in GitHub Secrets or the hosting environment.
+Actual values are stored locally in a `.env` file, and in production as environment variables in GitHub Secrets or the hosting environment. For local development, these defaults work with the provided Docker Compose PostgreSQL setup.
 
 3. **Run the application**
 
@@ -306,28 +318,40 @@ The API will be available at `http://localhost:8080`
 
 The backend uses PostgreSQL, Spring Data JPA/Hibernate, and Flyway migrations. The `users` table is the central table, while health entries, medicines, sleep, and sport activities are connected to the user via foreign key relationships.
 
+- `health_shield_status` stores the current Health Shield state for each user.
+- `health_shield_daily_points` stores the daily point calculation breakdown.
+- `medications` now includes `item_type` for MEDICATION, VITAMIN, SUPPLEMENT, and OTHER.
+
 <div align="center">
   <img src="../../docs/database/ER-diagram.png" alt="ER Diagram" width="700">
 </div>
 
 ## Testing
 
+The project includes test coverage for various services and controllers, including the newly added `HealthShieldServiceTest` and `HealthShieldControllerTest`. Currently, there are 11 tests covering the Health Shield backend logic and controller.
+
+You can run the tests using Maven:
+
 Linux/macOS:
 
 ```bash
-./mvnw clean test
+./mvnw test
+./mvnw clean install
 ```
 
 Windows:
 
 ```cmd
-.\mvnw.cmd clean test
+.\mvnw.cmd test
+.\mvnw.cmd clean install
 ```
 
 ## CI/CD
 
 The backend uses a GitHub Actions workflow:
 `.github/workflows/backend-ci.yml`
+
+The CI pipeline runs the Maven test suite, which includes the Health Shield service and controller tests.
 
 The pipeline checks:
 
@@ -381,3 +405,7 @@ The pipeline checks:
 - `GET /api/v1/export/sport-activities/csv/{userId}` - Export activities
 - `GET /api/v1/export/summary/{userId}` - Get health summary
 - `GET /api/v1/export/all/{userId}` - Export all data
+
+### Health Shield
+
+- `GET /api/health-shield/{userId}` - Get user's current Health Shield status
