@@ -1,8 +1,8 @@
 spring:
   datasource:
-    url: ${DATABASE_URL}
-    username: ${DATABASE_USERNAME}
-    password: ${DATABASE_PASSWORD}
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/healthtrackme}
+    username: ${DATABASE_USERNAME:healthtrackme}
+    password: ${DATABASE_PASSWORD:healthtrackme}
     driver-class-name: org.postgresql.Driver
   jpa:
     hibernate:
@@ -20,7 +20,7 @@ server:
 
 security:
   jwt:
-    secret: ${JWT_SECRET:change-me-in-env}
+    secret: ${JWT_SECRET:change-me-local-secret}
 
 app:
   data-retention:

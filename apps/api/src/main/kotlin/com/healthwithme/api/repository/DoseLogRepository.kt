@@ -7,4 +7,5 @@ import org.springframework.stereotype.Repository
 @Repository
 interface DoseLogRepository : JpaRepository<DoseLog, Long> {
     fun findByMedicationIdOrderByScheduledTimeDesc(medicationId: Long): List<DoseLog>
+    fun findByMedicationId(medicationId: Long): List<DoseLog>
 }

@@ -26,6 +26,10 @@ data class Medication(
     @Column(columnDefinition = "TEXT")
     val instructions: String? = null,
 
+    @Column(nullable = false, name = "item_type")
+    @Enumerated(EnumType.STRING)
+    val itemType: ItemType = ItemType.MEDICATION,
+
     @Column(nullable = false)
     val active: Boolean = true,
 
@@ -38,3 +42,10 @@ data class Medication(
     @OneToMany(mappedBy = "medication", cascade = [CascadeType.ALL], orphanRemoval = true)
     val doseLogs: MutableList<DoseLog> = mutableListOf()
 )
+
+enum class ItemType {
+    MEDICATION,
+    VITAMIN,
+    SUPPLEMENT,
+    OTHER
+}
