@@ -10,7 +10,6 @@ CREATE TABLE IF NOT EXISTS users (
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
-    -- Legacy compatibility columns for current service layer
     date_of_birth VARCHAR(50) NOT NULL DEFAULT '',
     user_type VARCHAR(50) NOT NULL DEFAULT 'PATIENT',
     medical_conditions TEXT,
@@ -31,7 +30,6 @@ CREATE TABLE IF NOT EXISTS health_entries (
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
-    -- Legacy compatibility columns for current service layer
     sleep_hours DOUBLE PRECISION,
     sleep_quality VARCHAR(50),
 
@@ -46,10 +44,12 @@ CREATE TABLE IF NOT EXISTS medications (
     dosage VARCHAR(255) NOT NULL,
     frequency VARCHAR(100) NOT NULL,
     instructions TEXT,
+    item_type VARCHAR(30) NOT NULL DEFAULT 'MEDICATION',
     active BOOLEAN NOT NULL DEFAULT TRUE,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT fk_medications_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    CONSTRAINT fk_medications_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    CONSTRAINT ck_medications_item_type CHECK (item_type IN ('MEDICATION', 'VITAMIN', 'SUPPLEMENT', 'OTHER'))
 );
 
 CREATE TABLE IF NOT EXISTS dose_logs (
@@ -89,3 +89,43 @@ CREATE INDEX IF NOT EXISTS ix_medications_user_active ON medications(user_id, ac
 CREATE INDEX IF NOT EXISTS ix_dose_logs_medication_time ON dose_logs(medication_id, scheduled_time);
 CREATE INDEX IF NOT EXISTS ix_sleep_records_user_date ON sleep_records(user_id, sleep_date);
 CREATE INDEX IF NOT EXISTS ix_activity_logs_user_date ON activity_logs(user_id, activity_date);
+
+CREATE TABLE IF NOT EXISTS health_shield_status (
+    id BIGSERIAL PRIMARY KEY,
+    user_id BIGINT NOT NULL,
+    total_consistency_points INTEGER NOT NULL DEFAULT 0,
+    current_level INTEGER NOT NULL DEFAULT 1,
+    consecutive_failed_days INTEGER NOT NULL DEFAULT 0,
+    last_calculated_date DATE,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_health_shield_status_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    CONSTRAINT ux_health_shield_status_user UNIQUE (user_id),
+    CONSTRAINT ck_health_shield_status_points CHECK (total_consistency_points >= 0),
+    CONSTRAINT ck_health_shield_status_level CHECK (current_level >= 1),
+    CONSTRAINT ck_health_shield_status_failed CHECK (consecutive_failed_days >= 0)
+);
+
+CREATE TABLE IF NOT EXISTS health_shield_daily_points (
+    id BIGSERIAL PRIMARY KEY,
+    user_id BIGINT NOT NULL,
+    calculation_date DATE NOT NULL,
+    supplements_points INTEGER NOT NULL DEFAULT 0,
+    sleep_points INTEGER NOT NULL DEFAULT 0,
+    activity_points INTEGER NOT NULL DEFAULT 0,
+    wellbeing_points INTEGER NOT NULL DEFAULT 0,
+    symptoms_points INTEGER NOT NULL DEFAULT 0,
+    routine_stability_points INTEGER NOT NULL DEFAULT 0,
+    penalty_points INTEGER NOT NULL DEFAULT 0,
+    total_daily_points INTEGER NOT NULL DEFAULT 0,
+    completed_habits_count INTEGER NOT NULL DEFAULT 0,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_health_shield_daily_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    CONSTRAINT ux_health_shield_daily_user_date UNIQUE (user_id, calculation_date),
+    CONSTRAINT ck_health_shield_daily_habits CHECK (completed_habits_count >= 0)
+);
+
+CREATE INDEX IF NOT EXISTS ix_health_shield_status_user_id ON health_shield_status(user_id);
+CREATE INDEX IF NOT EXISTS ix_health_shield_daily_user_date ON health_shield_daily_points(user_id, calculation_date);
+CREATE INDEX IF NOT EXISTS ix_medications_user_type_active ON medications(user_id, item_type, active);
