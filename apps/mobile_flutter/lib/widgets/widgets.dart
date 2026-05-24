@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../config/theme.dart';
+import '../models/models.dart';
 
 export '../config/theme.dart';
 
@@ -546,6 +547,337 @@ class TrendItem extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class SectionHeader extends StatelessWidget {
+  final String title;
+  final String? subtitle;
+  final String? actionLabel;
+  final VoidCallback? onAction;
+
+  const SectionHeader({
+    Key? key,
+    required this.title,
+    this.subtitle,
+    this.actionLabel,
+    this.onAction,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.navy,
+                ),
+              ),
+              if (subtitle != null) ...[
+                const SizedBox(height: 4),
+                Text(
+                  subtitle!,
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: AppColors.muted,
+                    height: 1.35,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+        if (actionLabel != null && onAction != null)
+          TextButton(
+            onPressed: onAction,
+            child: Text(actionLabel!),
+          ),
+      ],
+    );
+  }
+}
+
+class HealthShieldSection extends StatelessWidget {
+  final HealthShield? shield;
+  final VoidCallback? onRefresh;
+
+  const HealthShieldSection({
+    Key? key,
+    required this.shield,
+    this.onRefresh,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SectionHeader(
+              title: 'Zdravstveni ščit',
+              subtitle: shield != null
+                  ? 'Tvoj dnevni napredek, nivo in navade na enem mestu.'
+                  : 'Ščit še ni na voljo. Ko bo backend vrnil podatke, se bo prikazal tukaj.',
+              actionLabel: onRefresh != null ? 'Osveži' : null,
+              onAction: onRefresh,
+            ),
+            const SizedBox(height: 12),
+            if (shield == null)
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: AppColors.softBlue,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppColors.border),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('🛡️', style: TextStyle(fontSize: 26)),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Ščit trenutno ni povezan',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.navy,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          const Text(
+                            'Preveri, ali je izbran aktiven uporabnik in ali backend na portu 8080 vrača Health Shield podatke.',
+                            style: TextStyle(fontSize: 11, color: AppColors.muted, height: 1.4),
+                          ),
+                          const SizedBox(height: 10),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: ElevatedButton(
+                                  onPressed: onRefresh,
+                                  child: const Text('Ponovi osvežitev'),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            else
+              HealthShieldCard(
+                level: shield!.level,
+                levelName: shield!.levelName,
+                totalPoints: shield!.totalConsistencyPoints,
+                progressPercent: shield!.progressPercent,
+                pointsToNextLevel: shield!.pointsToNextLevel,
+                todayPoints: shield!.todayPoints,
+                completedHabits: shield!.completedHabitsCount,
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// Health Shield Widget - Displays shield level, points, and daily progress
+class HealthShieldCard extends StatelessWidget {
+  final int level;
+  final String levelName;
+  final int totalPoints;
+  final int progressPercent;
+  final int pointsToNextLevel;
+  final int todayPoints;
+  final int completedHabits;
+
+  const HealthShieldCard({
+    Key? key,
+    required this.level,
+    required this.levelName,
+    required this.totalPoints,
+    required this.progressPercent,
+    required this.pointsToNextLevel,
+    required this.todayPoints,
+    required this.completedHabits,
+  }) : super(key: key);
+
+  Color get _shieldColor {
+    if (level <= 3) return AppColors.blue;
+    if (level <= 6) return AppColors.teal;
+    return const Color(0xFF00BCD4);
+  }
+
+  String get _shieldEmoji {
+    if (level <= 3) return '🛡️';
+    if (level <= 6) return '✨';
+    return '👑';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final progressValue = (progressPercent.clamp(0, 100)) / 100;
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Text(_shieldEmoji, style: const TextStyle(fontSize: 28)),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Zdravstveni ščit', style: Theme.of(context).textTheme.labelSmall),
+                      const SizedBox(height: 4),
+                      Text(
+                        levelName,
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: _shieldColor,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: _shieldColor.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    'Nivo $level',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: _shieldColor,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'Napredek do naslednjega nivoja',
+                      style: TextStyle(fontSize: 11, color: AppColors.muted),
+                    ),
+                    Text(
+                      '$progressPercent%',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: _shieldColor,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(4),
+                  child: LinearProgressIndicator(
+                    value: progressValue,
+                    minHeight: 8,
+                    backgroundColor: AppColors.border,
+                    valueColor: AlwaysStoppedAnimation<Color>(_shieldColor),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              pointsToNextLevel <= 0
+                  ? 'Dosežen je naslednji nivo'
+                  : '$pointsToNextLevel točk do naslednjega nivoja',
+              style: const TextStyle(fontSize: 11, color: AppColors.muted),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('Skupno točk', style: TextStyle(fontSize: 11, color: AppColors.muted)),
+                      const SizedBox(height: 2),
+                      Text(
+                        '$totalPoints',
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.navy,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('Danes', style: TextStyle(fontSize: 11, color: AppColors.muted)),
+                      const SizedBox(height: 2),
+                      Text(
+                        '+$todayPoints točk',
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.success,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('Navade', style: TextStyle(fontSize: 11, color: AppColors.muted)),
+                      const SizedBox(height: 2),
+                      Text(
+                        '$completedHabits/5',
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.blue,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }

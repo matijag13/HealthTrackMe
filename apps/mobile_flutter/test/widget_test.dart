@@ -19,6 +19,12 @@ void main() {
     await tester.tap(find.text('Zdravila').last);
     await tester.pumpAndSettle();
 
-    expect(find.text('Zdravila Screen - Coming Soon'), findsOneWidget);
+    expect(find.text('Zdravila'), findsWidgets);
+    expect(find.textContaining('Ni shranjenih zdravil'), findsOneWidget);
+
+    await tester.tap(find.text('Profil').last);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Moj račun'), findsOneWidget);
   });
 }

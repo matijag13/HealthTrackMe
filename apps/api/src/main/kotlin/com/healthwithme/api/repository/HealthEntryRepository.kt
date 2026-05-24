@@ -10,6 +10,7 @@ interface HealthEntryRepository : JpaRepository<HealthEntry, Long> {
     fun findByUserId(userId: Long): List<HealthEntry>
     fun findByUserIdOrderByEntryDateDesc(userId: Long): List<HealthEntry>
     fun findByUserIdAndEntryDate(userId: Long, entryDate: LocalDate): HealthEntry?
+    fun findByUserIdAndEntryDateOrderByCreatedAtDesc(userId: Long, entryDate: LocalDate): List<HealthEntry>
     fun findByUserIdAndEntryDateBetween(userId: Long, startDate: LocalDate, endDate: LocalDate): List<HealthEntry>
 }
 

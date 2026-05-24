@@ -109,7 +109,7 @@ class HealthShieldService(
         }
 
         // 4. Wellbeing & Symptoms
-        val entry = healthEntryRepository.findByUserIdAndEntryDate(user.id, date)
+        val entry = healthEntryRepository.findByUserIdAndEntryDateOrderByCreatedAtDesc(user.id, date).firstOrNull()
         if (entry != null) {
             // Wellbeing score applies points
             wellbeingPoints = 15

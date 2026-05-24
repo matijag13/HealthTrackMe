@@ -6,7 +6,7 @@ import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
 
 @RestController
-@RequestMapping("/api/health-shield")
+@RequestMapping(value = ["/api/health-shield", "/api/v1/health-shield"])
 @CrossOrigin(origins = ["*"])
 class HealthShieldController(
     private val healthShieldService: HealthShieldService

@@ -24,10 +24,14 @@ data class CreateUserRequest(
 )
 
 data class UpdateUserRequest(
+    val email: String?,
     val firstName: String?,
     val lastName: String?,
+    val dateOfBirth: String?,
+    val userType: String?,
     val medicalConditions: String?,
-    val allergies: String?
+    val allergies: String?,
+    val isActive: Boolean?
 )
 
 data class ChangePasswordRequest(

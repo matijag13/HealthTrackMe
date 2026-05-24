@@ -1,23 +1,67 @@
 import 'package:flutter/material.dart';
-import '../widgets/widgets.dart';
-import '../services/api_service.dart';
+import 'package:flutter/services.dart';
 import '../models/models.dart';
+import '../services/api_service.dart';
+import '../widgets/widgets.dart';
 
 class ReportsScreen extends StatefulWidget {
-  const ReportsScreen({Key? key}) : super(key: key);
+  const ReportsScreen({super.key});
 
   @override
   State<ReportsScreen> createState() => _ReportsScreenState();
 }
 
 class _ReportsScreenState extends State<ReportsScreen> {
-  final ApiService apiService = ApiService();
-  late Future<HealthReport> report;
+  final ApiService _api = ApiService.instance;
+  late Future<HealthReport> _future;
 
   @override
   void initState() {
     super.initState();
-    report = apiService.getMonthlyReport(DateTime.now());
+    _future = _load();
+  }
+
+  Future<HealthReport> _load() => _api.getMonthlyReport(DateTime.now());
+
+  Future<void> _refresh() async {
+    setState(() => _future = _load());
+    await _future;
+  }
+
+  Future<void> _copySummary() async {
+    final summary = await _api.getHealthSummary();
+    if (!mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
+    if (summary == null || summary.isEmpty) {
+      messenger.showSnackBar(const SnackBar(content: Text('Povzetek trenutno ni na voljo.')));
+      return;
+    }
+    await Clipboard.setData(ClipboardData(text: summary));
+    messenger.showSnackBar(const SnackBar(content: Text('Povzetek kopiran v odložišče ✅')));
+  }
+
+  String _monthLabel(DateTime month) {
+    const months = [
+      'januar',
+      'februar',
+      'marec',
+      'april',
+      'maj',
+      'junij',
+      'julij',
+      'avgust',
+      'september',
+      'oktober',
+      'november',
+      'december',
+    ];
+    return '${months[month.month - 1]} ${month.year}';
+  }
+
+  String _formatSleep(double hours) {
+    final wholeHours = hours.floor();
+    final minutes = ((hours - wholeHours) * 60).round();
+    return '${wholeHours}h ${minutes.toString().padLeft(2, '0')}m';
   }
 
   @override
@@ -27,331 +71,263 @@ class _ReportsScreenState extends State<ReportsScreen> {
         title: Row(
           children: [
             RichText(
-              text: TextSpan(
+              text: const TextSpan(
                 text: 'Health',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700,
-                  color: Colors.white,
-                ),
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Colors.white),
                 children: [
-                  TextSpan(
-                    text: 'Track',
-                    style: TextStyle(color: AppColors.teal),
-                  ),
+                  TextSpan(text: 'Track', style: TextStyle(color: AppColors.teal)),
                   TextSpan(text: 'Me'),
                 ],
               ),
             ),
-            Spacer(),
+            const Spacer(),
             Text(
-              'Maj 2025',
-              style: TextStyle(
-                fontSize: 12,
-                color: Colors.white.withValues(alpha: 0.7),
-              ),
+              _monthLabel(DateTime.now()),
+              style: TextStyle(fontSize: 12, color: Colors.white.withValues(alpha: 0.7)),
             ),
           ],
         ),
+        actions: [
+          IconButton(onPressed: _refresh, icon: const Icon(Icons.refresh)),
+        ],
       ),
-      body: SingleChildScrollView(
-        padding: EdgeInsets.all(14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Report Header
-            Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [AppColors.teal, Color(0xFF1a9e94)],
-                ),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              padding: EdgeInsets.all(14),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+      body: RefreshIndicator(
+        onRefresh: _refresh,
+        child: FutureBuilder<HealthReport>(
+          future: _future,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            if (snapshot.hasError) {
+              return ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
                 children: [
-                  Text(
-                    '📄 Poročilo za zdravnika',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.white,
-                    ),
-                  ),
-                  SizedBox(height: 2),
-                  Text(
-                    'Mesečni povzetek · Maj 2025',
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: Colors.white.withValues(alpha: 0.8),
-                    ),
-                  ),
-                  SizedBox(height: 10),
-                  SizedBox(
-                    height: 34,
-                    child: ElevatedButton.icon(
-                      onPressed: () {},
-                      icon: Icon(Icons.download, size: 16),
-                      label: Text('Izvozi PDF'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.white.withValues(alpha: 0.2),
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                          side: BorderSide(
-                            color: Colors.white.withValues(alpha: 0.4),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
+                  const SizedBox(height: 120),
+                  Center(child: Text('Napaka pri nalaganju poročila: ${snapshot.error}')),
                 ],
-              ),
-            ),
-            SizedBox(height: 12),
+              );
+            }
 
-            // Trends
-            FutureBuilder<HealthReport>(
-              future: report,
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return Center(child: CircularProgressIndicator());
-                }
+            final data = snapshot.data ?? HealthReport.fromEntries(month: DateTime.now(), entries: const [], medicines: const []);
+            final String scoreBadge;
+            final Color scoreBadgeColor;
+            final Color scoreBadgeTextColor;
+            if (data.averageWellbeingScore >= 70) {
+              scoreBadge = '✓ Dobro';
+              scoreBadgeColor = const Color(0xFFE8F8F0);
+              scoreBadgeTextColor = AppColors.success;
+            } else if (data.averageWellbeingScore >= 40) {
+              scoreBadge = '⚠ Zmerno';
+              scoreBadgeColor = const Color(0xFFFFF3E0);
+              scoreBadgeTextColor = const Color(0xFFE67E22);
+            } else {
+              scoreBadge = '! Pozor';
+              scoreBadgeColor = const Color(0xFFFDECEA);
+              scoreBadgeTextColor = AppColors.danger;
+            }
 
-                if (snapshot.hasError) {
-                  return Center(child: Text('Error: ${snapshot.error}'));
-                }
-
-                final data = snapshot.data!;
-
-                return Column(
-                  children: [
-                    Card(
-                      child: Padding(
-                        padding: EdgeInsets.all(14),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'TRENDI TA MESEC',
-                              style: Theme.of(context).textTheme.labelSmall,
-                            ),
-                            SizedBox(height: 12),
-                            TrendItem(
-                              icon: '❤️',
-                              name: 'Srčni utrip',
-                              value:
-                                  'Povp. ${data.averageHeartRate.toStringAsFixed(0)} bpm · Max ${data.maxHeartRate} bpm',
-                              badge: '↑ Povišan',
-                              badgeColor: Color(0xFFFFF3E0),
-                              badgeTextColor: Color(0xFFE67E22),
-                            ),
-                            Divider(height: 1, color: AppColors.border),
-                            TrendItem(
-                              icon: '😴',
-                              name: 'Spanje',
-                              value:
-                                  'Povp. ${(data.averageSleep.inHours)}h ${(data.averageSleep.inMinutes % 60).toString().padLeft(2, '0')}min',
-                              badge: '✓ Normalno',
-                              badgeColor: Color(0xFFE8F8F0),
-                              badgeTextColor: AppColors.success,
-                            ),
-                            Divider(height: 1, color: AppColors.border),
-                            TrendItem(
-                              icon: '🚶',
-                              name: 'Dnevni koraki',
-                              value: 'Povp. ${data.averageSteps} korakov',
-                              badge: '↑ Dobro',
-                              badgeColor: AppColors.softBlue,
-                              badgeTextColor: AppColors.blue,
-                            ),
-                            Divider(height: 1, color: AppColors.border),
-                            TrendItem(
-                              icon: '💊',
-                              name: 'Adherenca zdravil',
-                              value:
-                                  '${(data.medicationAdherence * 100).toStringAsFixed(0)}% upoštevanje terapije',
-                              badge: '✓ Dobro',
-                              badgeColor: Color(0xFFE8F8F0),
-                              badgeTextColor: AppColors.success,
-                            ),
-                          ],
-                        ),
-                      ),
+            return ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.all(14),
+              children: [
+                const SectionHeader(
+                  title: 'Poročila',
+                  subtitle: 'Mesečni pregled podatkov in trendov v istem vizualnem slogu kot ostali zasloni.',
+                ),
+                const SizedBox(height: 12),
+                Container(
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [AppColors.teal, Color(0xFF1a9e94)],
                     ),
-                    SizedBox(height: 12),
-
-                    // Common Symptoms
-                    Card(
-                      child: Padding(
-                        padding: EdgeInsets.all(14),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'POGOSTI SIMPTOMI',
-                              style: Theme.of(context).textTheme.labelSmall,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  padding: const EdgeInsets.all(14),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('📄 Poročilo za zdravnika', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Colors.white)),
+                      const SizedBox(height: 2),
+                      Text('Mesečni povzetek · ${_monthLabel(data.month)}', style: TextStyle(fontSize: 11, color: Colors.white.withValues(alpha: 0.8))),
+                      const SizedBox(height: 10),
+                      SizedBox(
+                        height: 34,
+                        child: ElevatedButton.icon(
+                          onPressed: _copySummary,
+                          icon: const Icon(Icons.copy, size: 16),
+                          label: const Text('Kopiraj povzetek'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.white.withValues(alpha: 0.2),
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              side: BorderSide(color: Colors.white.withValues(alpha: 0.4)),
                             ),
-                            SizedBox(height: 12),
-                            ...data.symptomFrequency.entries.map((e) {
-                              final maxCount = data.symptomFrequency.values
-                                  .reduce((a, b) => a > b ? a : b);
-                              final percentage =
-                                  (e.value / maxCount * 100).toInt();
-                              return Padding(
-                                padding: EdgeInsets.only(bottom: 8),
-                                child: Row(
-                                  children: [
-                                    SizedBox(
-                                      width: 80,
-                                      child: Text(
-                                        e.key,
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w500,
-                                          color: AppColors.navy,
-                                        ),
-                                      ),
-                                    ),
-                                    Expanded(
-                                      child: Stack(
-                                        children: [
-                                          Container(
-                                            height: 8,
-                                            decoration: BoxDecoration(
-                                              color: AppColors.border,
-                                              borderRadius:
-                                                  BorderRadius.circular(4),
-                                            ),
-                                          ),
-                                          Container(
-                                            width: (percentage / 100) *
-                                                (MediaQuery.of(context)
-                                                        .size
-                                                        .width -
-                                                    140),
-                                            height: 8,
-                                            decoration: BoxDecoration(
-                                              color: AppColors.blue,
-                                              borderRadius:
-                                                  BorderRadius.circular(4),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    SizedBox(width: 8),
-                                    SizedBox(
-                                      width: 24,
-                                      child: Text(
-                                        '${e.value}x',
-                                        textAlign: TextAlign.right,
-                                        style: TextStyle(
-                                          fontSize: 11,
-                                          color: AppColors.muted,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              );
-                            }).toList(),
-                          ],
+                          ),
                         ),
                       ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(14),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('TRENDI TA MESEC', style: Theme.of(context).textTheme.labelSmall),
+                        const SizedBox(height: 12),
+                        TrendItem(
+                          icon: '✨',
+                          name: 'Povprečno počutje',
+                          value: '${data.averageWellbeingScore.toStringAsFixed(0)} / 100',
+                          badge: scoreBadge,
+                          badgeColor: scoreBadgeColor,
+                          badgeTextColor: scoreBadgeTextColor,
+                        ),
+                        const Divider(height: 1, color: AppColors.border),
+                        TrendItem(
+                          icon: '😴',
+                          name: 'Spanje',
+                          value: data.averageSleepHours > 0 ? 'Povp. ${_formatSleep(data.averageSleepHours)}' : 'Ni podatkov',
+                          badge: data.averageSleepHours >= 7 ? '✓ Normalno' : '↘ Preveri',
+                          badgeColor: data.averageSleepHours >= 7 ? const Color(0xFFE8F8F0) : const Color(0xFFFFF3E0),
+                          badgeTextColor: data.averageSleepHours >= 7 ? AppColors.success : const Color(0xFFE67E22),
+                        ),
+                        const Divider(height: 1, color: AppColors.border),
+                        TrendItem(
+                          icon: '📝',
+                          name: 'Vnosi',
+                          value: '${data.entriesCount} zapisov',
+                          badge: data.entriesCount > 0 ? '✓ Aktivno' : 'Ni podatkov',
+                          badgeColor: AppColors.softBlue,
+                          badgeTextColor: AppColors.blue,
+                        ),
+                        const Divider(height: 1, color: AppColors.border),
+                        TrendItem(
+                          icon: '💊',
+                          name: 'Aktivna zdravila',
+                          value: '${data.activeMedicinesCount} zdravil',
+                          badge: data.activeMedicinesCount > 0 ? '✓ V uporabi' : 'Ni zdravil',
+                          badgeColor: const Color(0xFFE8F8F0),
+                          badgeTextColor: AppColors.success,
+                        ),
+                      ],
                     ),
-                    SizedBox(height: 12),
-
-                    // Share Report
-                    Container(
-                      decoration: BoxDecoration(
-                        color: AppColors.softBlue,
-                        border: Border.all(
-                          color: Color(0xFFBDD9F2),
-                          width: 1.5,
-                        ),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      padding: EdgeInsets.all(14),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(14),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('POGOSTI SIMPTOMI', style: Theme.of(context).textTheme.labelSmall),
+                        const SizedBox(height: 12),
+                        if (data.symptomFrequency.isEmpty)
+                          const Text('Ni simptomov za prikaz.')
+                        else
+                          ...data.symptomFrequency.entries.map((entry) {
+                            final maxCount = data.symptomFrequency.values.reduce((a, b) => a > b ? a : b);
+                            final percentage = maxCount == 0 ? 0 : (entry.value / maxCount * 100).toInt();
+                            return Padding(
+                              padding: const EdgeInsets.only(bottom: 8),
+                              child: Row(
+                                children: [
+                                  SizedBox(
+                                    width: 100,
+                                    child: Text(entry.key, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: AppColors.navy)),
+                                  ),
+                                  Expanded(
+                                    child: Stack(
+                                      children: [
+                                        Container(
+                                          height: 8,
+                                          decoration: BoxDecoration(
+                                            color: AppColors.border,
+                                            borderRadius: BorderRadius.circular(4),
+                                          ),
+                                        ),
+                                        Container(
+                                          width: (percentage / 100) * (MediaQuery.of(context).size.width - 160),
+                                          height: 8,
+                                          decoration: BoxDecoration(
+                                            color: AppColors.blue,
+                                            borderRadius: BorderRadius.circular(4),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  SizedBox(
+                                    width: 28,
+                                    child: Text('${entry.value}x', textAlign: TextAlign.right, style: const TextStyle(fontSize: 11, color: AppColors.muted)),
+                                  ),
+                                ],
+                              ),
+                            );
+                          }),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Container(
+                  decoration: BoxDecoration(
+                    color: AppColors.softBlue,
+                    border: Border.all(color: const Color(0xFFBDD9F2), width: 1.5),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  padding: const EdgeInsets.all(14),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('📤 Povezava z zdravnikom', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.navy)),
+                      const SizedBox(height: 6),
+                      const Text('Povzetek lahko kopiraš in ga pošlješ preko e-pošte ali drugih kanalov.'),
+                      const SizedBox(height: 10),
+                      Row(
                         children: [
-                          Text(
-                            '📤 Pošlji zdravniku',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.navy,
+                          Expanded(
+                            child: ElevatedButton(
+                              onPressed: _copySummary,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.blue,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                              ),
+                              child: const Text('Kopiraj'),
                             ),
                           ),
-                          SizedBox(height: 6),
-                          Text(
-                            'PDF poročilo bo vključevalo vse trende, zdravila in simptome.',
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: AppColors.muted,
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: ElevatedButton(
+                              onPressed: _refresh,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.white,
+                                foregroundColor: AppColors.blue,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                  side: const BorderSide(color: AppColors.blue, width: 1.5),
+                                ),
+                              ),
+                              child: const Text('Osveži'),
                             ),
-                          ),
-                          SizedBox(height: 10),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: ElevatedButton(
-                                  onPressed: () {},
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: AppColors.blue,
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                  ),
-                                  child: Text(
-                                    'Email',
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.w600,
-                                      fontSize: 12,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              SizedBox(width: 8),
-                              Expanded(
-                                child: ElevatedButton(
-                                  onPressed: () {},
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: Colors.white,
-                                    foregroundColor: AppColors.blue,
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(8),
-                                      side: BorderSide(
-                                        color: AppColors.blue,
-                                        width: 1.5,
-                                      ),
-                                    ),
-                                  ),
-                                  child: Text(
-                                    'WhatsApp',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.w600,
-                                      fontSize: 12,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ],
                           ),
                         ],
                       ),
-                    ),
-                  ],
-                );
-              },
-            ),
-            SizedBox(height: 20),
-          ],
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 20),
+              ],
+            );
+          },
         ),
       ),
     );

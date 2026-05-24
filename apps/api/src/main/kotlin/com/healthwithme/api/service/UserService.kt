@@ -52,12 +52,25 @@ class UserService(
     fun updateUser(id: Long, request: UpdateUserRequest): UserDto {
         val user = userRepository.findById(id)
             .orElseThrow { IllegalArgumentException("User not found") }
+
+        val normalizedEmail = request.email?.trim().orEmpty()
+        if (normalizedEmail.isNotEmpty() && normalizedEmail != user.email && userRepository.existsByEmail(normalizedEmail)) {
+            throw IllegalArgumentException("Email already exists")
+        }
+
+        val normalizedUserType = request.userType?.trim()?.takeIf { it.isNotEmpty() }?.let {
+            com.healthwithme.api.model.UserType.valueOf(it)
+        } ?: user.userType
         
         val updatedUser = user.copy(
+            email = if (normalizedEmail.isNotEmpty()) normalizedEmail else user.email,
             firstName = request.firstName ?: user.firstName,
             lastName = request.lastName ?: user.lastName,
+            dateOfBirth = request.dateOfBirth ?: user.dateOfBirth,
+            userType = normalizedUserType,
             medicalConditions = request.medicalConditions ?: user.medicalConditions,
             allergies = request.allergies ?: user.allergies,
+            isActive = request.isActive ?: user.isActive,
             updatedAt = LocalDateTime.now()
         )
         

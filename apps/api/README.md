@@ -314,6 +314,18 @@ Windows:
 
 The API will be available at `http://localhost:8080`
 
+### Seeded demo accounts
+
+On startup, Flyway inserts one admin account and a few demo users so the backend is not empty after a fresh database setup.
+
+| Role | Email | Password |
+| --- | --- | --- |
+| Admin | `admin@healthtrackme.local` | `Admin@12345` |
+| User | `ana.novak@example.com` | `Demo@12345` |
+| User | `luka.horvat@example.com` | `Demo@12345` |
+| User | `maja.kovac@example.com` | `Demo@12345` |
+| User | `nina.zupan@example.com` | `Demo@12345` |
+
 ## Database
 
 The backend uses PostgreSQL, Spring Data JPA/Hibernate, and Flyway migrations. The `users` table is the central table, while health entries, medicines, sleep, and sport activities are connected to the user via foreign key relationships.
@@ -408,4 +420,5 @@ The pipeline checks:
 
 ### Health Shield
 
-- `GET /api/health-shield/{userId}` - Get user's current Health Shield status
+- `GET /api/v1/health-shield/{userId}` - Get user's current Health Shield status
+- `GET /api/health-shield/{userId}` - Legacy route (still supported)
