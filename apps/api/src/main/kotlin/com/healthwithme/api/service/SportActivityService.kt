@@ -58,6 +58,17 @@ class SportActivityService(
             .map { toActivityDto(it) }
     }
 
+    /**
+     * Return raw SportActivity entities for a given user. Useful for admin/debug clients
+     * that need the full entity instead of DTOs.
+     */
+    fun getRawActivitiesByUser(userId: Long): List<SportActivity> {
+        userRepository.findById(userId)
+            .orElseThrow { IllegalArgumentException("User not found") }
+
+        return activityRepository.findByUserIdOrderByActivityDateDesc(userId)
+    }
+
     fun deleteActivity(id: Long): Boolean {
         activityRepository.findById(id)
             .orElseThrow { IllegalArgumentException("Activity not found") }

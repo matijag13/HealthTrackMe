@@ -5,6 +5,7 @@ import com.healthwithme.api.dto.UpdateUserRequest
 import com.healthwithme.api.dto.UserDto
 import com.healthwithme.api.model.User
 import com.healthwithme.api.repository.UserRepository
+import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.stereotype.Service
 import java.time.LocalDateTime
@@ -14,6 +15,7 @@ class UserService(
     private val userRepository: UserRepository,
     private val passwordEncoder: PasswordEncoder
 ) {
+    private val objectMapper = jacksonObjectMapper()
 
     fun createUser(request: CreateUserRequest): UserDto {
         if (userRepository.existsByEmail(request.email)) {
@@ -76,9 +78,9 @@ class UserService(
             emergencyContactName = request.emergencyContactName ?: user.emergencyContactName,
             emergencyContactPhone = request.emergencyContactPhone ?: user.emergencyContactPhone,
             chronicConditions = request.chronicConditions?.joinToString(",") ?: user.chronicConditions,
-            pastSurgeries = request.pastSurgeries?.let { com.fasterxml.jackson.module.kotlin.jacksonObjectMapper().writeValueAsString(it) } ?: user.pastSurgeries,
-            familyHistory = request.familyHistory?.let { com.fasterxml.jackson.module.kotlin.jacksonObjectMapper().writeValueAsString(it) } ?: user.familyHistory,
-            vaccinations = request.vaccinations?.let { com.fasterxml.jackson.module.kotlin.jacksonObjectMapper().writeValueAsString(it) } ?: user.vaccinations,
+            pastSurgeries = request.pastSurgeries?.let { objectMapper.writeValueAsString(it) } ?: user.pastSurgeries,
+            familyHistory = request.familyHistory?.let { objectMapper.writeValueAsString(it) } ?: user.familyHistory,
+            vaccinations = request.vaccinations?.let { objectMapper.writeValueAsString(it) } ?: user.vaccinations,
             organDonor = request.organDonor ?: user.organDonor,
             doctorName = request.doctorName ?: user.doctorName,
             doctorClinic = request.doctorClinic ?: user.doctorClinic,
@@ -104,7 +106,8 @@ class UserService(
     }
 
     fun getAllUsers(): List<UserDto> {
-        return userRepository.findAll().map { toUserDto(it) }
+        // Return only active users with essential data (no profile photos to reduce payload)
+        return userRepository.findAllByIsActiveTrue().map { toUserDtoWithoutPhoto(it) }
     }
 
     private fun toUserDto(user: User): UserDto {
@@ -122,10 +125,10 @@ class UserService(
             bloodType = user.bloodType,
             emergencyContactName = user.emergencyContactName,
             emergencyContactPhone = user.emergencyContactPhone,
-            chronicConditions = user.chronicConditions?.split(",")?.map { it.trim() } ?: emptyList(),
-            pastSurgeries = user.pastSurgeries?.let { com.fasterxml.jackson.module.kotlin.jacksonObjectMapper().readValue(it, List::class.java) as List<Map<String, Any> > } ?: emptyList(),
-            familyHistory = user.familyHistory?.let { com.fasterxml.jackson.module.kotlin.jacksonObjectMapper().readValue(it, List::class.java) as List<Map<String, Any> > } ?: emptyList(),
-            vaccinations = user.vaccinations?.let { com.fasterxml.jackson.module.kotlin.jacksonObjectMapper().readValue(it, List::class.java) as List<Map<String, Any> > } ?: emptyList(),
+            chronicConditions = user.chronicConditions?.split(",")?.map { it.trim() }?.filter { it.isNotEmpty() } ?: emptyList(),
+            pastSurgeries = parseJsonField(user.pastSurgeries),
+            familyHistory = parseJsonField(user.familyHistory),
+            vaccinations = parseJsonField(user.vaccinations),
             organDonor = user.organDonor,
             doctorName = user.doctorName,
             doctorClinic = user.doctorClinic,
@@ -135,6 +138,50 @@ class UserService(
             profilePhotoBase64 = user.profilePhotoBase64,
             isActive = user.isActive
         )
+    }
+
+    private fun toUserDtoWithoutPhoto(user: User): UserDto {
+        // Lightweight version without profile photo for list operations
+        return UserDto(
+            id = user.id,
+            email = user.email,
+            firstName = user.firstName,
+            lastName = user.lastName,
+            dateOfBirth = user.dateOfBirth,
+            userType = user.userType.toString(),
+            medicalConditions = user.medicalConditions,
+            allergies = user.allergies,
+            height = user.height,
+            weight = user.weight,
+            bloodType = user.bloodType,
+            emergencyContactName = user.emergencyContactName,
+            emergencyContactPhone = user.emergencyContactPhone,
+            chronicConditions = user.chronicConditions?.split(",")?.map { it.trim() }?.filter { it.isNotEmpty() } ?: emptyList(),
+            pastSurgeries = parseJsonField(user.pastSurgeries),
+            familyHistory = parseJsonField(user.familyHistory),
+            vaccinations = parseJsonField(user.vaccinations),
+            organDonor = user.organDonor,
+            doctorName = user.doctorName,
+            doctorClinic = user.doctorClinic,
+            doctorPhone = user.doctorPhone,
+            insuranceProvider = user.insuranceProvider,
+            insurancePolicyNumber = user.insurancePolicyNumber,
+            profilePhotoBase64 = null, // Don't return photo in list operations
+            isActive = user.isActive
+        )
+    }
+
+    private fun parseJsonField(jsonString: String?): List<Map<String, Any>> {
+        return if (!jsonString.isNullOrEmpty()) {
+            try {
+                @Suppress("UNCHECKED_CAST")
+                objectMapper.readValue(jsonString, List::class.java) as List<Map<String, Any>>
+            } catch (e: Exception) {
+                emptyList()
+            }
+        } else {
+            emptyList()
+        }
     }
 
     fun saveProfilePhoto(userId: Long, base64: String): UserDto {

@@ -26,6 +26,13 @@ class _LogScreenState extends State<LogScreen> with AutomaticKeepAliveClientMixi
   TimeOfDay? waketime;
   int sleepQualityStars = 3;
 
+  // Sleep tracking checkboxes
+  bool hadDreams = false;
+  bool wokeUpDuringNight = false;
+  bool usedSleepAid = false;
+  bool menstrualCycleTracking = false;
+  double painLevel = 0;
+
   // Vitals
   final TextEditingController weightController = TextEditingController();
   bool weightIsKg = true;
@@ -53,12 +60,14 @@ class _LogScreenState extends State<LogScreen> with AutomaticKeepAliveClientMixi
   List<String> symptomOptions = ['Headache', 'Dizziness', 'Pain', 'Fatigue', 'Nausea', 'Shortness of breath', 'High stress'];
   List<String> tags = ['work', 'family', 'travel', 'sick', 'period', 'hangover'];
   final TextEditingController customTagController = TextEditingController();
+  List<String> selectedTags = [];
 
   // State
   bool _loading = true;
   List<HealthEntry> _entries = [];
   bool _todayLogged = false;
   HealthEntry? _todayEntry;
+  bool _saving = false;
 
   final List<String> moods = ['😰', '😔', '😐', '😊', '🤩'];
 
@@ -90,7 +99,14 @@ class _LogScreenState extends State<LogScreen> with AutomaticKeepAliveClientMixi
     energyLevel = (e.energyLevel ?? 50).toDouble();
     stressLevel = (e.stressLevel ?? 50).toDouble();
     sleepHours = e.sleepHours ?? 8.0;
-    notesController.text = e.notes ?? '';
+    // Parse notes - if it looks like a map toString, extract just the notes field
+    final raw = e.notes ?? '';
+    if (raw.startsWith('{') && raw.contains('notes:')) {
+      final match = RegExp(r'notes: ([^,}]+)').firstMatch(raw);
+      notesController.text = match?.group(1)?.trim() ?? '';
+    } else {
+      notesController.text = raw;
+    }
     selectedSymptoms = List.from(e.symptoms);
   }
 
@@ -106,6 +122,8 @@ class _LogScreenState extends State<LogScreen> with AutomaticKeepAliveClientMixi
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please select an account in Profile first.')));
       return;
     }
+
+    setState(() => _saving = true);
 
     final vitals = {
       'weight': weightController.text,
@@ -130,6 +148,15 @@ class _LogScreenState extends State<LogScreen> with AutomaticKeepAliveClientMixi
       'vitals': vitals,
       'nutrition': nutrition,
       'tags': tags,
+      'sleep': {
+        'hadDreams': hadDreams,
+        'wokeUpDuringNight': wokeUpDuringNight,
+        'usedSleepAid': usedSleepAid,
+        'bedtime': bedtime?.format(context) ?? '',
+        'waketime': waketime?.format(context) ?? '',
+      },
+      'pain': painLevel,
+      'menstrualTracking': menstrualCycleTracking,
     };
 
     final entry = HealthEntry(
@@ -140,36 +167,43 @@ class _LogScreenState extends State<LogScreen> with AutomaticKeepAliveClientMixi
       mood: selectedMood,
       energyLevel: energyLevel.round(),
       sleepHours: sleepHours,
-      sleepQuality: sleepQualityStars >= 4 ? 'GOOD' : (sleepQualityStars >= 2 ? 'FAIR' : 'POOR'),
-      stressLevel: stressLevel.round(),
-      notes: payloadNotes.toString(),
-    );
+       sleepQuality: sleepQualityStars >= 4 ? 'GOOD' : (sleepQualityStars >= 2 ? 'FAIR' : 'POOR'),
+       stressLevel: stressLevel.round(),
+       notes: notesController.text.trim(),
+     );
 
     try {
       await _api.createHealthEntry(entry, userId: activeUserId);
       if (!mounted) return;
-      await _showSuccessAndExit();
+      setState(() => _saving = false);
+
+      // Show success then reload - use a local context reference
+      final ctx = context;
+      if (!mounted) return;
+
+      await showDialog(
+        context: ctx,
+        barrierDismissible: false,
+        builder: (_) => const Center(child: _SuccessAnim()),
+      );
+
+      if (mounted) await _loadEntries();
     } catch (e) {
       if (!mounted) return;
+      setState(() => _saving = false);
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to save: $e')));
     }
   }
 
   Future<void> _showSuccessAndExit() async {
-    // Simple success animation dialog then navigate home
     if (!mounted) return;
-    showDialog(
+    await showDialog(
       context: context,
       barrierDismissible: false,
       builder: (context) {
         return const Center(child: _SuccessAnim());
       },
     );
-    await Future.delayed(const Duration(milliseconds: 800));
-    if (!mounted) return;
-    Navigator.of(context).pop();
-    // Go back to home/root
-    if (mounted) context.goNamed('home');
   }
 
   void _addCustomTag() {
@@ -259,136 +293,142 @@ class _LogScreenState extends State<LogScreen> with AutomaticKeepAliveClientMixi
       ),
       body: _loading
           ? Center(child: Padding(padding: const EdgeInsets.all(16), child: LoadingSkeleton.profile(context)))
-          : SingleChildScrollView(
-              padding: const EdgeInsets.all(12),
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                if (_todayLogged)
-                  Card(
-                    color: AppColors.softBlue,
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                      child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                        Row(children: const [Icon(Icons.check_circle, color: AppColors.success), SizedBox(width: 8), Text('✅ Today logged')]),
-                        TextButton(onPressed: () {}, child: const Text('Edit')),
-                      ]),
-                    ),
-                  ),
-                const SizedBox(height: 10),
+          : Stack(
+              children: [
+                SingleChildScrollView(
+                  padding: const EdgeInsets.all(12),
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    if (_todayLogged)
+                      Card(
+                        color: AppColors.softBlue,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                          child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                            Row(children: const [Icon(Icons.check_circle, color: AppColors.success), SizedBox(width: 8), Text('✅ Today logged')]),
+                            TextButton(onPressed: () => setState(() => _todayLogged = false), child: const Text('Edit')),
+                          ]),
+                        ),
+                      ),
+                    const SizedBox(height: 10),
 
-                // SECTION 1 - Mood & quick
-                ExpansionTile(
-                  initiallyExpanded: true,
-                  title: const Text('How do you feel?'),
-                  children: [
-                    const SizedBox(height: 8),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      children: moods
-                          .map(
-                            (m) => GestureDetector(
-                              onTap: () => setState(() => selectedMood = m),
-                              child: Container(
-                                width: 52,
-                                height: 52,
-                                decoration: BoxDecoration(
-                                  color: selectedMood == m ? AppColors.softBlue : Colors.transparent,
-                                  shape: BoxShape.circle,
-                                  border: Border.all(
-                                    color: selectedMood == m ? AppColors.blue : AppColors.border,
-                                    width: 2.5,
+                    // SECTION 1 - Mood & quick
+                    ExpansionTile(
+                      initiallyExpanded: true,
+                      title: const Text('How do you feel?'),
+                      children: [
+                        const SizedBox(height: 8),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                          children: moods
+                              .map(
+                                (m) => GestureDetector(
+                                  onTap: () => setState(() => selectedMood = m),
+                                  child: Container(
+                                    width: 52,
+                                    height: 52,
+                                    decoration: BoxDecoration(
+                                      color: selectedMood == m ? AppColors.softBlue : Colors.transparent,
+                                      shape: BoxShape.circle,
+                                      border: Border.all(
+                                        color: selectedMood == m ? AppColors.blue : AppColors.border,
+                                        width: 2.5,
+                                      ),
+                                    ),
+                                    child: Center(child: Text(m, style: const TextStyle(fontSize: 24))),
                                   ),
                                 ),
-                                child: Center(child: Text(m, style: const TextStyle(fontSize: 24))),
-                              ),
-                            ),
-                          )
-                          .toList(),
+                              )
+                              .toList(),
+                        ),
+                        const SizedBox(height: 12),
+                        const Text('Energy'),
+                        HealthSlider(value: energyLevel, onChanged: (v) => setState(() => energyLevel = v), leftLabel: '0', rightLabel: '100'),
+                        const SizedBox(height: 8),
+                        const Text('Stress'),
+                        HealthSlider(value: stressLevel, onChanged: (v) => setState(() => stressLevel = v), leftLabel: '0', rightLabel: '100', sliderColor: AppColors.danger),
+                        const SizedBox(height: 8),
+                        TextField(controller: notesController, minLines: 3, maxLines: 5, decoration: InputDecoration(hintText: 'How was your day?', border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)))),
+                        const SizedBox(height: 8),
+                        Wrap(spacing: 6, children: tags.map((t) => FilterChip(
+                          label: Text('#$t'),
+                          selected: selectedTags.contains(t),
+                          onSelected: (v) => setState(() => v ? selectedTags.add(t) : selectedTags.remove(t)),
+                          selectedColor: AppColors.softBlue,
+                          checkmarkColor: AppColors.blue,
+                        )).toList()),
+                        const SizedBox(height: 6),
+                        Row(children: [Expanded(child: TextField(controller: customTagController, decoration: InputDecoration(hintText: 'Add tag', border: OutlineInputBorder(borderRadius: BorderRadius.circular(8))))), const SizedBox(width: 8), ElevatedButton(onPressed: _addCustomTag, child: const Text('Add'))]),
+                        const SizedBox(height: 8),
+                        Wrap(spacing: 6, children: symptomOptions.map((s) => SymptomChip(label: s, isSelected: selectedSymptoms.contains(s), onTap: () => setState(() => selectedSymptoms.contains(s) ? selectedSymptoms.remove(s) : selectedSymptoms.add(s)))).toList()),
+                        const SizedBox(height: 8),
+                      ],
                     ),
-                    const SizedBox(height: 12),
-                    const Text('Energy'),
-                    HealthSlider(value: energyLevel, onChanged: (v) => setState(() => energyLevel = v), leftLabel: '0', rightLabel: '100'),
-                    const SizedBox(height: 8),
-                    const Text('Stress'),
-                    HealthSlider(value: stressLevel, onChanged: (v) => setState(() => stressLevel = v), leftLabel: '0', rightLabel: '100', sliderColor: AppColors.danger),
-                    const SizedBox(height: 8),
-                    TextField(controller: notesController, minLines: 3, maxLines: 5, decoration: InputDecoration(hintText: 'How was your day?', border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)))),
-                    const SizedBox(height: 8),
-                    Wrap(spacing: 6, children: tags.map((t) => ActionChip(label: Text('#$t'), onPressed: () {})).toList()),
-                    const SizedBox(height: 6),
-                    Row(children: [Expanded(child: TextField(controller: customTagController, decoration: InputDecoration(hintText: 'Add tag', border: OutlineInputBorder(borderRadius: BorderRadius.circular(8))))), const SizedBox(width: 8), ElevatedButton(onPressed: _addCustomTag, child: const Text('Add'))]),
-                    const SizedBox(height: 8),
-                    Wrap(spacing: 6, children: symptomOptions.map((s) => SymptomChip(label: s, isSelected: selectedSymptoms.contains(s), onTap: () => setState(() => selectedSymptoms.contains(s) ? selectedSymptoms.remove(s) : selectedSymptoms.add(s)))).toList()),
-                    const SizedBox(height: 8),
-                  ],
+
+                    // SECTION 2 - Vitals
+                    ExpansionTile(title: const Text('Vitals'), children: [
+                      const SizedBox(height: 8),
+                      Row(children: [Expanded(child: TextField(controller: weightController, keyboardType: TextInputType.numberWithOptions(decimal: true), decoration: InputDecoration(labelText: 'Weight', border: OutlineInputBorder(borderRadius: BorderRadius.circular(8))))), const SizedBox(width: 8), DropdownButton<bool>(value: weightIsKg, items: const [DropdownMenuItem(value: true, child: Text('kg')), DropdownMenuItem(value: false, child: Text('lb'))], onChanged: (v) => setState(() => weightIsKg = v ?? true))]),
+                      const SizedBox(height: 8),
+                      Row(children: [Expanded(child: TextField(controller: heartController, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: 'Heart rate (bpm)', border: OutlineInputBorder(borderRadius: BorderRadius.circular(8))))), const SizedBox(width: 8), IconButton(onPressed: () => _showInfo('Resting heart rate', 'Measure resting HR for 1 minute, device should be at rest'), icon: const Icon(Icons.info_outline))]),
+                      const SizedBox(height: 8),
+                      Row(children: [Expanded(child: TextField(controller: systolicController, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: 'Systolic', border: OutlineInputBorder(borderRadius: BorderRadius.circular(8))))), const SizedBox(width: 8), Expanded(child: TextField(controller: diastolicController, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: 'Diastolic', border: OutlineInputBorder(borderRadius: BorderRadius.circular(8))))), const SizedBox(width: 8), IconButton(onPressed: () => _showInfo('Blood pressure', 'Normal: ~120/80 mmHg'), icon: const Icon(Icons.info_outline))]),
+                      const SizedBox(height: 8),
+                      Row(children: [Expanded(child: TextField(controller: glucoseController, keyboardType: TextInputType.numberWithOptions(decimal: true), decoration: InputDecoration(labelText: 'Blood glucose', border: OutlineInputBorder(borderRadius: BorderRadius.circular(8))))), const SizedBox(width: 8), DropdownButton<bool>(value: glucoseIsMg, items: const [DropdownMenuItem(value: false, child: Text('mmol/L')), DropdownMenuItem(value: true, child: Text('mg/dL'))], onChanged: (v) => setState(() => glucoseIsMg = v ?? false))]),
+                      const SizedBox(height: 8),
+                      Row(children: [Expanded(child: TextField(controller: tempController, keyboardType: TextInputType.numberWithOptions(decimal: true), decoration: InputDecoration(labelText: 'Temperature', border: OutlineInputBorder(borderRadius: BorderRadius.circular(8))))), const SizedBox(width: 8), DropdownButton<bool>(value: tempIsC, items: const [DropdownMenuItem(value: true, child: Text('°C')), DropdownMenuItem(value: false, child: Text('°F'))], onChanged: (v) => setState(() => tempIsC = v ?? true))]),
+                      const SizedBox(height: 8),
+                      TextField(controller: spo2Controller, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: 'SpO2 (%)', border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)))),
+                      const SizedBox(height: 8),
+                    ]),
+
+                    // SECTION 3 - Sleep
+                    ExpansionTile(title: const Text('Sleep'), children: [
+                      const SizedBox(height: 8),
+                      Row(children: [Expanded(child: Text('Duration: ${sleepHours.toStringAsFixed(1)} h')), Slider(value: sleepHours, min: 0, max: 12, divisions: 24, onChanged: (v) => setState(() => sleepHours = v))]),
+                      const SizedBox(height: 8),
+                      Row(children: [Expanded(child: Text('Bedtime')), const SizedBox(width: 8), TextButton(onPressed: () async { final t = await showTimePicker(context: context, initialTime: bedtime ?? TimeOfDay(hour: 23, minute: 0)); if (t != null) setState(() => bedtime = t); }, child: Text(bedtime?.format(context) ?? '23:00')) , const SizedBox(width: 16), Expanded(child: Text('Wake')), const SizedBox(width: 8), TextButton(onPressed: () async { final t = await showTimePicker(context: context, initialTime: waketime ?? TimeOfDay(hour: 7, minute: 30)); if (t != null) setState(() => waketime = t); }, child: Text(waketime?.format(context) ?? '07:30'))]),
+                      const SizedBox(height: 8),
+                      Row(children: List.generate(5, (i) => IconButton(icon: Icon(i < sleepQualityStars ? Icons.star : Icons.star_border, color: AppColors.navy), onPressed: () => setState(() => sleepQualityStars = i + 1)))),
+                      const SizedBox(height: 8),
+                      CheckboxListTile(title: const Text('Had dreams'), value: hadDreams, onChanged: (v) => setState(() => hadDreams = v ?? false)),
+                      CheckboxListTile(title: const Text('Woke up during night'), value: wokeUpDuringNight, onChanged: (v) => setState(() => wokeUpDuringNight = v ?? false)),
+                      CheckboxListTile(title: const Text('Used sleep aid'), value: usedSleepAid, onChanged: (v) => setState(() => usedSleepAid = v ?? false)),
+                    ]),
+
+                    // SECTION 4 - Activity & Steps
+                    ExpansionTile(title: const Text('Activity & Steps'), children: [
+                      const SizedBox(height: 8),
+                      Row(children: [Expanded(child: TextField(controller: stepsController, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: 'Steps', border: OutlineInputBorder(borderRadius: BorderRadius.circular(8))))), const SizedBox(width: 8), ElevatedButton(onPressed: () => setState(() => stepsController.text = ((int.tryParse(stepsController.text) ?? 0) + 200).toString()), child: const Text('+200'))]),
+                      const SizedBox(height: 8),
+                      TextField(controller: activeMinutesController, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: 'Active minutes', border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)))),
+                      const SizedBox(height: 8),
+                      ElevatedButton.icon(onPressed: _openActivityBottomSheet, icon: const Icon(Icons.add), label: const Text('Add Workout')),
+                    ]),
+
+                    // SECTION 5 - Nutrition
+                    ExpansionTile(title: const Text('Nutrition'), children: [
+                      const SizedBox(height: 8),
+                      Row(children: [Expanded(child: TextField(controller: waterController, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: 'Water (ml)', border: OutlineInputBorder(borderRadius: BorderRadius.circular(8))))), const SizedBox(width: 8), ElevatedButton(onPressed: () => setState(() => waterController.text = ((int.tryParse(waterController.text) ?? 0) + 200).toString()), child: const Text('+200ml'))]),
+                      const SizedBox(height: 8),
+                      TextField(controller: caloriesController, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: 'Calories consumed', border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)))),
+                      const SizedBox(height: 8),
+                      Row(children: [const Text('Alcohol units'), const SizedBox(width: 8), IconButton(onPressed: () => setState(() => alcoholUnits = (alcoholUnits - 1).clamp(0, 10)), icon: const Icon(Icons.remove)), Text('$alcoholUnits'), IconButton(onPressed: () => setState(() => alcoholUnits = (alcoholUnits + 1).clamp(0, 10)), icon: const Icon(Icons.add))]),
+                    ]),
+
+                    // SECTION 6 - Additional tracking
+                    ExpansionTile(title: const Text('Additional Tracking'), children: [
+                      const SizedBox(height: 8),
+                      Row(children: [const Text('Pain level'), const SizedBox(width: 12), Expanded(child: Slider(value: painLevel, min: 0, max: 10, divisions: 10, onChanged: (v) => setState(() => painLevel = v)))]),
+                      const SizedBox(height: 8),
+                      CheckboxListTile(title: const Text('Menstrual cycle tracking'), value: menstrualCycleTracking, onChanged: (v) => setState(() => menstrualCycleTracking = v ?? false)),
+                    ]),
+
+                    const SizedBox(height: 16),
+                    SizedBox(height: 56, width: double.infinity, child: ElevatedButton(onPressed: _saving ? null : _saveEntry, style: ElevatedButton.styleFrom(backgroundColor: AppColors.blue, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)), disabledBackgroundColor: AppColors.muted), child: _saving ? const SizedBox(height: 24, width: 24, child: CircularProgressIndicator(color: Colors.white)) : const Text('Save Entry', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)))),
+                    const SizedBox(height: 40),
+                  ]),
                 ),
-
-                // SECTION 2 - Vitals
-                ExpansionTile(title: const Text('Vitals'), children: [
-                  const SizedBox(height: 8),
-                  Row(children: [Expanded(child: TextField(controller: weightController, keyboardType: TextInputType.numberWithOptions(decimal: true), decoration: InputDecoration(labelText: 'Weight', border: OutlineInputBorder(borderRadius: BorderRadius.circular(8))))), const SizedBox(width: 8), DropdownButton<bool>(value: weightIsKg, items: const [DropdownMenuItem(value: true, child: Text('kg')), DropdownMenuItem(value: false, child: Text('lb'))], onChanged: (v) => setState(() => weightIsKg = v ?? true))]),
-                  const SizedBox(height: 8),
-                  Row(children: [Expanded(child: TextField(controller: heartController, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: 'Heart rate (bpm)', border: OutlineInputBorder(borderRadius: BorderRadius.circular(8))))), const SizedBox(width: 8), IconButton(onPressed: () => _showInfo('Resting heart rate', 'Measure resting HR for 1 minute, device should be at rest'), icon: const Icon(Icons.info_outline))]),
-                  const SizedBox(height: 8),
-                  Row(children: [Expanded(child: TextField(controller: systolicController, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: 'Systolic', border: OutlineInputBorder(borderRadius: BorderRadius.circular(8))))), const SizedBox(width: 8), Expanded(child: TextField(controller: diastolicController, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: 'Diastolic', border: OutlineInputBorder(borderRadius: BorderRadius.circular(8))))), const SizedBox(width: 8), IconButton(onPressed: () => _showInfo('Blood pressure', 'Normal: ~120/80 mmHg'), icon: const Icon(Icons.info_outline))]),
-                  const SizedBox(height: 8),
-                  Row(children: [Expanded(child: TextField(controller: glucoseController, keyboardType: TextInputType.numberWithOptions(decimal: true), decoration: InputDecoration(labelText: 'Blood glucose', border: OutlineInputBorder(borderRadius: BorderRadius.circular(8))))), const SizedBox(width: 8), DropdownButton<bool>(value: glucoseIsMg, items: const [DropdownMenuItem(value: false, child: Text('mmol/L')), DropdownMenuItem(value: true, child: Text('mg/dL'))], onChanged: (v) => setState(() => glucoseIsMg = v ?? false))]),
-                  const SizedBox(height: 8),
-                  Row(children: [Expanded(child: TextField(controller: tempController, keyboardType: TextInputType.numberWithOptions(decimal: true), decoration: InputDecoration(labelText: 'Temperature', border: OutlineInputBorder(borderRadius: BorderRadius.circular(8))))), const SizedBox(width: 8), DropdownButton<bool>(value: tempIsC, items: const [DropdownMenuItem(value: true, child: Text('°C')), DropdownMenuItem(value: false, child: Text('°F'))], onChanged: (v) => setState(() => tempIsC = v ?? true))]),
-                  const SizedBox(height: 8),
-                  TextField(controller: spo2Controller, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: 'SpO2 (%)', border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)))),
-                  const SizedBox(height: 8),
-                ]),
-
-                // SECTION 3 - Sleep
-                ExpansionTile(title: const Text('Sleep'), children: [
-                  const SizedBox(height: 8),
-                  Row(children: [Expanded(child: Text('Duration: ${sleepHours.toStringAsFixed(1)} h')), Slider(value: sleepHours, min: 0, max: 12, divisions: 24, onChanged: (v) => setState(() => sleepHours = v))]),
-                  const SizedBox(height: 8),
-                  Row(children: [Expanded(child: Text('Bedtime')), const SizedBox(width: 8), TextButton(onPressed: () async { final t = await showTimePicker(context: context, initialTime: bedtime ?? TimeOfDay(hour: 23, minute: 0)); if (t != null) setState(() => bedtime = t); }, child: Text(bedtime?.format(context) ?? '23:00')) , const SizedBox(width: 16), Expanded(child: Text('Wake')), const SizedBox(width: 8), TextButton(onPressed: () async { final t = await showTimePicker(context: context, initialTime: waketime ?? TimeOfDay(hour: 7, minute: 30)); if (t != null) setState(() => waketime = t); }, child: Text(waketime?.format(context) ?? '07:30'))]),
-                  const SizedBox(height: 8),
-                  Row(children: List.generate(5, (i) => IconButton(icon: Icon(i < sleepQualityStars ? Icons.star : Icons.star_border, color: AppColors.navy), onPressed: () => setState(() => sleepQualityStars = i + 1)))),
-                  const SizedBox(height: 8),
-                  CheckboxListTile(title: const Text('Had dreams'), value: false, onChanged: (_) {}),
-                  CheckboxListTile(title: const Text('Woke up during night'), value: false, onChanged: (_) {}),
-                  CheckboxListTile(title: const Text('Used sleep aid'), value: false, onChanged: (_) {}),
-                ]),
-
-                // SECTION 4 - Activity & Steps
-                ExpansionTile(title: const Text('Activity & Steps'), children: [
-                  const SizedBox(height: 8),
-                  Row(children: [Expanded(child: TextField(controller: stepsController, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: 'Steps', border: OutlineInputBorder(borderRadius: BorderRadius.circular(8))))), const SizedBox(width: 8), ElevatedButton(onPressed: () => setState(() => stepsController.text = ((int.tryParse(stepsController.text) ?? 0) + 200).toString()), child: const Text('+200'))]),
-                  const SizedBox(height: 8),
-                  TextField(controller: activeMinutesController, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: 'Active minutes', border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)))),
-                  const SizedBox(height: 8),
-                  ElevatedButton.icon(onPressed: _openActivityBottomSheet, icon: const Icon(Icons.add), label: const Text('Add Workout')),
-                ]),
-
-                // SECTION 5 - Nutrition
-                ExpansionTile(title: const Text('Nutrition'), children: [
-                  const SizedBox(height: 8),
-                  Row(children: [Expanded(child: TextField(controller: waterController, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: 'Water (ml)', border: OutlineInputBorder(borderRadius: BorderRadius.circular(8))))), const SizedBox(width: 8), ElevatedButton(onPressed: () => setState(() => waterController.text = ((int.tryParse(waterController.text) ?? 0) + 200).toString()), child: const Text('+200ml'))]),
-                  const SizedBox(height: 8),
-                  TextField(controller: caloriesController, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: 'Calories consumed', border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)))),
-                  const SizedBox(height: 8),
-                  Row(children: [const Text('Alcohol units'), const SizedBox(width: 8), IconButton(onPressed: () => setState(() => alcoholUnits = (alcoholUnits - 1).clamp(0, 10)), icon: const Icon(Icons.remove)), Text('$alcoholUnits'), IconButton(onPressed: () => setState(() => alcoholUnits = (alcoholUnits + 1).clamp(0, 10)), icon: const Icon(Icons.add))]),
-                ]),
-
-                // SECTION 6 - Symptoms & Notes
-                ExpansionTile(title: const Text('Symptoms & Health Notes'), children: [
-                  const SizedBox(height: 8),
-                  Wrap(spacing: 6, children: symptomOptions.map((s) => SymptomChip(label: s, isSelected: selectedSymptoms.contains(s), onTap: () => setState(() => selectedSymptoms.contains(s) ? selectedSymptoms.remove(s) : selectedSymptoms.add(s)))).toList()),
-                  const SizedBox(height: 8),
-                  TextField(controller: notesController, minLines: 3, maxLines: 5, decoration: InputDecoration(labelText: 'Note for doctor', border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)))),
-                  const SizedBox(height: 8),
-                  Row(children: [const Text('Pain level'), const SizedBox(width: 12), Expanded(child: Slider(value: (0).toDouble(), min: 0, max: 10, onChanged: (_) {}))]),
-                  const SizedBox(height: 8),
-                  CheckboxListTile(title: const Text('Menstrual cycle tracking'), value: false, onChanged: (_) {}),
-                ]),
-
-                const SizedBox(height: 16),
-                SizedBox(height: 56, width: double.infinity, child: ElevatedButton(onPressed: _saveEntry, style: ElevatedButton.styleFrom(backgroundColor: AppColors.blue, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))), child: const Text('Save Entry', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)))),
-                const SizedBox(height: 40),
-              ]),
+              ],
             ),
     );
   }
@@ -428,8 +468,23 @@ class _SuccessAnimState extends State<_SuccessAnim> with SingleTickerProviderSta
   late final AnimationController _ctr = AnimationController(vsync: this, duration: const Duration(milliseconds: 600))..forward();
 
   @override
+  void initState() {
+    super.initState();
+    Future.delayed(const Duration(milliseconds: 800), () {
+      if (mounted) Navigator.of(context).pop();
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return ScaleTransition(scale: CurvedAnimation(parent: _ctr, curve: Curves.elasticOut), child: Container(padding: const EdgeInsets.all(24), decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)), child: const Icon(Icons.check_circle, size: 84, color: AppColors.success)));
+    return ScaleTransition(
+      scale: CurvedAnimation(parent: _ctr, curve: Curves.elasticOut),
+      child: Container(
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
+        child: const Icon(Icons.check_circle, size: 84, color: AppColors.success),
+      ),
+    );
   }
 
   @override

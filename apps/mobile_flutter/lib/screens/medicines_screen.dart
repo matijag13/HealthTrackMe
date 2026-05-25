@@ -31,6 +31,9 @@ class _MedicinesScreenState extends State<MedicinesScreen> with AutomaticKeepAli
   late Future<List<Medicine>> _future;
   List<Medicine>? _cached;
 
+  // Tracks which medicine IDs were marked taken in the current session/day
+  final Set<int> _takenToday = {};
+
   static const _prefsKeyNotifications = 'med_notification_map_v1';
 
   @override
@@ -102,6 +105,12 @@ class _MedicinesScreenState extends State<MedicinesScreen> with AutomaticKeepAli
     };
   }
 
+  String _adherenceLabel(List<Medicine> meds) {
+    final active = meds.where((m) => m.isActive).length;
+    if (active == 0) return 'Ni aktivnih zdravil';
+    return '$active aktivnih zdravil';
+  }
+
   Widget _buildTopSchedule(List<Medicine> meds) {
     final groups = _groupByTime(meds.where((m) => m.isActive).toList());
     return Card(
@@ -110,8 +119,8 @@ class _MedicinesScreenState extends State<MedicinesScreen> with AutomaticKeepAli
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
             const Text("Today's schedule", style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
-            // TODO: compute real adherence. Use placeholder when not available.
-            Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6), decoration: BoxDecoration(color: Colors.blue.shade50, borderRadius: BorderRadius.circular(16)), child: const Text('87% this month', style: TextStyle(fontWeight: FontWeight.w700, color: Colors.blue))),
+            // Adherence / summary
+            Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6), decoration: BoxDecoration(color: Colors.blue.shade50, borderRadius: BorderRadius.circular(16)), child: Text(_adherenceLabel(meds), style: const TextStyle(fontWeight: FontWeight.w700, color: Colors.blue))),
           ]),
           const SizedBox(height: 8),
           ...groups.entries.where((e) => e.value.isNotEmpty).map((entry) {
@@ -137,9 +146,15 @@ class _MedicinesScreenState extends State<MedicinesScreen> with AutomaticKeepAli
       title: Text(m.name, style: TextStyle(fontWeight: FontWeight.w700, color: isMissed ? Colors.red : null)),
       subtitle: Text(m.dosage ?? m.frequency ?? ''),
       trailing: Checkbox(
-        value: false,
+        value: _takenToday.contains(m.id),
+        activeColor: Colors.green,
         onChanged: (v) async {
-          await _postDose(m.id);
+          if (v == true) {
+            setState(() => _takenToday.add(m.id));
+            await _postDose(m.id);
+          } else {
+            setState(() => _takenToday.remove(m.id));
+          }
         },
       ),
       onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => MedicineDetailPage(medicineId: m.id))),
@@ -210,7 +225,7 @@ class _MedicinesScreenState extends State<MedicinesScreen> with AutomaticKeepAli
   Widget build(BuildContext context) {
     super.build(context);
     return Scaffold(
-      appBar: AppBar(title: const Text('💊 Medicines')),
+      appBar: AppBar(title: const Text('Medicines')),
       body: RefreshIndicator(
         onRefresh: _refresh,
         child: FutureBuilder<List<Medicine>>(
@@ -268,17 +283,42 @@ class _MedicinesTabsState extends State<_MedicinesTabs> {
     final list = _index == 0 ? active : all;
     return Card(
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-          child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-            const Text('All medicines', style: TextStyle(fontWeight: FontWeight.w700)),
-            ToggleButtons(children: const [Padding(padding: EdgeInsets.symmetric(horizontal: 12), child: Text('Active')), Padding(padding: EdgeInsets.symmetric(horizontal: 12), child: Text('All'))], isSelected: [false, false], onPressed: null),
+          Row(children: [
+            Expanded(child: InkWell(
+              onTap: () => setState(() => _index = 0),
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 10),
+                decoration: BoxDecoration(
+                  border: Border(bottom: BorderSide(
+                    color: _index == 0 ? Theme.of(context).primaryColor : Colors.transparent,
+                    width: 2,
+                  )),
+                ),
+                child: Text('Active', textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: _index == 0 ? Theme.of(context).primaryColor : Colors.grey,
+                    fontWeight: _index == 0 ? FontWeight.w700 : FontWeight.normal,
+                  )),
+              ),
+            )),
+            Expanded(child: InkWell(
+              onTap: () => setState(() => _index = 1),
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 10),
+                decoration: BoxDecoration(
+                  border: Border(bottom: BorderSide(
+                    color: _index == 1 ? Theme.of(context).primaryColor : Colors.transparent,
+                    width: 2,
+                  )),
+                ),
+                child: Text('All', textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: _index == 1 ? Theme.of(context).primaryColor : Colors.grey,
+                    fontWeight: _index == 1 ? FontWeight.w700 : FontWeight.normal,
+                  )),
+              ),
+            )),
           ]),
-        ),
-        Row(children: [
-          Expanded(child: TextButton(onPressed: () => setState(() => _index = 0), child: Text('Active', style: TextStyle(color: _index == 0 ? Theme.of(context).primaryColor : Colors.grey)))),
-          Expanded(child: TextButton(onPressed: () => setState(() => _index = 1), child: Text('All', style: TextStyle(color: _index == 1 ? Theme.of(context).primaryColor : Colors.grey)))),
-        ]),
         const Divider(height: 1),
         ...list.map((m) => widget.buildCard(m)).toList(),
       ]),

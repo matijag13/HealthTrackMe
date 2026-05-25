@@ -57,9 +57,14 @@ class _HealthScreenTabbedState extends State<HealthScreenTabbed> with SingleTick
     return Scaffold(
       appBar: AppBar(
         title: const Text('Health'),
+        automaticallyImplyLeading: false,
         bottom: TabBar(
           controller: _tabController,
           isScrollable: true,
+          tabAlignment: TabAlignment.start,
+          labelColor: Colors.white,
+          unselectedLabelColor: Colors.white70,
+          indicatorColor: Colors.white,
           tabs: const [
             Tab(text: 'Vitals'),
             Tab(text: 'Activity'),

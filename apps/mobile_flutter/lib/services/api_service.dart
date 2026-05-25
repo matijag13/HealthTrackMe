@@ -36,34 +36,76 @@ class ApiService {
 
   int? get activeUserId => _activeUserId;
 
-  Future<void> init() async {
-    _prefs = await SharedPreferences.getInstance();
-    final stored = _prefs.getString(_prefsKeyBaseUrl);
-    final preferred = _normalizeBaseUrl(stored ?? _baseUrl);
-    _baseUrl = await _resolveReachableBaseUrl(preferredBaseUrl: preferred);
-    if (_baseUrl != preferred) {
-      await _prefs.setString(_prefsKeyBaseUrl, _baseUrl);
-    }
-    _activeUserId = _prefs.getInt(_prefsKeyActiveUserId);
-    _authToken = _prefs.getString(_prefsKeyAuthToken);
-
-    // Repair stale persisted user selection (e.g. deleted user id) when backend is reachable.
-    await _reconcileStoredActiveUserId();
+  /// Get current API configuration for debugging
+  Future<Map<String, dynamic>> getDebugInfo() async {
+    return {
+      'currentBaseUrl': _baseUrl,
+      'isWeb': kIsWeb,
+      'canReachApi': await canReachBackend(),
+    };
   }
 
-  Future<void> _reconcileStoredActiveUserId() async {
-    final current = _activeUserId;
-    if (current == null) return;
-
-    final users = await getUsers();
-    if (users.isEmpty) return;
-
-    final exists = users.any((u) => u.id == current);
-    if (exists) return;
-
-    final selected = users.firstWhere((u) => u.isActive, orElse: () => users.first);
-    await setActiveUserId(selected.id);
+  /// Completely reset API configuration (clears all api-related prefs and uses defaults)
+  Future<void> resetApiConfiguration() async {
+    debugPrint('Resetting API configuration...');
+    await _prefs.remove(_prefsKeyBaseUrl);
+    _baseUrl = _resolveDefaultBaseUrl();
+    _sportActivitiesEndpointMissing = false;
   }
+
+   Future<void> init() async {
+     _prefs = await SharedPreferences.getInstance();
+     final stored = _prefs.getString(_prefsKeyBaseUrl);
+
+     final preferred = _normalizeBaseUrl(stored ?? _baseUrl);
+     if (stored != preferred) {
+       await _prefs.setString(_prefsKeyBaseUrl, preferred);
+     }
+
+     // Don't wait for reachable URL check - use preferred URL and check in background
+     _baseUrl = preferred;
+     _validateAndUpdateBaseUrlInBackground();
+
+     _activeUserId = _prefs.getInt(_prefsKeyActiveUserId);
+     _authToken = _prefs.getString(_prefsKeyAuthToken);
+
+     // Run reconciliation in background without blocking app startup
+     _reconcileStoredActiveUserIdInBackground();
+   }
+
+   /// Check API connectivity in background without blocking initialization
+   Future<void> _validateAndUpdateBaseUrlInBackground() async {
+     try {
+       final reachable = await _resolveReachableBaseUrl(preferredBaseUrl: _baseUrl);
+       if (reachable != _baseUrl) {
+         _baseUrl = reachable;
+         await _prefs.setString(_prefsKeyBaseUrl, reachable);
+       }
+     } catch (e) {
+       debugPrint('Background URL validation error: $e');
+     }
+   }
+
+   /// Reconcile active user in background without blocking app startup
+   Future<void> _reconcileStoredActiveUserIdInBackground() async {
+     try {
+       final current = _activeUserId;
+       if (current == null) return;
+
+       final users = await getUsers();
+       if (users.isEmpty) return;
+
+       final exists = users.any((u) => u.id == current);
+       if (exists) return;
+
+       final selected = users.firstWhere((u) => u.isActive, orElse: () => users.first);
+       await setActiveUserId(selected.id);
+     } catch (e) {
+       debugPrint('Background user reconciliation error: $e');
+     }
+   }
+
+
 
   Future<void> setBaseUrl(String value) async {
     final normalized = _normalizeBaseUrl(value);
@@ -103,51 +145,115 @@ class ApiService {
   Future<void> resetActiveUserId() => setActiveUserId(null);
 
   static String _normalizeBaseUrl(String value) {
-    var normalized = value.trim().replaceFirst(RegExp(r'/+$'), '');
-    if (normalized.endsWith('/api/v1')) return normalized;
+    var normalized = value.trim();
+    if (normalized.isEmpty) {
+      return _resolveDefaultBaseUrl();
+    }
+
+    normalized = normalized.replaceFirst(RegExp(r'/+$'), '');
+
+    final uri = Uri.tryParse(normalized);
+    if (uri != null && uri.hasScheme && uri.host.isNotEmpty) {
+      final segments = uri.pathSegments.where((segment) => segment.isNotEmpty).toList();
+      final apiIndex = _findApiV1Index(segments);
+      final canonicalSegments = apiIndex >= 0
+          ? segments.sublist(0, apiIndex + 2)
+          : <String>[...segments, 'api', 'v1'];
+      return uri.replace(pathSegments: canonicalSegments).toString().replaceFirst(RegExp(r'/+$'), '');
+    }
+
+    final apiV1Index = normalized.indexOf('/api/v1');
+    if (apiV1Index >= 0) {
+      return normalized.substring(0, apiV1Index + '/api/v1'.length);
+    }
+
     if (normalized.endsWith('/api')) return '$normalized/v1';
+    if (normalized.endsWith('/api/v1')) return normalized.replaceFirst(RegExp(r'(/api/v1)+$'), '/api/v1');
     return '$normalized/api/v1';
+  }
+
+  static int _findApiV1Index(List<String> segments) {
+    for (var i = 0; i < segments.length - 1; i++) {
+      if (segments[i] == 'api' && segments[i + 1] == 'v1') {
+        return i;
+      }
+    }
+    return -1;
   }
 
   List<String> _webFallbackBaseUrls() {
     return [
       'http://localhost:8081/api/v1',
       'http://localhost:8080/api/v1',
+      'http://127.0.0.1:8081/api/v1',
+      'http://127.0.0.1:8080/api/v1',
     ];
   }
 
-  Future<bool> _canReachUrl(String baseUrl) async {
-    try {
-      final response = await http.get(Uri.parse('$baseUrl/users')).timeout(const Duration(seconds: 3));
-      return response.statusCode >= 200 && response.statusCode < 500;
-    } catch (_) {
-      return false;
-    }
-  }
+    Future<bool> _canReachUrl(String baseUrl) async {
+     try {
+       final testUrl = '$baseUrl/users';
+       debugPrint('Attempting to reach: $testUrl');
+       final response = await http.get(Uri.parse(testUrl)).timeout(const Duration(seconds: 1));
+       final success = response.statusCode >= 200 && response.statusCode < 300;
+       if (!success) {
+         debugPrint('  Response code: ${response.statusCode}');
+       }
+       return success;
+     } catch (e) {
+       debugPrint('  Connection failed: $e');
+       return false;
+     }
+   }
 
-  Future<String> _resolveReachableBaseUrl({required String preferredBaseUrl}) async {
-    final candidates = <String>[];
-    if (kIsWeb) {
-      candidates.add(preferredBaseUrl);
-      for (final fallback in _webFallbackBaseUrls()) {
-        if (!candidates.contains(fallback)) candidates.add(fallback);
-      }
-    } else {
-      candidates.add(preferredBaseUrl);
-    }
+   Future<String> _resolveReachableBaseUrl({required String preferredBaseUrl}) async {
+     final candidates = <String>[];
+     candidates.add(preferredBaseUrl);
 
-    for (final candidate in candidates) {
-      if (await _canReachUrl(candidate)) {
-        return candidate;
-      }
-    }
+     // Only add fallbacks if preferred is not reachable
+     if (kIsWeb) {
+       // Add web fallbacks
+       for (final fallback in _webFallbackBaseUrls()) {
+         if (!candidates.contains(fallback)) candidates.add(fallback);
+       }
+     } else {
+       // Add Android fallbacks only as secondary options
+       const androidFallbacks = [
+         'http://10.0.2.2:8081/api/v1',
+         'http://10.0.2.2:8080/api/v1',
+       ];
+       for (final fallback in androidFallbacks) {
+         if (!candidates.contains(fallback)) candidates.add(fallback);
+       }
+     }
 
-    return preferredBaseUrl;
-  }
+     // Try to reach the preferred URL with shorter timeout
+     for (final candidate in candidates.take(2)) {
+       // Only try first 2 candidates to avoid excessive delays
+       debugPrint('Testing API connectivity: $candidate');
+       try {
+         if (await _canReachUrl(candidate).timeout(const Duration(seconds: 1))) {
+           debugPrint('Connected to API at: $candidate');
+           return candidate;
+         }
+       } catch (e) {
+         debugPrint('Timeout testing $candidate: $e');
+       }
+     }
 
-  Uri _uri(String path, {Map<String, String>? queryParameters}) {
+     debugPrint('Could not reach any API candidate, using preferred: $preferredBaseUrl');
+     return preferredBaseUrl;
+   }
+
+   Uri _uri(String path, {Map<String, String>? queryParameters}) {
     final cleanPath = path.startsWith('/') ? path : '/$path';
-    return Uri.parse('$baseUrl$cleanPath').replace(queryParameters: queryParameters);
+      final normalizedBase = _normalizeBaseUrl(_baseUrl);
+      if (normalizedBase != _baseUrl) {
+        _baseUrl = normalizedBase;
+      }
+      final uri = Uri.parse('$normalizedBase$cleanPath').replace(queryParameters: queryParameters);
+    debugPrint('URI: ${uri.toString()}');
+    return uri;
   }
 
   Map<String, String> _authHeaders([Map<String, String>? extra]) {
@@ -316,7 +422,7 @@ class ApiService {
     return getUser(id);
   }
 
-  Future<User> createUser({
+   Future<User> createUser({
     required String email,
     required String password,
     required String firstName,
@@ -326,22 +432,31 @@ class ApiService {
     String? medicalConditions,
     String? allergies,
   }) async {
-    final response = await _postRaw('/users', headers: {'Content-Type': 'application/json'}, body: jsonEncode({
-      'email': email,
-      'password': password,
-      'firstName': firstName,
-      'lastName': lastName,
-      'dateOfBirth': dateOfBirth,
-      'userType': userType,
-      'medicalConditions': medicalConditions,
-      'allergies': allergies,
-    }));
+    try {
+      final response = await _postRaw('/users', headers: {'Content-Type': 'application/json'}, body: jsonEncode({
+        'email': email,
+        'password': password,
+        'firstName': firstName,
+        'lastName': lastName,
+        'dateOfBirth': dateOfBirth,
+        'userType': userType,
+        'medicalConditions': medicalConditions,
+        'allergies': allergies,
+      }));
 
-    if (response.statusCode >= 200 && response.statusCode < 300) {
-      final created = _parseSingle(response, User.fromJson);
-      if (created != null) return created;
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        final created = _parseSingle(response, User.fromJson);
+        if (created != null) return created;
+      }
+
+      final message = _responseMessage(response) ?? 'Could not create user';
+      debugPrint('Create user error (${response.statusCode}): $message');
+      debugPrint('Response body: ${response.body}');
+      throw Exception(message);
+    } catch (e) {
+      debugPrint('Create user exception: $e');
+      rethrow;
     }
-    throw Exception(_responseMessage(response) ?? 'Could not create user');
   }
 
   Future<User> updateUser(int id, User user) async {

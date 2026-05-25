@@ -756,11 +756,14 @@ class LoadingSkeleton {
     return Shimmer.fromColors(
       baseColor: base,
       highlightColor: highlight,
-      child: Column(children: [
-        Container(height: 96, margin: const EdgeInsets.symmetric(vertical: 8), decoration: BoxDecoration(color: base, borderRadius: BorderRadius.circular(12))),
-        const SizedBox(height: 12),
-        Column(children: List.generate(6, (_) => Container(height: 48, margin: const EdgeInsets.symmetric(vertical: 6), decoration: BoxDecoration(color: base, borderRadius: BorderRadius.circular(8))))),
-      ]),
+      child: SingleChildScrollView(
+        physics: const NeverScrollableScrollPhysics(),
+        child: Column(children: [
+          Container(height: 96, margin: const EdgeInsets.symmetric(vertical: 8), decoration: BoxDecoration(color: base, borderRadius: BorderRadius.circular(12))),
+          const SizedBox(height: 12),
+          Column(children: List.generate(6, (_) => Container(height: 48, margin: const EdgeInsets.symmetric(vertical: 6), decoration: BoxDecoration(color: base, borderRadius: BorderRadius.circular(8))))),
+        ]),
+      ),
     );
   }
 

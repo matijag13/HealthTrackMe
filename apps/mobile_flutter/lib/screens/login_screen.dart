@@ -72,14 +72,19 @@ class _LoginScreenState extends State<LoginScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  RichText(
-                    text: TextSpan(
-                      text: 'Health',
-                      style: TextStyle(fontSize: 32, fontWeight: FontWeight.w700, color: Colors.white),
-                      children: [
-                        TextSpan(text: 'Track', style: TextStyle(color: AppColors.teal)),
-                        TextSpan(text: 'Me'),
-                      ],
+                  Center(
+                    child: RichText(
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.center,
+                      text: TextSpan(
+                        text: 'Health',
+                        style: TextStyle(fontSize: 32, fontWeight: FontWeight.w700, color: Colors.white),
+                        children: [
+                          TextSpan(text: 'Track', style: TextStyle(color: AppColors.teal)),
+                          TextSpan(text: 'Me'),
+                        ],
+                      ),
                     ),
                   ),
                   SizedBox(height: 12),

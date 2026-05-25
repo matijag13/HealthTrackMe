@@ -58,45 +58,32 @@ class _DashboardScreenState extends State<DashboardScreen> with AutomaticKeepAli
       _error = false;
     });
 
-    try {
-      final user = await _api.getCurrentUser();
-      final entries = await _api.getHealthEntries();
-      final medicines = await _api.getMedicines(activeOnly: false);
-      final shield = await _api.getHealthShield();
-
-      // Try to fetch sport activities directly (some ApiService versions may not provide it)
-      final sportActivities = await _fetchSportActivities();
-
-      setState(() {
-        _state = _DashboardStateModel(
-          user: user,
-          entries: entries,
-          medicines: medicines,
-          shield: shield,
-          sportActivities: sportActivities,
-        );
-        _loading = false;
-      });
-      // Show onboarding once if not completed
       try {
-        final prefs = await SharedPreferences.getInstance();
-        final seen = prefs.getBool('onboarding_complete') ?? false;
-        if (!seen && mounted) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (!mounted) return;
-            try {
-              Navigator.of(context).push(MaterialPageRoute(builder: (ctx) => const OnboardingScreen()));
-            } catch (_) {}
-          });
-        }
-      } catch (_) {}
-    } catch (e) {
-      debugPrint('Dashboard load error: $e');
-      setState(() {
-        _error = true;
-        _loading = false;
-      });
-    }
+        final user = await _api.getCurrentUser();
+        final entries = await _api.getHealthEntries();
+        final medicines = await _api.getMedicines(activeOnly: false);
+        final shield = await _api.getHealthShield();
+
+        // Try to fetch sport activities directly (some ApiService versions may not provide it)
+        final sportActivities = await _fetchSportActivities();
+
+        setState(() {
+          _state = _DashboardStateModel(
+            user: user,
+            entries: entries,
+            medicines: medicines,
+            shield: shield,
+            sportActivities: sportActivities,
+          );
+          _loading = false;
+        });
+      } catch (e) {
+        debugPrint('Dashboard load error: $e');
+        setState(() {
+          _error = true;
+          _loading = false;
+        });
+      }
   }
 
   Future<List<Map<String, dynamic>>> _fetchSportActivities() async {
@@ -120,6 +107,17 @@ class _DashboardScreenState extends State<DashboardScreen> with AutomaticKeepAli
     if (hour < 12) return 'Good morning';
     if (hour < 18) return 'Good afternoon';
     return 'Good evening';
+  }
+
+  String _moodLabel(String? mood) {
+    switch (mood) {
+      case '😰': return 'Zelo slabo';
+      case '😔': return 'Slabo';
+      case '😐': return 'Nevtralno';
+      case '😊': return 'Dobro';
+      case '🤩': return 'Odlično';
+      default: return mood ?? '—';
+    }
   }
 
   int _todayHealthIndex() {
@@ -175,7 +173,9 @@ class _DashboardScreenState extends State<DashboardScreen> with AutomaticKeepAli
               snap: false,
               floating: false,
               expandedHeight: 140,
-              backgroundColor: Colors.white,
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+              title: const Text('Dashboard', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
               elevation: 0,
               flexibleSpace: FlexibleSpaceBar(
                 background: Container(
@@ -524,7 +524,7 @@ class _DashboardScreenState extends State<DashboardScreen> with AutomaticKeepAli
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Row(children: [Text(e.mood ?? '🙂', style: const TextStyle(fontSize: 22)), const SizedBox(width: 8), Text('${e.entryDate.toLocal().toIso8601String().split('T').first}', style: const TextStyle(fontWeight: FontWeight.w600))]),
+                        Row(children: [Text(_moodLabel(e.mood), style: const TextStyle(fontSize: 22)), const SizedBox(width: 8), Text('${e.entryDate.toLocal().toIso8601String().split('T').first}', style: const TextStyle(fontWeight: FontWeight.w600))]),
                         const SizedBox(height: 8),
                         Text('Wellbeing ${e.effectiveWellbeingScore}', style: const TextStyle(fontWeight: FontWeight.w700)),
                         const SizedBox(height: 8),

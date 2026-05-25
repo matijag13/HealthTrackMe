@@ -265,11 +265,65 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         Navigator.of(context).pushReplacementNamed('/');
                       }
                     }, iconBackgroundColor: AppColors.danger),
-                  ]),
-                ),
+                   ]),
+                 ),
 
-                const SizedBox(height: 40),
-              ]),
+                 const SizedBox(height: 20),
+                 _sectionLabel('DEBUG'),
+                 Card(
+                   elevation: 0,
+                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: BorderSide(color: Theme.of(context).dividerColor, width: 0.5)),
+                   color: Theme.of(context).colorScheme.surface,
+                   child: Column(children: [
+                     SettingsTile(
+                       icon: const Icon(Icons.api),
+                       title: 'API Configuration',
+                       subtitle: 'View and reset API settings',
+                       onTap: () async {
+                         final debugInfo = await _api.getDebugInfo();
+                         if (!mounted) return;
+                         showDialog(
+                           context: context,
+                           builder: (ctx) => AlertDialog(
+                             title: const Text('API Configuration'),
+                             content: SingleChildScrollView(
+                               child: Column(
+                                 crossAxisAlignment: CrossAxisAlignment.start,
+                                 mainAxisSize: MainAxisSize.min,
+                                 children: [
+                                   Text('Base URL: ${debugInfo['currentBaseUrl']}', style: const TextStyle(fontFamily: 'monospace', fontSize: 12)),
+                                   const SizedBox(height: 8),
+                                   Text('Platform: ${debugInfo['isWeb'] ? 'Web' : 'Mobile'}', style: const TextStyle(fontSize: 12)),
+                                   const SizedBox(height: 8),
+                                   Text('Api Reachable: ${debugInfo['canReachApi'] ? '✓ Yes' : '✗ No'}', style: TextStyle(fontSize: 12, color: debugInfo['canReachApi'] == true ? Colors.green : Colors.red)),
+                                 ],
+                               ),
+                             ),
+                             actions: [
+                               TextButton(
+                                 onPressed: () => Navigator.pop(ctx),
+                                 child: const Text('Close'),
+                               ),
+                               TextButton(
+                                 onPressed: () async {
+                                   await _api.resetApiConfiguration();
+                                   if (!mounted) return;
+                                   Navigator.pop(ctx);
+                                   ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('✓ API configuration reset')));
+                                 },
+                                 child: const Text('Reset API', style: TextStyle(color: Colors.red)),
+                               ),
+                             ],
+                           ),
+                         );
+                       },
+                       iconBackgroundColor: AppColors.blue,
+                     ),
+                   ]),
+                 ),
+
+                 const SizedBox(height: 40),
+               ]),
             ),
           );
         },

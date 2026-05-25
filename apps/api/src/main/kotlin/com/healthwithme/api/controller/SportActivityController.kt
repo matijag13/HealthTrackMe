@@ -44,6 +44,17 @@ class SportActivityController(private val activityService: SportActivityService)
         }
     }
 
+    // Raw entity endpoint (returns full SportActivity entities). Kept separate from DTO endpoint.
+    @GetMapping("/users/{userId}/raw")
+    fun getUserActivitiesRaw(@PathVariable userId: Long): ResponseEntity<List<com.healthwithme.api.model.SportActivity>> {
+        return try {
+            val activities = activityService.getRawActivitiesByUser(userId)
+            ResponseEntity.ok(activities)
+        } catch (e: Exception) {
+            ResponseEntity.status(HttpStatus.BAD_REQUEST).build()
+        }
+    }
+
     @GetMapping("/users/{userId}/stats")
     fun getStatistics(@PathVariable userId: Long): ResponseEntity<ApiResponse<Map<String, Any>>> {
         return try {

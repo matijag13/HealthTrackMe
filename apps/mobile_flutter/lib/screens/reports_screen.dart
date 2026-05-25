@@ -97,6 +97,8 @@ class _ReportsScreenState extends State<ReportsScreen> with AutomaticKeepAliveCl
         title: Row(
           children: [
             RichText(
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
               text: const TextSpan(
                 text: 'Health',
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Colors.white),
