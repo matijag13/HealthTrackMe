@@ -12,7 +12,7 @@ data class DoseLog(
 
     @ManyToOne
     @JoinColumn(name = "medication_id", nullable = false)
-    val medication: Medication? = null,
+    val medication: Medicine? = null,
 
     @Column(nullable = false)
     val scheduledTime: LocalDateTime = LocalDateTime.now(),

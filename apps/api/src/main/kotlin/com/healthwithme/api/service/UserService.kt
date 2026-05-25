@@ -70,6 +70,22 @@ class UserService(
             userType = normalizedUserType,
             medicalConditions = request.medicalConditions ?: user.medicalConditions,
             allergies = request.allergies ?: user.allergies,
+            height = request.height ?: user.height,
+            weight = request.weight ?: user.weight,
+            bloodType = request.bloodType ?: user.bloodType,
+            emergencyContactName = request.emergencyContactName ?: user.emergencyContactName,
+            emergencyContactPhone = request.emergencyContactPhone ?: user.emergencyContactPhone,
+            chronicConditions = request.chronicConditions?.joinToString(",") ?: user.chronicConditions,
+            pastSurgeries = request.pastSurgeries?.let { com.fasterxml.jackson.module.kotlin.jacksonObjectMapper().writeValueAsString(it) } ?: user.pastSurgeries,
+            familyHistory = request.familyHistory?.let { com.fasterxml.jackson.module.kotlin.jacksonObjectMapper().writeValueAsString(it) } ?: user.familyHistory,
+            vaccinations = request.vaccinations?.let { com.fasterxml.jackson.module.kotlin.jacksonObjectMapper().writeValueAsString(it) } ?: user.vaccinations,
+            organDonor = request.organDonor ?: user.organDonor,
+            doctorName = request.doctorName ?: user.doctorName,
+            doctorClinic = request.doctorClinic ?: user.doctorClinic,
+            doctorPhone = request.doctorPhone ?: user.doctorPhone,
+            insuranceProvider = request.insuranceProvider ?: user.insuranceProvider,
+            insurancePolicyNumber = request.insurancePolicyNumber ?: user.insurancePolicyNumber,
+            profilePhotoBase64 = request.profilePhotoBase64 ?: user.profilePhotoBase64,
             isActive = request.isActive ?: user.isActive,
             updatedAt = LocalDateTime.now()
         )
@@ -101,8 +117,31 @@ class UserService(
             userType = user.userType.toString(),
             medicalConditions = user.medicalConditions,
             allergies = user.allergies,
+            height = user.height,
+            weight = user.weight,
+            bloodType = user.bloodType,
+            emergencyContactName = user.emergencyContactName,
+            emergencyContactPhone = user.emergencyContactPhone,
+            chronicConditions = user.chronicConditions?.split(",")?.map { it.trim() } ?: emptyList(),
+            pastSurgeries = user.pastSurgeries?.let { com.fasterxml.jackson.module.kotlin.jacksonObjectMapper().readValue(it, List::class.java) as List<Map<String, Any> > } ?: emptyList(),
+            familyHistory = user.familyHistory?.let { com.fasterxml.jackson.module.kotlin.jacksonObjectMapper().readValue(it, List::class.java) as List<Map<String, Any> > } ?: emptyList(),
+            vaccinations = user.vaccinations?.let { com.fasterxml.jackson.module.kotlin.jacksonObjectMapper().readValue(it, List::class.java) as List<Map<String, Any> > } ?: emptyList(),
+            organDonor = user.organDonor,
+            doctorName = user.doctorName,
+            doctorClinic = user.doctorClinic,
+            doctorPhone = user.doctorPhone,
+            insuranceProvider = user.insuranceProvider,
+            insurancePolicyNumber = user.insurancePolicyNumber,
+            profilePhotoBase64 = user.profilePhotoBase64,
             isActive = user.isActive
         )
+    }
+
+    fun saveProfilePhoto(userId: Long, base64: String): UserDto {
+        val user = userRepository.findById(userId).orElseThrow { IllegalArgumentException("User not found") }
+        val updated = user.copy(profilePhotoBase64 = base64, updatedAt = LocalDateTime.now())
+        val saved = userRepository.save(updated)
+        return toUserDto(saved)
     }
 }
 

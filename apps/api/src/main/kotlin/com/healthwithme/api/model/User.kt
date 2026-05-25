@@ -45,6 +45,54 @@ data class User(
     @Column(nullable = true)
     val allergies: String? = null,
     
+    @Column(nullable = true)
+    val height: Double? = null,
+
+    @Column(nullable = true)
+    val weight: Double? = null,
+
+    @Column(nullable = true)
+    val bloodType: String? = null,
+
+    @Column(nullable = true)
+    val emergencyContactName: String? = null,
+
+    @Column(nullable = true)
+    val emergencyContactPhone: String? = null,
+
+    @Column(columnDefinition = "TEXT")
+    val chronicConditions: String? = null,
+
+    @Column(columnDefinition = "TEXT")
+    val pastSurgeries: String? = null,
+
+    @Column(columnDefinition = "TEXT")
+    val familyHistory: String? = null,
+
+    @Column(columnDefinition = "TEXT")
+    val vaccinations: String? = null,
+
+    @Column(nullable = true)
+    val organDonor: Boolean? = null,
+
+    @Column(nullable = true)
+    val doctorName: String? = null,
+
+    @Column(nullable = true)
+    val doctorClinic: String? = null,
+
+    @Column(nullable = true)
+    val doctorPhone: String? = null,
+
+    @Column(nullable = true)
+    val insuranceProvider: String? = null,
+
+    @Column(nullable = true)
+    val insurancePolicyNumber: String? = null,
+
+    @Column(columnDefinition = "TEXT")
+    val profilePhotoBase64: String? = null,
+    
     @Column(nullable = false)
     val isActive: Boolean = true,
     

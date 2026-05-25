@@ -8,6 +8,8 @@ import com.healthwithme.api.service.UserService
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
+import org.springframework.web.multipart.MultipartFile
+import org.springframework.http.MediaType
 
 @RestController
 @RequestMapping("/api/v1/users")
@@ -48,6 +50,18 @@ class UserController(private val userService: UserService) {
             )
         } catch (e: Exception) {
             ResponseEntity.notFound().build()
+        }
+    }
+
+    @PostMapping("/{id}/profile-photo", consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
+    fun uploadProfilePhoto(@PathVariable id: Long, @RequestParam("file") file: MultipartFile): ResponseEntity<ApiResponse<UserDto>> {
+        return try {
+            val bytes = file.bytes
+            val b64 = java.util.Base64.getEncoder().encodeToString(bytes)
+            val user = userService.saveProfilePhoto(id, b64)
+            ResponseEntity.ok().body(ApiResponse(success = true, message = "Profile photo uploaded", data = user))
+        } catch (e: Exception) {
+            ResponseEntity.badRequest().body(ApiResponse(success = false, message = (e.message ?: "Bad request"), data = null))
         }
     }
 

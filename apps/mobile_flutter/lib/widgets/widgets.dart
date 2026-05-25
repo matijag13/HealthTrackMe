@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:shimmer/shimmer.dart';
+import 'package:lottie/lottie.dart';
 import '../config/theme.dart';
 import '../models/models.dart';
 
 export '../config/theme.dart';
+export 'design_system.dart';
 
 // Wellness Ring Widget - Progress indicator with circular design
 class WellnessRing extends StatelessWidget {
@@ -626,11 +629,11 @@ class HealthShieldSection extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             SectionHeader(
-              title: 'Zdravstveni ščit',
+              title: 'Health Shield',
               subtitle: shield != null
-                  ? 'Tvoj dnevni napredek, nivo in navade na enem mestu.'
-                  : 'Ščit še ni na voljo. Ko bo backend vrnil podatke, se bo prikazal tukaj.',
-              actionLabel: onRefresh != null ? 'Osveži' : null,
+                  ? 'Your 7-stage digital protection journey.'
+                  : 'Data will appear once your shield is calculated.',
+              actionLabel: onRefresh != null ? 'Refresh' : null,
               onAction: onRefresh,
             ),
             const SizedBox(height: 12),
@@ -646,14 +649,14 @@ class HealthShieldSection extends StatelessWidget {
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('🛡️', style: TextStyle(fontSize: 26)),
+                    const Icon(Icons.shield_outlined, size: 28, color: AppColors.blue),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           const Text(
-                            'Ščit trenutno ni povezan',
+                            'Shield unavailable',
                             style: TextStyle(
                               fontSize: 13,
                               fontWeight: FontWeight.w700,
@@ -662,20 +665,21 @@ class HealthShieldSection extends StatelessWidget {
                           ),
                           const SizedBox(height: 4),
                           const Text(
-                            'Preveri, ali je izbran aktiven uporabnik in ali backend na portu 8080 vrača Health Shield podatke.',
+                            'Try refreshing, and make sure an active account is selected.',
                             style: TextStyle(fontSize: 11, color: AppColors.muted, height: 1.4),
                           ),
                           const SizedBox(height: 10),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: ElevatedButton(
-                                  onPressed: onRefresh,
-                                  child: const Text('Ponovi osvežitev'),
+                          if (onRefresh != null)
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: ElevatedButton(
+                                    onPressed: onRefresh,
+                                    child: const Text('Refresh now'),
+                                  ),
                                 ),
-                              ),
-                            ],
-                          ),
+                              ],
+                            ),
                         ],
                       ),
                     ),
@@ -691,6 +695,9 @@ class HealthShieldSection extends StatelessWidget {
                 pointsToNextLevel: shield!.pointsToNextLevel,
                 todayPoints: shield!.todayPoints,
                 completedHabits: shield!.completedHabitsCount,
+                penaltyPoints: shield!.penaltyPoints,
+                consecutiveFailedDays: shield!.consecutiveFailedDays,
+                dailyBreakdown: shield!.dailyBreakdown,
               ),
           ],
         ),
@@ -699,7 +706,129 @@ class HealthShieldSection extends StatelessWidget {
   }
 }
 
-// Health Shield Widget - Displays shield level, points, and daily progress
+// Loading skeleton widgets (shimmer)
+class LoadingSkeleton {
+  static Color _base(BuildContext context) => Theme.of(context).brightness == Brightness.dark ? Colors.grey.shade800 : Colors.grey.shade300;
+  static Color _highlight(BuildContext context) => Theme.of(context).brightness == Brightness.dark ? Colors.grey.shade700 : Colors.grey.shade100;
+
+  static Widget dashboard(BuildContext context) {
+    final base = _base(context);
+    final highlight = _highlight(context);
+    return Shimmer.fromColors(
+      baseColor: base,
+      highlightColor: highlight,
+      child: Column(children: [
+        // ring placeholder
+        Container(height: 180, margin: const EdgeInsets.symmetric(vertical: 8), decoration: BoxDecoration(color: base, borderRadius: BorderRadius.circular(12))),
+        const SizedBox(height: 12),
+        // stat cards
+        Row(children: List.generate(4, (_) => Expanded(child: Container(height: 80, margin: const EdgeInsets.only(right: 8), decoration: BoxDecoration(color: base, borderRadius: BorderRadius.circular(12))))),),
+        const SizedBox(height: 12),
+        // chart placeholder
+        Container(height: 200, decoration: BoxDecoration(color: base, borderRadius: BorderRadius.circular(12))),
+      ]),
+    );
+  }
+
+  static Widget health(BuildContext context) {
+    final base = _base(context);
+    final highlight = _highlight(context);
+    return Shimmer.fromColors(
+      baseColor: base,
+      highlightColor: highlight,
+      child: Column(children: List.generate(3, (_) => Container(height: 120, margin: const EdgeInsets.symmetric(vertical: 8), decoration: BoxDecoration(color: base, borderRadius: BorderRadius.circular(12))))),
+    );
+  }
+
+  static Widget medicines(BuildContext context) {
+    final base = _base(context);
+    final highlight = _highlight(context);
+    return Shimmer.fromColors(
+      baseColor: base,
+      highlightColor: highlight,
+      child: Column(children: List.generate(6, (_) => Container(height: 56, margin: const EdgeInsets.symmetric(vertical: 6), decoration: BoxDecoration(color: base, borderRadius: BorderRadius.circular(8))))),
+    );
+  }
+
+  static Widget profile(BuildContext context) {
+    final base = _base(context);
+    final highlight = _highlight(context);
+    return Shimmer.fromColors(
+      baseColor: base,
+      highlightColor: highlight,
+      child: Column(children: [
+        Container(height: 96, margin: const EdgeInsets.symmetric(vertical: 8), decoration: BoxDecoration(color: base, borderRadius: BorderRadius.circular(12))),
+        const SizedBox(height: 12),
+        Column(children: List.generate(6, (_) => Container(height: 48, margin: const EdgeInsets.symmetric(vertical: 6), decoration: BoxDecoration(color: base, borderRadius: BorderRadius.circular(8))))),
+      ]),
+    );
+  }
+
+  static Widget buttonSmall(BuildContext context) {
+    final base = _base(context);
+    final highlight = _highlight(context);
+    return Shimmer.fromColors(
+      baseColor: base,
+      highlightColor: highlight,
+      child: Container(width: 18, height: 18, decoration: BoxDecoration(color: base, shape: BoxShape.circle)),
+    );
+  }
+}
+
+// Reusable empty state with Lottie animation, helpful text and CTA
+class EmptyState extends StatelessWidget {
+  final String animationUrl;
+  final String title;
+  final String subtitle;
+  final String buttonLabel;
+  final VoidCallback onPressed;
+
+  const EmptyState({Key? key, required this.animationUrl, required this.title, required this.subtitle, required this.buttonLabel, required this.onPressed}) : super(key: key);
+
+  Widget _fallbackArt() {
+    return Container(
+      width: 140,
+      height: 110,
+      decoration: BoxDecoration(
+        color: AppColors.softBlue,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: const Icon(Icons.self_improvement_rounded, size: 56, color: AppColors.blue),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox(
+              width: 180,
+              height: 140,
+              child: animationUrl.trim().isEmpty
+                  ? _fallbackArt()
+                  : Lottie.network(
+                      animationUrl,
+                      fit: BoxFit.contain,
+                      errorBuilder: (context, error, stackTrace) => _fallbackArt(),
+                    ),
+            ),
+            const SizedBox(height: 12),
+            Text(title, style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+            const SizedBox(height: 6),
+            Text(subtitle, textAlign: TextAlign.center, style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: AppColors.muted)),
+            const SizedBox(height: 12),
+            SizedBox(width: 180, child: ElevatedButton(onPressed: onPressed, child: Text(buttonLabel))),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class HealthShieldCard extends StatelessWidget {
   final int level;
   final String levelName;
@@ -708,6 +837,9 @@ class HealthShieldCard extends StatelessWidget {
   final int pointsToNextLevel;
   final int todayPoints;
   final int completedHabits;
+  final int penaltyPoints;
+  final int consecutiveFailedDays;
+  final HealthShieldDailyBreakdown? dailyBreakdown;
 
   const HealthShieldCard({
     Key? key,
@@ -718,167 +850,197 @@ class HealthShieldCard extends StatelessWidget {
     required this.pointsToNextLevel,
     required this.todayPoints,
     required this.completedHabits,
+    required this.penaltyPoints,
+    required this.consecutiveFailedDays,
+    required this.dailyBreakdown,
   }) : super(key: key);
 
-  Color get _shieldColor {
-    if (level <= 3) return AppColors.blue;
-    if (level <= 6) return AppColors.teal;
-    return const Color(0xFF00BCD4);
+  static const List<String> _stageNames = ['Start', 'Insight', 'Consistency', 'Protection', 'Optimization', 'Intelligence', 'Mastery'];
+
+  int get _stageIndex {
+    if (level <= 1) return 0;
+    if (level <= 3) return 1;
+    if (level <= 6) return 2;
+    if (level <= 9) return 3;
+    if (level <= 14) return 4;
+    if (level <= 20) return 5;
+    return 6;
   }
 
-  String get _shieldEmoji {
-    if (level <= 3) return '🛡️';
-    if (level <= 6) return '✨';
-    return '👑';
+  Color get _accent {
+    if (_stageIndex >= 6) return const Color(0xFFE4AF3A);
+    if (_stageIndex >= 4) return AppColors.teal;
+    return AppColors.blue;
+  }
+
+  Widget _statCell({required IconData icon, required String label, required String value, required Color valueColor}) {
+    return Expanded(
+      child: Column(
+        children: [
+          Icon(icon, size: 16, color: AppColors.muted),
+          const SizedBox(height: 4),
+          Text(value, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: valueColor)),
+          const SizedBox(height: 2),
+          Text(label, style: const TextStyle(fontSize: 10, color: AppColors.muted), textAlign: TextAlign.center),
+        ],
+      ),
+    );
+  }
+
+  Widget _stageNode(int index) {
+    final complete = index < _stageIndex;
+    final current = index == _stageIndex;
+    final border = complete || current ? _accent : AppColors.border;
+    final textColor = complete || current ? _accent : AppColors.muted;
+
+    return SizedBox(
+      width: 80,
+      child: Column(
+        children: [
+          Container(
+            width: 34,
+            height: 34,
+            decoration: BoxDecoration(
+              color: border.withValues(alpha: current ? 0.15 : 0.08),
+              shape: BoxShape.circle,
+              border: Border.all(color: border, width: current ? 2 : 1.3),
+            ),
+            alignment: Alignment.center,
+            child: Icon(complete ? Icons.check : Icons.shield_outlined, size: 16, color: textColor),
+          ),
+          const SizedBox(height: 6),
+          Text('Stage ${index + 1}', style: TextStyle(fontSize: 10, color: textColor, fontWeight: FontWeight.w600)),
+          const SizedBox(height: 2),
+          Text(_stageNames[index], style: TextStyle(fontSize: 10, color: textColor), textAlign: TextAlign.center, maxLines: 2, overflow: TextOverflow.ellipsis),
+        ],
+      ),
+    );
+  }
+
+  Widget _breakdownBadge(String label, int value) {
+    final positive = value >= 0;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: (positive ? AppColors.success : AppColors.danger).withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        '$label ${positive ? '+' : ''}$value',
+        style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: positive ? AppColors.success : AppColors.danger),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final progressValue = (progressPercent.clamp(0, 100)) / 100;
 
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Text(_shieldEmoji, style: const TextStyle(fontSize: 28)),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('Zdravstveni ščit', style: Theme.of(context).textTheme.labelSmall),
-                      const SizedBox(height: 4),
-                      Text(
-                        levelName,
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: _shieldColor,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: _shieldColor.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    'Nivo $level',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: _shieldColor,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [_accent.withValues(alpha: 0.14), _accent.withValues(alpha: 0.05)],
+        ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: _accent.withValues(alpha: 0.35), width: 1.5),
+      ),
+      padding: const EdgeInsets.all(14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.shield_rounded, color: AppColors.navy),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      'Napredek do naslednjega nivoja',
-                      style: TextStyle(fontSize: 11, color: AppColors.muted),
-                    ),
-                    Text(
-                      '$progressPercent%',
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        color: _shieldColor,
-                      ),
-                    ),
+                    const Text('Digital Shield', style: TextStyle(fontSize: 12, color: AppColors.muted, fontWeight: FontWeight.w600)),
+                    Text(levelName, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: _accent)),
                   ],
                 ),
-                const SizedBox(height: 6),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(4),
-                  child: LinearProgressIndicator(
-                    value: progressValue,
-                    minHeight: 8,
-                    backgroundColor: AppColors.border,
-                    valueColor: AlwaysStoppedAnimation<Color>(_shieldColor),
-                  ),
-                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(color: _accent, borderRadius: BorderRadius.circular(8)),
+                child: Text('Level $level', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 12)),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            height: 74,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: 7,
+              separatorBuilder: (context, index) => Icon(Icons.chevron_right, size: 16, color: index < _stageIndex ? _accent : AppColors.border),
+              itemBuilder: (context, index) => _stageNode(index),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text('Progress to next stage', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+              Text('$progressPercent%', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: _accent)),
+            ],
+          ),
+          const SizedBox(height: 8),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(6),
+            child: LinearProgressIndicator(
+              value: progressValue,
+              minHeight: 10,
+              backgroundColor: AppColors.border,
+              valueColor: AlwaysStoppedAnimation<Color>(_accent),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            pointsToNextLevel > 0 ? '$pointsToNextLevel points to the next stage' : 'Next stage reached. Great work!',
+            style: TextStyle(fontSize: 12, color: pointsToNextLevel > 0 ? AppColors.muted : AppColors.success, fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 12),
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppColors.border),
+            ),
+            padding: const EdgeInsets.all(10),
+            child: Row(
+              children: [
+                _statCell(icon: Icons.auto_graph, label: 'Total', value: '$totalPoints', valueColor: AppColors.navy),
+                _statCell(icon: Icons.flash_on, label: 'Today', value: '${todayPoints >= 0 ? '+' : ''}$todayPoints', valueColor: todayPoints >= 0 ? AppColors.success : AppColors.danger),
+                _statCell(icon: Icons.task_alt, label: 'Habits', value: '$completedHabits/5', valueColor: AppColors.teal),
+                _statCell(icon: Icons.warning_amber_rounded, label: 'Fails', value: '$consecutiveFailedDays', valueColor: consecutiveFailedDays > 0 ? AppColors.warning : AppColors.muted),
               ],
             ),
-            const SizedBox(height: 8),
-            Text(
-              pointsToNextLevel <= 0
-                  ? 'Dosežen je naslednji nivo'
-                  : '$pointsToNextLevel točk do naslednjega nivoja',
-              style: const TextStyle(fontSize: 11, color: AppColors.muted),
-            ),
+          ),
+          if (dailyBreakdown != null) ...[
             const SizedBox(height: 12),
-            Row(
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
               children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text('Skupno točk', style: TextStyle(fontSize: 11, color: AppColors.muted)),
-                      const SizedBox(height: 2),
-                      Text(
-                        '$totalPoints',
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.navy,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text('Danes', style: TextStyle(fontSize: 11, color: AppColors.muted)),
-                      const SizedBox(height: 2),
-                      Text(
-                        '+$todayPoints točk',
-                        style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.success,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text('Navade', style: TextStyle(fontSize: 11, color: AppColors.muted)),
-                      const SizedBox(height: 2),
-                      Text(
-                        '$completedHabits/5',
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.blue,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+                _breakdownBadge('Sleep', dailyBreakdown!.sleepPoints),
+                _breakdownBadge('Activity', dailyBreakdown!.activityPoints),
+                _breakdownBadge('Wellbeing', dailyBreakdown!.wellbeingPoints),
+                _breakdownBadge('Supplements', dailyBreakdown!.supplementsPoints),
+                _breakdownBadge('Symptoms', dailyBreakdown!.symptomsPoints),
+                _breakdownBadge('Stability', dailyBreakdown!.routineStabilityPoints),
+                _breakdownBadge('Penalty', -penaltyPoints),
               ],
             ),
           ],
-        ),
+        ],
       ),
     );
   }
 }
+
+
+

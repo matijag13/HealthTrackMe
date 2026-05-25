@@ -11,9 +11,15 @@ class ReportsScreen extends StatefulWidget {
   State<ReportsScreen> createState() => _ReportsScreenState();
 }
 
-class _ReportsScreenState extends State<ReportsScreen> {
+class _ReportsScreenState extends State<ReportsScreen> with AutomaticKeepAliveClientMixin {
   final ApiService _api = ApiService.instance;
   late Future<HealthReport> _future;
+  HealthReport? _cachedReport;
+  DateTime? _lastRefreshTime;
+  static const Duration _cacheExpiry = Duration(minutes: 10);
+
+  @override
+  bool get wantKeepAlive => true;
 
   @override
   void initState() {
@@ -21,9 +27,27 @@ class _ReportsScreenState extends State<ReportsScreen> {
     _future = _load();
   }
 
-  Future<HealthReport> _load() => _api.getMonthlyReport(DateTime.now());
+  Future<HealthReport> _load() async {
+    try {
+      // Use cached report if still fresh
+      if (_cachedReport != null && _lastRefreshTime != null) {
+        final elapsed = DateTime.now().difference(_lastRefreshTime!);
+        if (elapsed < _cacheExpiry) {
+          return _cachedReport!;
+        }
+      }
+
+      final report = await _api.getMonthlyReport(DateTime.now());
+      _cachedReport = report;
+      _lastRefreshTime = DateTime.now();
+      return report;
+    } catch (e) {
+      return _cachedReport ?? HealthReport.fromJson({});
+    }
+  }
 
   Future<void> _refresh() async {
+    _lastRefreshTime = null; // Invalidate cache
     setState(() => _future = _load());
     await _future;
   }
@@ -33,27 +57,27 @@ class _ReportsScreenState extends State<ReportsScreen> {
     if (!mounted) return;
     final messenger = ScaffoldMessenger.of(context);
     if (summary == null || summary.isEmpty) {
-      messenger.showSnackBar(const SnackBar(content: Text('Povzetek trenutno ni na voljo.')));
+      messenger.showSnackBar(const SnackBar(content: Text('No summary available right now.')));
       return;
     }
     await Clipboard.setData(ClipboardData(text: summary));
-    messenger.showSnackBar(const SnackBar(content: Text('Povzetek kopiran v odložišče ✅')));
+    messenger.showSnackBar(const SnackBar(content: Text('✅ Summary copied to clipboard')));
   }
 
   String _monthLabel(DateTime month) {
     const months = [
-      'januar',
-      'februar',
-      'marec',
-      'april',
-      'maj',
-      'junij',
-      'julij',
-      'avgust',
-      'september',
-      'oktober',
-      'november',
-      'december',
+      'January',
+      'February',
+      'March',
+      'April',
+      'May',
+      'June',
+      'July',
+      'August',
+      'September',
+      'October',
+      'November',
+      'December',
     ];
     return '${months[month.month - 1]} ${month.year}';
   }
@@ -66,6 +90,8 @@ class _ReportsScreenState extends State<ReportsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
+
     return Scaffold(
       appBar: AppBar(
         title: Row(
@@ -96,33 +122,33 @@ class _ReportsScreenState extends State<ReportsScreen> {
         child: FutureBuilder<HealthReport>(
           future: _future,
           builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(child: CircularProgressIndicator());
+            if (snapshot.connectionState == ConnectionState.waiting && _cachedReport == null) {
+              return Center(child: Padding(padding: const EdgeInsets.all(16), child: LoadingSkeleton.dashboard(context)));
             }
-            if (snapshot.hasError) {
+            if (snapshot.hasError && _cachedReport == null) {
               return ListView(
                 physics: const AlwaysScrollableScrollPhysics(),
                 children: [
                   const SizedBox(height: 120),
-                  Center(child: Text('Napaka pri nalaganju poročila: ${snapshot.error}')),
+                  Center(child: Text('Error loading report: ${snapshot.error}')),
                 ],
               );
             }
 
-            final data = snapshot.data ?? HealthReport.fromEntries(month: DateTime.now(), entries: const [], medicines: const []);
+            final data = snapshot.data ?? _cachedReport ?? HealthReport.fromEntries(month: DateTime.now(), entries: const [], medicines: const []);
             final String scoreBadge;
             final Color scoreBadgeColor;
             final Color scoreBadgeTextColor;
             if (data.averageWellbeingScore >= 70) {
-              scoreBadge = '✓ Dobro';
+              scoreBadge = '✓ Good';
               scoreBadgeColor = const Color(0xFFE8F8F0);
               scoreBadgeTextColor = AppColors.success;
             } else if (data.averageWellbeingScore >= 40) {
-              scoreBadge = '⚠ Zmerno';
+              scoreBadge = '⚠ Fair';
               scoreBadgeColor = const Color(0xFFFFF3E0);
               scoreBadgeTextColor = const Color(0xFFE67E22);
             } else {
-              scoreBadge = '! Pozor';
+              scoreBadge = '! Low';
               scoreBadgeColor = const Color(0xFFFDECEA);
               scoreBadgeTextColor = AppColors.danger;
             }
@@ -132,8 +158,8 @@ class _ReportsScreenState extends State<ReportsScreen> {
               padding: const EdgeInsets.all(14),
               children: [
                 const SectionHeader(
-                  title: 'Poročila',
-                  subtitle: 'Mesečni pregled podatkov in trendov v istem vizualnem slogu kot ostali zasloni.',
+                  title: 'Reports',
+                  subtitle: 'Monthly overview of your health data and trends.',
                 ),
                 const SizedBox(height: 12),
                 Container(
@@ -149,16 +175,16 @@ class _ReportsScreenState extends State<ReportsScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text('📄 Poročilo za zdravnika', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Colors.white)),
+                      const Text('📄 Doctor\'s Report', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Colors.white)),
                       const SizedBox(height: 2),
-                      Text('Mesečni povzetek · ${_monthLabel(data.month)}', style: TextStyle(fontSize: 11, color: Colors.white.withValues(alpha: 0.8))),
+                      Text('Monthly summary · ${_monthLabel(data.month)}', style: TextStyle(fontSize: 11, color: Colors.white.withValues(alpha: 0.8))),
                       const SizedBox(height: 10),
                       SizedBox(
                         height: 34,
                         child: ElevatedButton.icon(
                           onPressed: _copySummary,
                           icon: const Icon(Icons.copy, size: 16),
-                          label: const Text('Kopiraj povzetek'),
+                          label: const Text('Copy Summary'),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.white.withValues(alpha: 0.2),
                             foregroundColor: Colors.white,
@@ -179,11 +205,11 @@ class _ReportsScreenState extends State<ReportsScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('TRENDI TA MESEC', style: Theme.of(context).textTheme.labelSmall),
+                        Text('TRENDS THIS MONTH', style: Theme.of(context).textTheme.labelSmall),
                         const SizedBox(height: 12),
                         TrendItem(
                           icon: '✨',
-                          name: 'Povprečno počutje',
+                          name: 'Avg. Wellbeing',
                           value: '${data.averageWellbeingScore.toStringAsFixed(0)} / 100',
                           badge: scoreBadge,
                           badgeColor: scoreBadgeColor,
@@ -192,27 +218,27 @@ class _ReportsScreenState extends State<ReportsScreen> {
                         const Divider(height: 1, color: AppColors.border),
                         TrendItem(
                           icon: '😴',
-                          name: 'Spanje',
-                          value: data.averageSleepHours > 0 ? 'Povp. ${_formatSleep(data.averageSleepHours)}' : 'Ni podatkov',
-                          badge: data.averageSleepHours >= 7 ? '✓ Normalno' : '↘ Preveri',
+                          name: 'Sleep',
+                          value: data.averageSleepHours > 0 ? 'Avg. ${_formatSleep(data.averageSleepHours)}' : 'No data',
+                          badge: data.averageSleepHours >= 7 ? '✓ Normal' : '↘ Check',
                           badgeColor: data.averageSleepHours >= 7 ? const Color(0xFFE8F8F0) : const Color(0xFFFFF3E0),
                           badgeTextColor: data.averageSleepHours >= 7 ? AppColors.success : const Color(0xFFE67E22),
                         ),
                         const Divider(height: 1, color: AppColors.border),
                         TrendItem(
                           icon: '📝',
-                          name: 'Vnosi',
-                          value: '${data.entriesCount} zapisov',
-                          badge: data.entriesCount > 0 ? '✓ Aktivno' : 'Ni podatkov',
+                          name: 'Entries',
+                          value: '${data.entriesCount} entries',
+                          badge: data.entriesCount > 0 ? '✓ Active' : 'No data',
                           badgeColor: AppColors.softBlue,
                           badgeTextColor: AppColors.blue,
                         ),
                         const Divider(height: 1, color: AppColors.border),
                         TrendItem(
                           icon: '💊',
-                          name: 'Aktivna zdravila',
-                          value: '${data.activeMedicinesCount} zdravil',
-                          badge: data.activeMedicinesCount > 0 ? '✓ V uporabi' : 'Ni zdravil',
+                          name: 'Active Medicines',
+                          value: '${data.activeMedicinesCount} medicines',
+                          badge: data.activeMedicinesCount > 0 ? '✓ In use' : 'No medicines',
                           badgeColor: const Color(0xFFE8F8F0),
                           badgeTextColor: AppColors.success,
                         ),
@@ -227,10 +253,10 @@ class _ReportsScreenState extends State<ReportsScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('POGOSTI SIMPTOMI', style: Theme.of(context).textTheme.labelSmall),
+                        Text('COMMON SYMPTOMS', style: Theme.of(context).textTheme.labelSmall),
                         const SizedBox(height: 12),
                         if (data.symptomFrequency.isEmpty)
-                          const Text('Ni simptomov za prikaz.')
+                          const Text('No symptoms to display.')
                         else
                           ...data.symptomFrequency.entries.map((entry) {
                             final maxCount = data.symptomFrequency.values.reduce((a, b) => a > b ? a : b);
@@ -288,9 +314,9 @@ class _ReportsScreenState extends State<ReportsScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text('📤 Povezava z zdravnikom', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.navy)),
+                      const Text('📤 Share with Doctor', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.navy)),
                       const SizedBox(height: 6),
-                      const Text('Povzetek lahko kopiraš in ga pošlješ preko e-pošte ali drugih kanalov.'),
+                      const Text('You can copy this summary and share it via email or other channels.'),
                       const SizedBox(height: 10),
                       Row(
                         children: [
@@ -301,7 +327,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                                 backgroundColor: AppColors.blue,
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                               ),
-                              child: const Text('Kopiraj'),
+                              child: const Text('Copy'),
                             ),
                           ),
                           const SizedBox(width: 8),
@@ -316,7 +342,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                                   side: const BorderSide(color: AppColors.blue, width: 1.5),
                                 ),
                               ),
-                              child: const Text('Osveži'),
+                              child: const Text('Refresh'),
                             ),
                           ),
                         ],

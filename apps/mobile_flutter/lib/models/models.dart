@@ -67,6 +67,22 @@ class HealthEntry {
   final int? energyLevel;
   final double? sleepHours;
   final String? sleepQuality;
+  // new vitals
+  final double? weight;
+  final int? heartRate;
+  final int? systolicBp;
+  final int? diastolicBp;
+  final double? bloodGlucose;
+  final double? bodyTemperature;
+  final int? spO2;
+  final int? waterIntakeMl;
+  final int? caloriesConsumed;
+  final double? alcoholUnits;
+  final int? painLevel;
+  final String? bedtime;
+  final String? wakeTime;
+  final int? sleepQualityStars;
+  final List<String>? tags;
   final int? stressLevel;
   final String? notes;
   final DateTime? createdAt;
@@ -81,6 +97,21 @@ class HealthEntry {
     this.energyLevel,
     this.sleepHours,
     this.sleepQuality,
+    this.weight,
+    this.heartRate,
+    this.systolicBp,
+    this.diastolicBp,
+    this.bloodGlucose,
+    this.bodyTemperature,
+    this.spO2,
+    this.waterIntakeMl,
+    this.caloriesConsumed,
+    this.alcoholUnits,
+    this.painLevel,
+    this.bedtime,
+    this.wakeTime,
+    this.sleepQualityStars,
+    this.tags,
     this.stressLevel,
     this.notes,
     this.createdAt,
@@ -99,14 +130,32 @@ class HealthEntry {
   double get effectiveSleepHours => sleepHours ?? 0.0;
 
   Map<String, dynamic> toJson() {
+    // Backend expects wellbeingScore 0-10, not 0-100
+    final scoreValue = wellbeingScore ?? effectiveWellbeingScore;
+    final scaledScore = (scoreValue > 10) ? (scoreValue / 10).round() : scoreValue;
     return {
       'entryDate': _dateOnly(entryDate),
-      'wellbeingScore': effectiveWellbeingScore,
+      'wellbeingScore': scaledScore.clamp(0, 10),
       'symptoms': symptoms,
       'mood': mood,
       'energyLevel': energyLevel,
       'sleepHours': sleepHours,
       'sleepQuality': sleepQuality,
+      'weight': weight,
+      'heartRate': heartRate,
+      'systolicBp': systolicBp,
+      'diastolicBp': diastolicBp,
+      'bloodGlucose': bloodGlucose,
+      'bodyTemperature': bodyTemperature,
+      'spO2': spO2,
+      'waterIntakeMl': waterIntakeMl,
+      'caloriesConsumed': caloriesConsumed,
+      'alcoholUnits': alcoholUnits,
+      'painLevel': painLevel,
+      'bedtime': bedtime,
+      'wakeTime': wakeTime,
+      'sleepQualityStars': sleepQualityStars,
+      'tags': tags,
       'stressLevel': stressLevel,
       'notes': notes,
     };
@@ -125,6 +174,21 @@ class HealthEntry {
       energyLevel: energy,
       sleepHours: _tryParseDouble(map['sleepHours'] ?? map['sleepDuration']),
       sleepQuality: map['sleepQuality']?.toString(),
+      weight: _tryParseDouble(map['weight']),
+      heartRate: _tryParseInt(map['heartRate']),
+      systolicBp: _tryParseInt(map['systolicBp'] ?? map['systolic_bp']),
+      diastolicBp: _tryParseInt(map['diastolicBp'] ?? map['diastolic_bp']),
+      bloodGlucose: _tryParseDouble(map['bloodGlucose'] ?? map['blood_glucose']),
+      bodyTemperature: _tryParseDouble(map['bodyTemperature'] ?? map['body_temperature']),
+      spO2: _tryParseInt(map['spO2'] ?? map['spo2']),
+      waterIntakeMl: _tryParseInt(map['waterIntakeMl'] ?? map['water_intake_ml']),
+      caloriesConsumed: _tryParseInt(map['caloriesConsumed'] ?? map['calories_consumed']),
+      alcoholUnits: _tryParseDouble(map['alcoholUnits'] ?? map['alcohol_units']),
+      painLevel: _tryParseInt(map['painLevel'] ?? map['pain_level']),
+      bedtime: _asString(map['bedtime'] ?? map['bed_time']),
+      wakeTime: _asString(map['wakeTime'] ?? map['wake_time']),
+      sleepQualityStars: _tryParseInt(map['sleepQualityStars'] ?? map['sleep_quality_stars']),
+      tags: _parseStringList(map['tags']),
       stressLevel: stress,
       notes: map['notes']?.toString(),
       createdAt: _tryParseDate(map['createdAt']),
@@ -227,7 +291,7 @@ class Medicine {
     final map = _asMap(json);
     return Medicine(
       id: _tryParseInt(map['id']) ?? 0,
-      name: _asString(map['name'], fallback: 'Neznano zdravilo'),
+      name: _asString(map['name'], fallback: 'Unknown medicine'),
       dosage: map['dosage']?.toString(),
       frequency: map['frequency']?.toString(),
       reason: map['reason']?.toString(),
@@ -250,6 +314,27 @@ class User {
   final String? allergies;
   final bool isActive;
 
+  // Extended profile / medical history fields (optional)
+  final double? heightCm;
+  final double? weightKg;
+  final String? heightUnit; // 'cm' or 'ft'
+  final String? gender;
+  final String? emergencyContactName;
+  final String? emergencyContactPhone;
+  final List<String>? chronicConditions; // e.g. ['Diabetes', 'Hypertension']
+  final List<String>? allergiesList; // parsed allergies as list
+  final List<Map<String, dynamic>>? pastSurgeries; // [{"name":"Appendix","year":2018}]
+  final List<Map<String, dynamic>>? familyHistory; // [{"condition":"Heart disease","relation":"Father"}]
+  final List<Map<String, dynamic>>? vaccinations; // [{"name":"MMR","date":"2020-01-01"}]
+  final String? bloodType;
+  final bool? organDonor;
+  final String? doctorName;
+  final String? doctorClinic;
+  final String? doctorPhone;
+  final String? insuranceProvider;
+  final String? insurancePolicyNumber;
+  final String? profilePhotoBase64;
+
   const User({
     required this.id,
     required this.email,
@@ -260,6 +345,25 @@ class User {
     this.medicalConditions,
     this.allergies,
     required this.isActive,
+    this.heightCm,
+    this.weightKg,
+    this.heightUnit,
+    this.gender,
+    this.emergencyContactName,
+    this.emergencyContactPhone,
+    this.chronicConditions,
+    this.allergiesList,
+    this.pastSurgeries,
+    this.familyHistory,
+    this.vaccinations,
+    this.bloodType,
+    this.organDonor,
+    this.doctorName,
+    this.doctorClinic,
+    this.doctorPhone,
+    this.insuranceProvider,
+    this.insurancePolicyNumber,
+    this.profilePhotoBase64,
   });
 
   String get fullName => [firstName, lastName].where((part) => part.trim().isNotEmpty).join(' ').trim();
@@ -284,7 +388,7 @@ class User {
   }
 
   Map<String, dynamic> toUpdateJson() {
-    return {
+    final map = <String, dynamic>{
       'email': email,
       'firstName': firstName,
       'lastName': lastName,
@@ -294,10 +398,45 @@ class User {
       'allergies': allergies,
       'isActive': isActive,
     };
+
+    if (heightCm != null) map['heightCm'] = heightCm;
+    if (weightKg != null) map['weightKg'] = weightKg;
+    if (heightUnit != null) map['heightUnit'] = heightUnit;
+    if (gender != null) map['gender'] = gender;
+    if (emergencyContactName != null) map['emergencyContactName'] = emergencyContactName;
+    if (emergencyContactPhone != null) map['emergencyContactPhone'] = emergencyContactPhone;
+    if (chronicConditions != null) map['chronicConditions'] = chronicConditions;
+    if (allergiesList != null) map['allergiesList'] = allergiesList;
+    if (pastSurgeries != null) map['pastSurgeries'] = pastSurgeries;
+    if (familyHistory != null) map['familyHistory'] = familyHistory;
+    if (vaccinations != null) map['vaccinations'] = vaccinations;
+    if (bloodType != null) map['bloodType'] = bloodType;
+    if (organDonor != null) map['organDonor'] = organDonor;
+    if (doctorName != null) map['doctorName'] = doctorName;
+    if (doctorClinic != null) map['doctorClinic'] = doctorClinic;
+    if (doctorPhone != null) map['doctorPhone'] = doctorPhone;
+    if (insuranceProvider != null) map['insuranceProvider'] = insuranceProvider;
+    if (insurancePolicyNumber != null) map['insurancePolicyNumber'] = insurancePolicyNumber;
+    if (profilePhotoBase64 != null) map['profilePhotoBase64'] = profilePhotoBase64;
+
+    return map;
   }
 
   factory User.fromJson(dynamic json) {
     final map = _asMap(json);
+    List<String>? parseListField(dynamic value) {
+      final list = _parseStringList(value);
+      return list.isEmpty ? null : list;
+    }
+
+    List<Map<String, dynamic>>? parseMapList(dynamic value) {
+      if (value == null) return null;
+      if (value is List) {
+        return value.map((e) => Map<String, dynamic>.from(_asMap(e))).toList();
+      }
+      return null;
+    }
+
     return User(
       id: _tryParseInt(map['id']) ?? 0,
       email: _asString(map['email']),
@@ -308,6 +447,25 @@ class User {
       medicalConditions: map['medicalConditions']?.toString(),
       allergies: map['allergies']?.toString(),
       isActive: _tryParseBool(map['isActive'], fallback: true),
+      heightCm: _tryParseDouble(map['heightCm']),
+      heightUnit: _asString(map['heightUnit']),
+      gender: _asString(map['gender']),
+      emergencyContactName: _asString(map['emergencyContactName']),
+      emergencyContactPhone: _asString(map['emergencyContactPhone']),
+      chronicConditions: parseListField(map['chronicConditions']),
+      allergiesList: parseListField(map['allergiesList'] ?? map['allergies']),
+      pastSurgeries: parseMapList(map['pastSurgeries']),
+      familyHistory: parseMapList(map['familyHistory']),
+      vaccinations: parseMapList(map['vaccinations']),
+      weightKg: _tryParseDouble(map['weightKg']),
+      bloodType: _asString(map['bloodType']),
+      organDonor: _tryParseBool(map['organDonor']),
+      doctorName: _asString(map['doctorName']),
+      doctorClinic: _asString(map['doctorClinic']),
+      doctorPhone: _asString(map['doctorPhone']),
+      insuranceProvider: _asString(map['insuranceProvider']),
+      insurancePolicyNumber: _asString(map['insurancePolicyNumber']),
+      profilePhotoBase64: _asString(map['profilePhotoBase64']),
     );
   }
 }
@@ -468,7 +626,7 @@ class HealthShield {
     final breakdownJson = map['dailyBreakdown'];
     return HealthShield(
       level: _tryParseInt(map['level']) ?? 1,
-      levelName: _asString(map['levelName'], fallback: 'Osnovni ščit'),
+      levelName: _asString(map['levelName'], fallback: 'Basic Shield'),
       totalConsistencyPoints: _tryParseInt(map['totalConsistencyPoints']) ?? 0,
       currentLevelStartPoints: _tryParseInt(map['currentLevelStartPoints']) ?? 0,
       nextLevelPoints: _tryParseInt(map['nextLevelPoints']) ?? 0,

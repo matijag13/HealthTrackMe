@@ -43,5 +43,16 @@ class HealthEntryController(private val healthEntryService: HealthEntryService) 
             ResponseEntity.notFound().build()
         }
     }
+
+    @GetMapping("/vitals-history")
+    fun getVitalsHistory(@RequestParam userId: Long, @RequestParam metric: String, @RequestParam days: Int?): ResponseEntity<ApiResponse<List<com.healthwithme.api.dto.VitalPointDto>>> {
+        return try {
+            val d = days ?: 90
+            val points = healthEntryService.getVitalsHistory(userId, metric, d)
+            ResponseEntity.ok().body(ApiResponse(success = true, message = "Vitals history", data = points))
+        } catch (e: Exception) {
+            ResponseEntity.badRequest().body(ApiResponse(success = false, message = (e.message ?: "Bad request"), data = null))
+        }
+    }
 }
 

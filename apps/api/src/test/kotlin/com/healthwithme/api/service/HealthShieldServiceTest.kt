@@ -160,7 +160,7 @@ class HealthShieldServiceTest {
         val med = Medication(id = 10L, user = testUser, active = true)
         `when`(medicationRepository.findByUserIdAndActiveTrue(1L)).thenReturn(listOf(med))
 
-        val doseLog = DoseLog(medication = med, status = DoseStatus.TAKEN, takenTime = LocalDateTime.now())
+        val doseLog = DoseLog(medication = Medicine(id = 10L, user = testUser, isActive = true), status = DoseStatus.TAKEN, takenTime = LocalDateTime.now())
         `when`(doseLogRepository.findByMedicationId(10L)).thenReturn(listOf(doseLog))
 
         `when`(sleepRecordRepository.findByUserIdAndSleepDate(1L, today)).thenReturn(emptyList())
@@ -185,7 +185,7 @@ class HealthShieldServiceTest {
         val med = Medication(id = 10L, user = testUser, active = true)
         `when`(medicationRepository.findByUserIdAndActiveTrue(1L)).thenReturn(listOf(med))
 
-        val doseLog = DoseLog(medication = med, status = DoseStatus.TAKEN, takenTime = LocalDateTime.now())
+        val doseLog = DoseLog(medication = Medicine(id = 10L, user = testUser, isActive = true), status = DoseStatus.TAKEN, takenTime = LocalDateTime.now())
         `when`(doseLogRepository.findByMedicationId(10L)).thenReturn(listOf(doseLog))
         
         val sleepRecord = SleepRecord(durationMinutes = 450)

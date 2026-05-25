@@ -1,7 +1,9 @@
 ﻿import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import '../config/theme.dart';
 import '../services/api_service.dart';
-import 'main_app.dart';
+import '../widgets/design_system.dart';
+
 class LoginScreen extends StatefulWidget {
   final VoidCallback onSwitchToRegister;
   const LoginScreen({required this.onSwitchToRegister, super.key});
@@ -23,9 +25,9 @@ class _LoginScreenState extends State<LoginScreen> {
   }
   String? _validateEmail(String? value) {
     final email = value?.trim() ?? '';
-    if (email.isEmpty) return 'E-pošta je obvezna.';
+    if (email.isEmpty) return 'Email is required.';
     final regex = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
-    if (!regex.hasMatch(email)) return 'Vnesi veljaven e-mail.';
+    if (!regex.hasMatch(email)) return 'Enter a valid email.';
     return null;
   }
   Future<void> _login() async {
@@ -36,23 +38,19 @@ class _LoginScreenState extends State<LoginScreen> {
       final users = await _api.getUsers();
       final user = users.firstWhere(
         (u) => u.email == email,
-        orElse: () => throw Exception('Račun ne obstaja.'),
+        orElse: () => throw Exception('Account not found. Please register first.'),
       );
       await _api.setActiveUserId(user.id);
       if (!mounted) return;
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(
-          builder: (_) => MainApp(
-            onLogout: () async {
-              await _api.resetActiveUserId();
-            },
-          ),
-        ),
-      );
+      context.goNamed('home');
     } catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Napaka: $error')),
+        SnackBar(
+          content: Text('❌ $error'),
+          backgroundColor: AppColors.danger,
+          behavior: SnackBarBehavior.floating,
+        ),
       );
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -85,13 +83,13 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ),
                   SizedBox(height: 12),
-                  Text('Vaša osebna zdravstvena platforma', textAlign: TextAlign.center, style: TextStyle(color: Colors.white70)),
+                  Text('Your personal health platform', textAlign: TextAlign.center, style: TextStyle(color: Colors.white70)),
                   SizedBox(height: 48),
                   Container(
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(20),
-                      boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 32)],
+                      boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 32)],
                     ),
                     padding: EdgeInsets.all(28),
                     child: Form(
@@ -99,17 +97,17 @@ class _LoginScreenState extends State<LoginScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('Prijava', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700, color: AppColors.navy)),
+                          Text('Sign In', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700, color: AppColors.navy)),
                           SizedBox(height: 4),
-                          Text('Vnesite svojih podatkov', style: TextStyle(color: AppColors.muted)),
+                          Text('Enter your credentials', style: TextStyle(color: AppColors.muted)),
                           SizedBox(height: 24),
-                          TextFormField(controller: _emailController, validator: _validateEmail, keyboardType: TextInputType.emailAddress, decoration: InputDecoration(labelText: 'E-pošta', border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)))),
+                          TextFormField(controller: _emailController, validator: _validateEmail, keyboardType: TextInputType.emailAddress, decoration: InputDecoration(labelText: 'Email', border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)))),
                           SizedBox(height: 16),
-                          TextFormField(controller: _passwordController, obscureText: _obscurePassword, validator: (v) => (v == null || v.isEmpty) ? 'Geslo je obvezno.' : null, decoration: InputDecoration(labelText: 'Geslo', suffixIcon: IconButton(icon: Icon(_obscurePassword ? Icons.visibility_off : Icons.visibility), onPressed: () => setState(() => _obscurePassword = !_obscurePassword)), border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)))),
+                          TextFormField(controller: _passwordController, obscureText: _obscurePassword, validator: (v) => (v == null || v.isEmpty) ? 'Password is required.' : null, decoration: InputDecoration(labelText: 'Password', suffixIcon: IconButton(icon: Icon(_obscurePassword ? Icons.visibility_off : Icons.visibility), onPressed: () => setState(() => _obscurePassword = !_obscurePassword)), border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)))),
                           SizedBox(height: 24),
-                          SizedBox(width: double.infinity, child: ElevatedButton(onPressed: _isLoading ? null : _login, child: _isLoading ? CircularProgressIndicator(color: Colors.white, strokeWidth: 2) : Text('Prijava'))),
+                          SizedBox(width: double.infinity, child: ElevatedButton(onPressed: _isLoading ? null : _login, child: _isLoading ? LoadingSkeleton.buttonSmall(context) : const Text('Sign In'))),
                           SizedBox(height: 16),
-                          Row(mainAxisAlignment: MainAxisAlignment.center, children: [Text('Še nimate računa?'), TextButton(onPressed: widget.onSwitchToRegister, child: Text('Registracija'))]),
+                          Row(mainAxisAlignment: MainAxisAlignment.center, children: [Text('Don\'t have an account?'), TextButton(onPressed: widget.onSwitchToRegister, child: Text('Register'))]),
                         ],
                       ),
                     ),

@@ -1,6 +1,9 @@
 package com.healthwithme.api.controller
 
 import com.healthwithme.api.dto.CreateMedicineRequest
+import com.healthwithme.api.dto.DoseRequest
+import com.healthwithme.api.dto.AdherenceDailyPoint
+import com.healthwithme.api.dto.AdherenceResponse
 import com.healthwithme.api.dto.MedicineDto
 import com.healthwithme.api.dto.ApiResponse
 import com.healthwithme.api.service.MedicineService
@@ -19,6 +22,52 @@ class MedicineController(private val medicineService: MedicineService) {
             ResponseEntity.status(HttpStatus.CREATED).body(
                 ApiResponse(success = true, message = "Medicine added", data = medicine)
             )
+        } catch (e: Exception) {
+            ResponseEntity.badRequest().body(ApiResponse(success = false, message = (e.message ?: "Bad request"), data = null))
+        }
+    }
+
+    @PostMapping("/{id}/dose")
+    fun logDose(@PathVariable id: Long, @RequestBody request: DoseRequest): ResponseEntity<ApiResponse<AdherenceResponse>> {
+        return try {
+            val date = java.time.LocalDate.parse(request.date)
+            val time = java.time.LocalTime.parse(request.time)
+            val result = medicineService.logDose(id, date, time, request.status)
+
+            val dailyBreakdown = (result["dailyBreakdown"] as? List<Map<String, String>>)?.map {
+                AdherenceDailyPoint(date = it["date"] ?: "", status = it["status"] ?: "SCHEDULED")
+            } ?: emptyList()
+
+            val response = AdherenceResponse(
+                percentage = (result["percentage"] as? Double) ?: 0.0,
+                takenCount = (result["takenCount"] as? Int) ?: 0,
+                missedCount = (result["missedCount"] as? Int) ?: 0,
+                dailyBreakdown = dailyBreakdown
+            )
+
+            ResponseEntity.ok().body(ApiResponse(success = true, message = "Dose logged", data = response))
+        } catch (e: Exception) {
+            ResponseEntity.badRequest().body(ApiResponse(success = false, message = (e.message ?: "Bad request"), data = null))
+        }
+    }
+
+    @GetMapping("/{id}/adherence")
+    fun getAdherence(@PathVariable id: Long, @RequestParam(required = false) days: Int?): ResponseEntity<ApiResponse<AdherenceResponse>> {
+        return try {
+            val result = medicineService.getAdherence(id, days)
+
+            val daily = (result["dailyBreakdown"] as? List<Map<String, String>>)?.map {
+                AdherenceDailyPoint(date = it["date"] ?: "", status = it["status"] ?: "SCHEDULED")
+            } ?: emptyList()
+
+            val response = AdherenceResponse(
+                percentage = (result["percentage"] as? Double) ?: 0.0,
+                takenCount = (result["takenCount"] as? Int) ?: 0,
+                missedCount = (result["missedCount"] as? Int) ?: 0,
+                dailyBreakdown = daily
+            )
+
+            ResponseEntity.ok().body(ApiResponse(success = true, message = "Adherence", data = response))
         } catch (e: Exception) {
             ResponseEntity.badRequest().body(ApiResponse(success = false, message = (e.message ?: "Bad request"), data = null))
         }

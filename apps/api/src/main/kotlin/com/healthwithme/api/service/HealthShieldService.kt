@@ -37,21 +37,32 @@ class HealthShieldService(
         var dailyPoints = healthShieldDailyPointsRepository.findByUserIdAndCalculationDate(userId, today)
 
         if (dailyPoints == null) {
-            dailyPoints = calculateDailyPoints(user, today)
-            
-            // Only apply points if not already applied for today
+            // Build the daily points object in memory — do NOT save yet
+            val unsavedDaily = buildDailyPoints(user, today)
+
             if (status.lastCalculatedDate != today) {
-                applyDailyPointsToStatus(status, dailyPoints)
+                // Apply penalty logic; this mutates unsavedDaily.penaltyPoints and .totalDailyPoints
+                applyDailyPointsToStatus(status, unsavedDaily)
                 status.lastCalculatedDate = today
                 status.updatedAt = LocalDateTime.now()
                 healthShieldStatusRepository.save(status)
+            } else {
+                // Status already updated today; just compute totals without touching status
+                val positivePoints = unsavedDaily.supplementsPoints + unsavedDaily.sleepPoints +
+                        unsavedDaily.activityPoints + unsavedDaily.wellbeingPoints +
+                        unsavedDaily.symptomsPoints + unsavedDaily.routineStabilityPoints
+                unsavedDaily.penaltyPoints = 0
+                unsavedDaily.totalDailyPoints = positivePoints
             }
+
+            // Only now — after penalty and total are set — persist the record
+            dailyPoints = healthShieldDailyPointsRepository.save(unsavedDaily)
         }
 
         return buildResponseDto(status, dailyPoints)
     }
 
-    private fun calculateDailyPoints(user: User, date: LocalDate): HealthShieldDailyPoints {
+    private fun buildDailyPoints(user: User, date: LocalDate): HealthShieldDailyPoints {
         var supplementsPoints = 0
         var sleepPoints = 0
         var activityPoints = 0
@@ -88,11 +99,20 @@ class HealthShieldService(
             }
         }
 
-        // 2. Sleep
+        // 2. Sleep - Primary: check dedicated sleep_records table
         val sleepRecords = sleepRecordRepository.findByUserIdAndSleepDate(user.id, date)
         if (sleepRecords.isNotEmpty()) {
             val totalSleepMinutes = sleepRecords.sumOf { it.durationMinutes }
-            if (totalSleepMinutes >= 420) { // 7 hours
+            if (totalSleepMinutes >= 420) { // 7 hours = 420 minutes
+                sleepPoints = 20
+                completedHabits++
+            }
+        } else {
+            // Fallback: check sleep_hours on the health_entry for this date
+            val entryForSleep = healthEntryRepository
+                .findByUserIdAndEntryDateOrderByCreatedAtDesc(user.id, date)
+                .firstOrNull()
+            if (entryForSleep != null && (entryForSleep.sleepHours ?: 0.0) >= 7.0) {
                 sleepPoints = 20
                 completedHabits++
             }
@@ -128,7 +148,7 @@ class HealthShieldService(
             routineStabilityPoints = if (hasActiveItems) 10 else 25
         }
 
-        val dailyPoints = HealthShieldDailyPoints(
+        return HealthShieldDailyPoints(
             user = user,
             calculationDate = date,
             supplementsPoints = supplementsPoints,
@@ -138,9 +158,9 @@ class HealthShieldService(
             symptomsPoints = symptomsPoints,
             routineStabilityPoints = routineStabilityPoints,
             completedHabitsCount = completedHabits
+            // penaltyPoints and totalDailyPoints intentionally omitted — defaults to 0
+            // they are set by applyDailyPointsToStatus() before the record is saved
         )
-
-        return healthShieldDailyPointsRepository.save(dailyPoints)
     }
 
     private fun applyDailyPointsToStatus(status: HealthShieldStatus, daily: HealthShieldDailyPoints) {
@@ -196,13 +216,13 @@ class HealthShieldService(
 
     private fun getLevelName(level: Int): String {
         return when {
-            level in 1..3 -> "Osnovni ščit"
-            level in 4..6 -> "Stabilni ščit"
-            level in 7..9 -> "Okrepljen ščit"
-            level in 10..14 -> "Močni ščit"
-            level in 15..20 -> "Napredni ščit"
-            level in 21..30 -> "Zanesljivi ščit"
-            else -> "Dolgoročni ščit"
+            level in 1..3   -> "Basic Shield"
+            level in 4..6   -> "Stable Shield"
+            level in 7..9   -> "Reinforced Shield"
+            level in 10..14 -> "Strong Shield"
+            level in 15..20 -> "Advanced Shield"
+            level in 21..30 -> "Reliable Shield"
+            else            -> "Long-term Shield"
         }
     }
 
