@@ -40,7 +40,7 @@ class HealthShieldControllerTest {
         )
         val responseDto = HealthShieldResponseDto(
             level = 2,
-            levelName = "Osnovni ščit",
+            levelName = "Basic Shield",
             totalConsistencyPoints = 150,
             currentLevelStartPoints = 100,
             nextLevelPoints = 300,
@@ -60,7 +60,7 @@ class HealthShieldControllerTest {
             .andExpect(status().isOk)
             .andExpect(content().contentType(MediaType.APPLICATION_JSON))
             .andExpect(jsonPath("$.level").value(2))
-            .andExpect(jsonPath("$.levelName").value("Osnovni ščit"))
+            .andExpect(jsonPath("$.levelName").value("Basic Shield"))
             .andExpect(jsonPath("$.totalConsistencyPoints").value(150))
             .andExpect(jsonPath("$.todayPoints").value(95))
             .andExpect(jsonPath("$.penaltyPoints").value(0))

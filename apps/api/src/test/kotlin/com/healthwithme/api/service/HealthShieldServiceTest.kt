@@ -80,13 +80,13 @@ class HealthShieldServiceTest {
         `when`(medicationRepository.findByUserIdAndActiveTrue(1L)).thenReturn(emptyList())
         `when`(sleepRecordRepository.findByUserIdAndSleepDate(1L, today)).thenReturn(emptyList())
         `when`(activityLogRepository.findByUserIdAndActivityDate(1L, today)).thenReturn(emptyList())
-        `when`(healthEntryRepository.findByUserIdAndEntryDate(1L, today)).thenReturn(null)
+        `when`(healthEntryRepository.findByUserIdAndEntryDateOrderByCreatedAtDesc(1L, today)).thenReturn(emptyList())
 
         val result = healthShieldService.getHealthShieldForUser(1L)
 
         // service vrne level 1
         assertThat(result.level).isEqualTo(1)
-        assertThat(result.levelName).isEqualTo("Osnovni ščit")
+        assertThat(result.levelName).isEqualTo("Basic Shield")
         // totalConsistencyPoints ostane 0
         assertThat(result.totalConsistencyPoints).isEqualTo(0)
         // completedHabitsCount je 0
@@ -118,7 +118,7 @@ class HealthShieldServiceTest {
 
         // health_entry z wellbeing in symptoms
         val healthEntry = HealthEntry(wellbeingScore = 8, symptoms = "Headache")
-        `when`(healthEntryRepository.findByUserIdAndEntryDate(1L, today)).thenReturn(healthEntry)
+        `when`(healthEntryRepository.findByUserIdAndEntryDateOrderByCreatedAtDesc(1L, today)).thenReturn(listOf(healthEntry))
 
         val result = healthShieldService.getHealthShieldForUser(1L)
 
@@ -165,7 +165,7 @@ class HealthShieldServiceTest {
 
         `when`(sleepRecordRepository.findByUserIdAndSleepDate(1L, today)).thenReturn(emptyList())
         `when`(activityLogRepository.findByUserIdAndActivityDate(1L, today)).thenReturn(emptyList())
-        `when`(healthEntryRepository.findByUserIdAndEntryDate(1L, today)).thenReturn(null)
+        `when`(healthEntryRepository.findByUserIdAndEntryDateOrderByCreatedAtDesc(1L, today)).thenReturn(emptyList())
 
         val result = healthShieldService.getHealthShieldForUser(1L)
         val bd = result.dailyBreakdown!!
@@ -194,7 +194,7 @@ class HealthShieldServiceTest {
         val activityLog = ActivityLog(steps = 7000)
         `when`(activityLogRepository.findByUserIdAndActivityDate(1L, today)).thenReturn(listOf(activityLog))
         
-        `when`(healthEntryRepository.findByUserIdAndEntryDate(1L, today)).thenReturn(null)
+        `when`(healthEntryRepository.findByUserIdAndEntryDateOrderByCreatedAtDesc(1L, today)).thenReturn(emptyList())
 
         val result = healthShieldService.getHealthShieldForUser(1L)
         val bd = result.dailyBreakdown!!
@@ -216,7 +216,7 @@ class HealthShieldServiceTest {
         `when`(medicationRepository.findByUserIdAndActiveTrue(1L)).thenReturn(emptyList())
         `when`(sleepRecordRepository.findByUserIdAndSleepDate(1L, today)).thenReturn(emptyList())
         `when`(activityLogRepository.findByUserIdAndActivityDate(1L, today)).thenReturn(emptyList())
-        `when`(healthEntryRepository.findByUserIdAndEntryDate(1L, today)).thenReturn(null)
+        `when`(healthEntryRepository.findByUserIdAndEntryDateOrderByCreatedAtDesc(1L, today)).thenReturn(emptyList())
 
         val result = healthShieldService.getHealthShieldForUser(1L)
         
@@ -239,7 +239,6 @@ class HealthShieldServiceTest {
         `when`(medicationRepository.findByUserIdAndActiveTrue(1L)).thenReturn(emptyList())
         `when`(sleepRecordRepository.findByUserIdAndSleepDate(1L, today)).thenReturn(emptyList())
         `when`(activityLogRepository.findByUserIdAndActivityDate(1L, today)).thenReturn(emptyList())
-        `when`(healthEntryRepository.findByUserIdAndEntryDate(1L, today)).thenReturn(null)
 
         val result = healthShieldService.getHealthShieldForUser(1L)
         
@@ -250,7 +249,7 @@ class HealthShieldServiceTest {
         // Level 3: 300..599
         // 342 means Level 3
         assertThat(result.level).isEqualTo(3)
-        assertThat(result.levelName).isEqualTo("Osnovni ščit")
+        assertThat(result.levelName).isEqualTo("Basic Shield")
         assertThat(result.currentLevelStartPoints).isEqualTo(300)
         assertThat(result.nextLevelPoints).isEqualTo(600)
         assertThat(result.pointsToNextLevel).isEqualTo(600 - 342)
