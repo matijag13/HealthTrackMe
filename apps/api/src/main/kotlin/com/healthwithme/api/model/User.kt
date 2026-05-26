@@ -106,9 +106,6 @@ data class User(
     val healthEntries: MutableList<HealthEntry> = mutableListOf(),
 
     @OneToMany(mappedBy = "user", cascade = [CascadeType.ALL])
-    val medications: MutableList<Medication> = mutableListOf(),
-
-    @OneToMany(mappedBy = "user", cascade = [CascadeType.ALL])
     val sleepRecords: MutableList<SleepRecord> = mutableListOf(),
 
     @OneToMany(mappedBy = "user", cascade = [CascadeType.ALL])

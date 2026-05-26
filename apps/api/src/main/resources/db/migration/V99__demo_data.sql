@@ -17,78 +17,78 @@ WHERE NOT EXISTS (SELECT 1 FROM users u WHERE u.email = 'sara@demo.com');
 -- Convenience: fetch user ids
 -- Use subselects in subsequent inserts: (SELECT id FROM users WHERE email = ...)
 
--- 2) Insert medicines for each user (medications table for legacy FK + medicines table used by app)
--- Alice
-DO $$
-BEGIN
-  IF NOT EXISTS (SELECT 1 FROM medications m JOIN users u ON u.id = m.user_id WHERE u.email = 'alice@demo.com' AND m.name = 'Metformin') THEN
-    INSERT INTO medications (user_id, name, dosage, frequency, instructions, item_type, active, created_at, updated_at)
-    VALUES ((SELECT id FROM users WHERE email = 'alice@demo.com'), 'Metformin', '500mg', 'Twice daily', 'Take with meals', 'MEDICATION', TRUE, NOW(), NOW());
-  END IF;
-  IF NOT EXISTS (SELECT 1 FROM medications m JOIN users u ON u.id = m.user_id WHERE u.email = 'alice@demo.com' AND m.name = 'Lisinopril') THEN
-    INSERT INTO medications (user_id, name, dosage, frequency, instructions, item_type, active, created_at, updated_at)
-    VALUES ((SELECT id FROM users WHERE email = 'alice@demo.com'), 'Lisinopril', '10mg', 'Once daily', 'Take in the morning', 'MEDICATION', TRUE, NOW(), NOW());
-  END IF;
-  IF NOT EXISTS (SELECT 1 FROM medications m JOIN users u ON u.id = m.user_id WHERE u.email = 'alice@demo.com' AND m.name = 'Vitamin D') THEN
-    INSERT INTO medications (user_id, name, dosage, frequency, instructions, item_type, active, created_at, updated_at)
-    VALUES ((SELECT id FROM users WHERE email = 'alice@demo.com'), 'Vitamin D', '1000IU', 'Once daily', 'Take with food', 'SUPPLEMENT', TRUE, NOW(), NOW());
-  END IF;
-  IF NOT EXISTS (SELECT 1 FROM medications m JOIN users u ON u.id = m.user_id WHERE u.email = 'alice@demo.com' AND m.name = 'Aspirin') THEN
-    INSERT INTO medications (user_id, name, dosage, frequency, instructions, item_type, active, created_at, updated_at)
-    VALUES ((SELECT id FROM users WHERE email = 'alice@demo.com'), 'Aspirin', '100mg', 'Once daily', 'Low-dose aspirin', 'MEDICATION', TRUE, NOW(), NOW());
-  END IF;
-END$$;
+-- 2) Insert medicines for each user (single canonical medicines table)
+INSERT INTO medicines (user_id, name, dosage, frequency, reason, start_date, end_date, side_effects, item_type, is_active, created_at, updated_at)
+SELECT u.id, 'Metformin', '500mg', 'Twice daily', 'Take with meals', NULL, NULL, NULL, 'MEDICATION', TRUE, NOW(), NOW()
+FROM users u
+WHERE u.email = 'alice@demo.com'
+  AND NOT EXISTS (SELECT 1 FROM medicines m WHERE m.user_id = u.id AND m.name = 'Metformin');
 
--- Bob
-DO $$
-BEGIN
-  IF NOT EXISTS (SELECT 1 FROM medications m JOIN users u ON u.id = m.user_id WHERE u.email = 'bob@demo.com' AND m.name = 'Ventolin Inhaler') THEN
-    INSERT INTO medications (user_id, name, dosage, frequency, instructions, item_type, active, created_at, updated_at)
-    VALUES ((SELECT id FROM users WHERE email = 'bob@demo.com'), 'Ventolin Inhaler', '100mcg', 'As needed', 'Use as prescribed', 'MEDICATION', TRUE, NOW(), NOW());
-  END IF;
-  IF NOT EXISTS (SELECT 1 FROM medications m JOIN users u ON u.id = m.user_id WHERE u.email = 'bob@demo.com' AND m.name = 'Omega-3') THEN
-    INSERT INTO medications (user_id, name, dosage, frequency, instructions, item_type, active, created_at, updated_at)
-    VALUES ((SELECT id FROM users WHERE email = 'bob@demo.com'), 'Omega-3', '1000mg', 'Once daily', 'Take with food', 'SUPPLEMENT', TRUE, NOW(), NOW());
-  END IF;
-  IF NOT EXISTS (SELECT 1 FROM medications m JOIN users u ON u.id = m.user_id WHERE u.email = 'bob@demo.com' AND m.name = 'Vitamin D') THEN
-    INSERT INTO medications (user_id, name, dosage, frequency, instructions, item_type, active, created_at, updated_at)
-    VALUES ((SELECT id FROM users WHERE email = 'bob@demo.com'), 'Vitamin D', '1000IU', 'Once daily', 'Take with food', 'SUPPLEMENT', TRUE, NOW(), NOW());
-  END IF;
-  IF NOT EXISTS (SELECT 1 FROM medications m JOIN users u ON u.id = m.user_id WHERE u.email = 'bob@demo.com' AND m.name = 'Aspirin') THEN
-    INSERT INTO medications (user_id, name, dosage, frequency, instructions, item_type, active, created_at, updated_at)
-    VALUES ((SELECT id FROM users WHERE email = 'bob@demo.com'), 'Aspirin', '100mg', 'Once daily', 'Low-dose aspirin', 'MEDICATION', TRUE, NOW(), NOW());
-  END IF;
-END$$;
+INSERT INTO medicines (user_id, name, dosage, frequency, reason, start_date, end_date, side_effects, item_type, is_active, created_at, updated_at)
+SELECT u.id, 'Lisinopril', '10mg', 'Once daily', 'Take in the morning', NULL, NULL, NULL, 'MEDICATION', TRUE, NOW(), NOW()
+FROM users u
+WHERE u.email = 'alice@demo.com'
+  AND NOT EXISTS (SELECT 1 FROM medicines m WHERE m.user_id = u.id AND m.name = 'Lisinopril');
 
--- Sara
-DO $$
-BEGIN
-  IF NOT EXISTS (SELECT 1 FROM medications m JOIN users u ON u.id = m.user_id WHERE u.email = 'sara@demo.com' AND m.name = 'Vitamin D') THEN
-    INSERT INTO medications (user_id, name, dosage, frequency, instructions, item_type, active, created_at, updated_at)
-    VALUES ((SELECT id FROM users WHERE email = 'sara@demo.com'), 'Vitamin D', '1000IU', 'Once daily', 'Take with food', 'SUPPLEMENT', TRUE, NOW(), NOW());
-  END IF;
-  IF NOT EXISTS (SELECT 1 FROM medications m JOIN users u ON u.id = m.user_id WHERE u.email = 'sara@demo.com' AND m.name = 'Omega-3') THEN
-    INSERT INTO medications (user_id, name, dosage, frequency, instructions, item_type, active, created_at, updated_at)
-    VALUES ((SELECT id FROM users WHERE email = 'sara@demo.com'), 'Omega-3', '1000mg', 'Once daily', 'Take with food', 'SUPPLEMENT', TRUE, NOW(), NOW());
-  END IF;
-  IF NOT EXISTS (SELECT 1 FROM medications m JOIN users u ON u.id = m.user_id WHERE u.email = 'sara@demo.com' AND m.name = 'Aspirin') THEN
-    INSERT INTO medications (user_id, name, dosage, frequency, instructions, item_type, active, created_at, updated_at)
-    VALUES ((SELECT id FROM users WHERE email = 'sara@demo.com'), 'Aspirin', '100mg', 'Once daily', 'Low-dose aspirin', 'MEDICATION', TRUE, NOW(), NOW());
-  END IF;
-  IF NOT EXISTS (SELECT 1 FROM medications m JOIN users u ON u.id = m.user_id WHERE u.email = 'sara@demo.com' AND m.name = 'Multivitamin') THEN
-    INSERT INTO medications (user_id, name, dosage, frequency, instructions, item_type, active, created_at, updated_at)
-    VALUES ((SELECT id FROM users WHERE email = 'sara@demo.com'), 'Multivitamin', '1 tablet', 'Once daily', 'Take with food', 'SUPPLEMENT', TRUE, NOW(), NOW());
-  END IF;
-END$$;
+INSERT INTO medicines (user_id, name, dosage, frequency, reason, start_date, end_date, side_effects, item_type, is_active, created_at, updated_at)
+SELECT u.id, 'Vitamin D', '1000IU', 'Once daily', 'Take with food', NULL, NULL, NULL, 'SUPPLEMENT', TRUE, NOW(), NOW()
+FROM users u
+WHERE u.email = 'alice@demo.com'
+  AND NOT EXISTS (SELECT 1 FROM medicines m WHERE m.user_id = u.id AND m.name = 'Vitamin D');
 
--- Also mirror into medicines table for the app model (avoid duplicates)
-INSERT INTO medicines (user_id, name, dosage, frequency, reason, start_date, end_date, side_effects, is_active, created_at, updated_at)
-SELECT m.user_id, m.name, m.dosage, m.frequency, m.instructions, NULL, NULL, NULL, m.active, m.created_at, m.updated_at
-FROM medications m
-WHERE m.name IN ('Metformin','Lisinopril','Vitamin D','Aspirin','Ventolin Inhaler','Omega-3','Multivitamin')
-  AND NOT EXISTS (
-    SELECT 1 FROM medicines x WHERE x.user_id = m.user_id AND x.name = m.name
-  );
+INSERT INTO medicines (user_id, name, dosage, frequency, reason, start_date, end_date, side_effects, item_type, is_active, created_at, updated_at)
+SELECT u.id, 'Aspirin', '100mg', 'Once daily', 'Low-dose aspirin', NULL, NULL, NULL, 'MEDICATION', TRUE, NOW(), NOW()
+FROM users u
+WHERE u.email = 'alice@demo.com'
+  AND NOT EXISTS (SELECT 1 FROM medicines m WHERE m.user_id = u.id AND m.name = 'Aspirin');
+
+INSERT INTO medicines (user_id, name, dosage, frequency, reason, start_date, end_date, side_effects, item_type, is_active, created_at, updated_at)
+SELECT u.id, 'Ventolin Inhaler', '100mcg', 'As needed', 'Use as prescribed', NULL, NULL, NULL, 'MEDICATION', TRUE, NOW(), NOW()
+FROM users u
+WHERE u.email = 'bob@demo.com'
+  AND NOT EXISTS (SELECT 1 FROM medicines m WHERE m.user_id = u.id AND m.name = 'Ventolin Inhaler');
+
+INSERT INTO medicines (user_id, name, dosage, frequency, reason, start_date, end_date, side_effects, item_type, is_active, created_at, updated_at)
+SELECT u.id, 'Omega-3', '1000mg', 'Once daily', 'Take with food', NULL, NULL, NULL, 'SUPPLEMENT', TRUE, NOW(), NOW()
+FROM users u
+WHERE u.email = 'bob@demo.com'
+  AND NOT EXISTS (SELECT 1 FROM medicines m WHERE m.user_id = u.id AND m.name = 'Omega-3');
+
+INSERT INTO medicines (user_id, name, dosage, frequency, reason, start_date, end_date, side_effects, item_type, is_active, created_at, updated_at)
+SELECT u.id, 'Vitamin D', '1000IU', 'Once daily', 'Take with food', NULL, NULL, NULL, 'SUPPLEMENT', TRUE, NOW(), NOW()
+FROM users u
+WHERE u.email = 'bob@demo.com'
+  AND NOT EXISTS (SELECT 1 FROM medicines m WHERE m.user_id = u.id AND m.name = 'Vitamin D');
+
+INSERT INTO medicines (user_id, name, dosage, frequency, reason, start_date, end_date, side_effects, item_type, is_active, created_at, updated_at)
+SELECT u.id, 'Aspirin', '100mg', 'Once daily', 'Low-dose aspirin', NULL, NULL, NULL, 'MEDICATION', TRUE, NOW(), NOW()
+FROM users u
+WHERE u.email = 'bob@demo.com'
+  AND NOT EXISTS (SELECT 1 FROM medicines m WHERE m.user_id = u.id AND m.name = 'Aspirin');
+
+INSERT INTO medicines (user_id, name, dosage, frequency, reason, start_date, end_date, side_effects, item_type, is_active, created_at, updated_at)
+SELECT u.id, 'Vitamin D', '1000IU', 'Once daily', 'Take with food', NULL, NULL, NULL, 'SUPPLEMENT', TRUE, NOW(), NOW()
+FROM users u
+WHERE u.email = 'sara@demo.com'
+  AND NOT EXISTS (SELECT 1 FROM medicines m WHERE m.user_id = u.id AND m.name = 'Vitamin D');
+
+INSERT INTO medicines (user_id, name, dosage, frequency, reason, start_date, end_date, side_effects, item_type, is_active, created_at, updated_at)
+SELECT u.id, 'Omega-3', '1000mg', 'Once daily', 'Take with food', NULL, NULL, NULL, 'SUPPLEMENT', TRUE, NOW(), NOW()
+FROM users u
+WHERE u.email = 'sara@demo.com'
+  AND NOT EXISTS (SELECT 1 FROM medicines m WHERE m.user_id = u.id AND m.name = 'Omega-3');
+
+INSERT INTO medicines (user_id, name, dosage, frequency, reason, start_date, end_date, side_effects, item_type, is_active, created_at, updated_at)
+SELECT u.id, 'Aspirin', '100mg', 'Once daily', 'Low-dose aspirin', NULL, NULL, NULL, 'MEDICATION', TRUE, NOW(), NOW()
+FROM users u
+WHERE u.email = 'sara@demo.com'
+  AND NOT EXISTS (SELECT 1 FROM medicines m WHERE m.user_id = u.id AND m.name = 'Aspirin');
+
+INSERT INTO medicines (user_id, name, dosage, frequency, reason, start_date, end_date, side_effects, item_type, is_active, created_at, updated_at)
+SELECT u.id, 'Multivitamin', '1 tablet', 'Once daily', 'Take with food', NULL, NULL, NULL, 'SUPPLEMENT', TRUE, NOW(), NOW()
+FROM users u
+WHERE u.email = 'sara@demo.com'
+  AND NOT EXISTS (SELECT 1 FROM medicines m WHERE m.user_id = u.id AND m.name = 'Multivitamin');
 
 -- 3) Insert daily health entries for the past ~2 years per user (~730 rows each)
 -- Uses generate_series and lateral to compute energy/stress and wellbeing consistently per row
@@ -184,14 +184,14 @@ SELECT (SELECT id FROM users WHERE email = 'sara@demo.com'), d::date,
 FROM generate_series(CURRENT_DATE - INTERVAL '2 years', CURRENT_DATE, '3 days') AS d
 WHERE NOT EXISTS (SELECT 1 FROM activity_logs al WHERE al.user_id = (SELECT id FROM users WHERE email = 'sara@demo.com') AND al.activity_date = d::date);
 
--- 5) Dose logs: Insert daily dose logs for each medication using pure SQL without loops
--- Uses CASE WHEN to determine start_date per medication name, then generate_series for all days
-INSERT INTO dose_logs (medication_id, scheduled_time, taken_time, status, note)
+-- 5) Dose logs: Insert daily dose logs for each medicine using pure SQL without loops
+-- Uses CASE WHEN to determine start date per medicine name, then generate_series for all days
+INSERT INTO dose_logs (medicine_id, scheduled_time, taken_time, status, note)
 SELECT
   m.id,
-  gs + TIME '08:00',
+  gs.day_ts + TIME '08:00',
   CASE
-    WHEN random() < 0.8 THEN (gs::timestamp + TIME '08:00' + make_interval(mins => (random()*60)::int))
+    WHEN random() < 0.8 THEN (gs.day_ts::timestamp + TIME '08:00' + make_interval(mins => (random()*60)::int))
     ELSE NULL
   END AS taken_time,
   CASE
@@ -199,7 +199,7 @@ SELECT
     ELSE 'MISSED'
   END AS status,
   NULL
-FROM medications m
+FROM medicines m
 CROSS JOIN generate_series(
   CASE
     WHEN m.name = 'Metformin' THEN CURRENT_DATE - INTERVAL '500 days'
@@ -216,8 +216,8 @@ CROSS JOIN generate_series(
 WHERE m.name IN ('Metformin','Lisinopril','Vitamin D','Aspirin','Ventolin Inhaler','Omega-3','Multivitamin')
   AND NOT EXISTS (
     SELECT 1 FROM dose_logs d
-    WHERE d.medication_id = m.id
-    AND d.scheduled_time = (gs + TIME '08:00')
+    WHERE d.medicine_id = m.id
+    AND d.scheduled_time = (gs.day_ts + TIME '08:00')
   );
 
 

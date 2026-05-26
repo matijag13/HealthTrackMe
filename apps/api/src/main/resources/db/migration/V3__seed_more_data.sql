@@ -96,69 +96,61 @@ WHERE u.email = 'nina.zupan@example.com'
     SELECT 1 FROM activity_logs al WHERE al.user_id = u.id AND al.activity_date = CURRENT_DATE
   );
 
-INSERT INTO medications (user_id, name, dosage, frequency, instructions, item_type, active, created_at, updated_at)
-SELECT u.id, 'Ventolin', '100mcg', 'As needed', 'Use as prescribed', 'MEDICATION', TRUE, NOW(), NOW()
+INSERT INTO medicines (user_id, name, dosage, frequency, reason, start_date, end_date, side_effects, item_type, is_active, created_at, updated_at)
+SELECT u.id, 'Ventolin', '100mcg', 'As needed', 'Use as prescribed', NULL, NULL, NULL, 'MEDICATION', TRUE, NOW(), NOW()
 FROM users u
 WHERE u.email = 'ana.novak@example.com'
-  AND NOT EXISTS (
-	SELECT 1 FROM medications m WHERE m.user_id = u.id AND m.name = 'Ventolin'
-  );
+  AND NOT EXISTS (SELECT 1 FROM medicines m WHERE m.user_id = u.id AND m.name = 'Ventolin');
 
-INSERT INTO medications (user_id, name, dosage, frequency, instructions, item_type, active, created_at, updated_at)
-SELECT u.id, 'Omega 3', '1000mg', 'Daily', 'Take with food', 'SUPPLEMENT', TRUE, NOW(), NOW()
+INSERT INTO medicines (user_id, name, dosage, frequency, reason, start_date, end_date, side_effects, item_type, is_active, created_at, updated_at)
+SELECT u.id, 'Omega 3', '1000mg', 'Daily', 'Take with food', NULL, NULL, NULL, 'SUPPLEMENT', TRUE, NOW(), NOW()
 FROM users u
 WHERE u.email = 'luka.horvat@example.com'
-  AND NOT EXISTS (
-	SELECT 1 FROM medications m WHERE m.user_id = u.id AND m.name = 'Omega 3'
-  );
+  AND NOT EXISTS (SELECT 1 FROM medicines m WHERE m.user_id = u.id AND m.name = 'Omega 3');
 
-INSERT INTO medications (user_id, name, dosage, frequency, instructions, item_type, active, created_at, updated_at)
-SELECT u.id, 'Amlodipine', '5mg', 'Daily', 'Take in the morning', 'MEDICATION', TRUE, NOW(), NOW()
+INSERT INTO medicines (user_id, name, dosage, frequency, reason, start_date, end_date, side_effects, item_type, is_active, created_at, updated_at)
+SELECT u.id, 'Amlodipine', '5mg', 'Daily', 'Take in the morning', NULL, NULL, NULL, 'MEDICATION', TRUE, NOW(), NOW()
 FROM users u
 WHERE u.email = 'maja.kovac@example.com'
-  AND NOT EXISTS (
-	SELECT 1 FROM medications m WHERE m.user_id = u.id AND m.name = 'Amlodipine'
-  );
+  AND NOT EXISTS (SELECT 1 FROM medicines m WHERE m.user_id = u.id AND m.name = 'Amlodipine');
 
-INSERT INTO medications (user_id, name, dosage, frequency, instructions, item_type, active, created_at, updated_at)
-SELECT u.id, 'Sumatriptan', '50mg', 'As needed', 'Use when migraine starts', 'MEDICATION', TRUE, NOW(), NOW()
+INSERT INTO medicines (user_id, name, dosage, frequency, reason, start_date, end_date, side_effects, item_type, is_active, created_at, updated_at)
+SELECT u.id, 'Sumatriptan', '50mg', 'As needed', 'Use when migraine starts', NULL, NULL, NULL, 'MEDICATION', TRUE, NOW(), NOW()
 FROM users u
 WHERE u.email = 'nina.zupan@example.com'
-  AND NOT EXISTS (
-	SELECT 1 FROM medications m WHERE m.user_id = u.id AND m.name = 'Sumatriptan'
-  );
+  AND NOT EXISTS (SELECT 1 FROM medicines m WHERE m.user_id = u.id AND m.name = 'Sumatriptan');
 
-INSERT INTO dose_logs (medication_id, scheduled_time, taken_time, status, note)
+INSERT INTO dose_logs (medicine_id, scheduled_time, taken_time, status, note)
 SELECT m.id, NOW() - INTERVAL '8 hours', NOW() - INTERVAL '8 hours', 'TAKEN', 'Morning dose'
-FROM medications m
+FROM medicines m
 JOIN users u ON u.id = m.user_id
 WHERE u.email = 'ana.novak@example.com'
   AND m.name = 'Ventolin'
-  AND NOT EXISTS (SELECT 1 FROM dose_logs d WHERE d.medication_id = m.id AND d.status = 'TAKEN');
+  AND NOT EXISTS (SELECT 1 FROM dose_logs d WHERE d.medicine_id = m.id AND d.status = 'TAKEN');
 
-INSERT INTO dose_logs (medication_id, scheduled_time, taken_time, status, note)
+INSERT INTO dose_logs (medicine_id, scheduled_time, taken_time, status, note)
 SELECT m.id, NOW() - INTERVAL '12 hours', NOW() - INTERVAL '12 hours', 'TAKEN', 'Breakfast'
-FROM medications m
+FROM medicines m
 JOIN users u ON u.id = m.user_id
 WHERE u.email = 'luka.horvat@example.com'
   AND m.name = 'Omega 3'
-  AND NOT EXISTS (SELECT 1 FROM dose_logs d WHERE d.medication_id = m.id AND d.status = 'TAKEN');
+  AND NOT EXISTS (SELECT 1 FROM dose_logs d WHERE d.medicine_id = m.id AND d.status = 'TAKEN');
 
-INSERT INTO dose_logs (medication_id, scheduled_time, taken_time, status, note)
+INSERT INTO dose_logs (medicine_id, scheduled_time, taken_time, status, note)
 SELECT m.id, NOW() - INTERVAL '20 hours', NOW() - INTERVAL '20 hours', 'TAKEN', 'Morning dose'
-FROM medications m
+FROM medicines m
 JOIN users u ON u.id = m.user_id
 WHERE u.email = 'maja.kovac@example.com'
   AND m.name = 'Amlodipine'
-  AND NOT EXISTS (SELECT 1 FROM dose_logs d WHERE d.medication_id = m.id AND d.status = 'TAKEN');
+  AND NOT EXISTS (SELECT 1 FROM dose_logs d WHERE d.medicine_id = m.id AND d.status = 'TAKEN');
 
-INSERT INTO dose_logs (medication_id, scheduled_time, taken_time, status, note)
+INSERT INTO dose_logs (medicine_id, scheduled_time, taken_time, status, note)
 SELECT m.id, NOW() - INTERVAL '2 hours', NOW() - INTERVAL '2 hours', 'TAKEN', 'PRN dose'
-FROM medications m
+FROM medicines m
 JOIN users u ON u.id = m.user_id
 WHERE u.email = 'nina.zupan@example.com'
   AND m.name = 'Sumatriptan'
-  AND NOT EXISTS (SELECT 1 FROM dose_logs d WHERE d.medication_id = m.id AND d.status = 'TAKEN');
+  AND NOT EXISTS (SELECT 1 FROM dose_logs d WHERE d.medicine_id = m.id AND d.status = 'TAKEN');
 
 INSERT INTO health_shield_status (user_id, total_consistency_points, current_level, consecutive_failed_days, last_calculated_date, created_at, updated_at)
 SELECT u.id, 120, 2, 0, CURRENT_DATE, NOW(), NOW()

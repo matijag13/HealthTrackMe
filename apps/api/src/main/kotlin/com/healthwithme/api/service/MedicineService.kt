@@ -81,15 +81,15 @@ class MedicineService(
         return toMedicineDto(savedMedicine)
     }
 
-    fun logDose(medicationId: Long, date: java.time.LocalDate, time: java.time.LocalTime, statusStr: String): Map<String, Any> {
-        val medication = medicineRepository.findById(medicationId)
+    fun logDose(medicineId: Long, date: java.time.LocalDate, time: java.time.LocalTime, statusStr: String): Map<String, Any> {
+        val medicine = medicineRepository.findById(medicineId)
             .orElseThrow { IllegalArgumentException("Medicine not found") }
 
         val scheduled = java.time.LocalDateTime.of(date, time)
         val status = try { DoseStatus.valueOf(statusStr) } catch (_: Exception) { DoseStatus.SCHEDULED }
 
         val dose = DoseLog(
-            medication = medication,
+            medicine = medicine,
             scheduledTime = scheduled,
             takenTime = if (status == DoseStatus.TAKEN) scheduled else null,
             status = status
@@ -98,7 +98,7 @@ class MedicineService(
         doseLogRepository.save(dose)
 
         // compute adherence for all dose logs for this medication
-        val logs = doseLogRepository.findByMedicationId(medicationId)
+        val logs = doseLogRepository.findByMedicineId(medicineId)
         val takenCount = logs.count { it.status == DoseStatus.TAKEN }
         val missedCount = logs.count { it.status == DoseStatus.MISSED }
         val relevant = takenCount + missedCount
@@ -116,11 +116,11 @@ class MedicineService(
         return mapOf("percentage" to percentage, "takenCount" to takenCount, "missedCount" to missedCount, "dailyBreakdown" to daily)
     }
 
-    fun getAdherence(medicationId: Long, days: Int?): Map<String, Any> {
-        val medication = medicineRepository.findById(medicationId)
+    fun getAdherence(medicineId: Long, days: Int?): Map<String, Any> {
+        val medicine = medicineRepository.findById(medicineId)
             .orElseThrow { IllegalArgumentException("Medicine not found") }
 
-        val allLogs = doseLogRepository.findByMedicationIdOrderByScheduledTimeDesc(medicationId)
+        val allLogs = doseLogRepository.findByMedicineIdOrderByScheduledTimeDesc(medicineId)
         val filtered = days?.let { d ->
             val cutoff = java.time.LocalDateTime.now().minusDays(d.toLong())
             allLogs.filter { it.scheduledTime.isAfter(cutoff) }

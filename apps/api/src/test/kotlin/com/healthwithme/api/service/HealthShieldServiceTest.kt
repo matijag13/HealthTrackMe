@@ -29,7 +29,7 @@ class HealthShieldServiceTest {
     private lateinit var userRepository: UserRepository
 
     @Mock
-    private lateinit var medicationRepository: MedicationRepository
+    private lateinit var medicineRepository: MedicineRepository
 
     @Mock
     private lateinit var doseLogRepository: DoseLogRepository
@@ -72,12 +72,12 @@ class HealthShieldServiceTest {
 
     @Test
     fun `Test 1 - Uporabnik brez dnevnih navad`() {
-        // uporabnik nima zapisov v sleep_records, activity_logs, health_entries, medications ali dose_logs
+        // uporabnik nima zapisov v sleep_records, activity_logs, health_entries, medicines ali dose_logs
         mockStatus(null)
         `when`(healthShieldDailyPointsRepository.findByUserIdAndCalculationDate(1L, today)).thenReturn(null)
         mockDailyPointsSave()
         
-        `when`(medicationRepository.findByUserIdAndActiveTrue(1L)).thenReturn(emptyList())
+        `when`(medicineRepository.findByUserIdAndIsActive(1L, true)).thenReturn(emptyList())
         `when`(sleepRecordRepository.findByUserIdAndSleepDate(1L, today)).thenReturn(emptyList())
         `when`(activityLogRepository.findByUserIdAndActivityDate(1L, today)).thenReturn(emptyList())
         `when`(healthEntryRepository.findByUserIdAndEntryDateOrderByCreatedAtDesc(1L, today)).thenReturn(emptyList())
@@ -106,7 +106,7 @@ class HealthShieldServiceTest {
         `when`(healthShieldStatusRepository.save(any(HealthShieldStatus::class.java))).thenAnswer { it.arguments[0] }
 
         // Brez dodatkov
-        `when`(medicationRepository.findByUserIdAndActiveTrue(1L)).thenReturn(emptyList())
+        `when`(medicineRepository.findByUserIdAndIsActive(1L, true)).thenReturn(emptyList())
 
         // sleep_record z vsaj 420 minutami
         val sleepRecord = SleepRecord(durationMinutes = 450)
@@ -157,11 +157,11 @@ class HealthShieldServiceTest {
         mockDailyPointsSave()
         `when`(healthShieldStatusRepository.save(any(HealthShieldStatus::class.java))).thenAnswer { it.arguments[0] }
 
-        val med = Medication(id = 10L, user = testUser, active = true)
-        `when`(medicationRepository.findByUserIdAndActiveTrue(1L)).thenReturn(listOf(med))
+        val med = Medicine(id = 10L, user = testUser, isActive = true)
+        `when`(medicineRepository.findByUserIdAndIsActive(1L, true)).thenReturn(listOf(med))
 
-        val doseLog = DoseLog(medication = Medicine(id = 10L, user = testUser, isActive = true), status = DoseStatus.TAKEN, takenTime = LocalDateTime.now())
-        `when`(doseLogRepository.findByMedicationId(10L)).thenReturn(listOf(doseLog))
+        val doseLog = DoseLog(medicine = Medicine(id = 10L, user = testUser, isActive = true), status = DoseStatus.TAKEN, takenTime = LocalDateTime.now())
+        `when`(doseLogRepository.findByMedicineId(10L)).thenReturn(listOf(doseLog))
 
         `when`(sleepRecordRepository.findByUserIdAndSleepDate(1L, today)).thenReturn(emptyList())
         `when`(activityLogRepository.findByUserIdAndActivityDate(1L, today)).thenReturn(emptyList())
@@ -182,11 +182,11 @@ class HealthShieldServiceTest {
         mockDailyPointsSave()
         `when`(healthShieldStatusRepository.save(any(HealthShieldStatus::class.java))).thenAnswer { it.arguments[0] }
 
-        val med = Medication(id = 10L, user = testUser, active = true)
-        `when`(medicationRepository.findByUserIdAndActiveTrue(1L)).thenReturn(listOf(med))
+        val med = Medicine(id = 10L, user = testUser, isActive = true)
+        `when`(medicineRepository.findByUserIdAndIsActive(1L, true)).thenReturn(listOf(med))
 
-        val doseLog = DoseLog(medication = Medicine(id = 10L, user = testUser, isActive = true), status = DoseStatus.TAKEN, takenTime = LocalDateTime.now())
-        `when`(doseLogRepository.findByMedicationId(10L)).thenReturn(listOf(doseLog))
+        val doseLog = DoseLog(medicine = Medicine(id = 10L, user = testUser, isActive = true), status = DoseStatus.TAKEN, takenTime = LocalDateTime.now())
+        `when`(doseLogRepository.findByMedicineId(10L)).thenReturn(listOf(doseLog))
         
         val sleepRecord = SleepRecord(durationMinutes = 450)
         `when`(sleepRecordRepository.findByUserIdAndSleepDate(1L, today)).thenReturn(listOf(sleepRecord))
@@ -213,7 +213,7 @@ class HealthShieldServiceTest {
         mockDailyPointsSave()
         `when`(healthShieldStatusRepository.save(any(HealthShieldStatus::class.java))).thenAnswer { it.arguments[0] }
 
-        `when`(medicationRepository.findByUserIdAndActiveTrue(1L)).thenReturn(emptyList())
+        `when`(medicineRepository.findByUserIdAndIsActive(1L, true)).thenReturn(emptyList())
         `when`(sleepRecordRepository.findByUserIdAndSleepDate(1L, today)).thenReturn(emptyList())
         `when`(activityLogRepository.findByUserIdAndActivityDate(1L, today)).thenReturn(emptyList())
         `when`(healthEntryRepository.findByUserIdAndEntryDateOrderByCreatedAtDesc(1L, today)).thenReturn(emptyList())
@@ -236,7 +236,7 @@ class HealthShieldServiceTest {
         `when`(healthShieldStatusRepository.save(any(HealthShieldStatus::class.java))).thenAnswer { it.arguments[0] }
 
         // To generate points and just return
-        `when`(medicationRepository.findByUserIdAndActiveTrue(1L)).thenReturn(emptyList())
+        `when`(medicineRepository.findByUserIdAndIsActive(1L, true)).thenReturn(emptyList())
         `when`(sleepRecordRepository.findByUserIdAndSleepDate(1L, today)).thenReturn(emptyList())
         `when`(activityLogRepository.findByUserIdAndActivityDate(1L, today)).thenReturn(emptyList())
 

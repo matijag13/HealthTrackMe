@@ -11,8 +11,8 @@ data class DoseLog(
     val id: Long = 0,
 
     @ManyToOne
-    @JoinColumn(name = "medication_id", nullable = false)
-    val medication: Medicine? = null,
+    @JoinColumn(name = "medicine_id", nullable = false)
+    val medicine: Medicine? = null,
 
     @Column(nullable = false)
     val scheduledTime: LocalDateTime = LocalDateTime.now(),

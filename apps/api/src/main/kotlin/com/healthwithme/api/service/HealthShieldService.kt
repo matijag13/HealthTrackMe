@@ -15,7 +15,7 @@ class HealthShieldService(
     private val healthShieldStatusRepository: HealthShieldStatusRepository,
     private val healthShieldDailyPointsRepository: HealthShieldDailyPointsRepository,
     private val userRepository: UserRepository,
-    private val medicationRepository: MedicationRepository,
+    private val medicineRepository: MedicineRepository,
     private val doseLogRepository: DoseLogRepository,
     private val sleepRecordRepository: SleepRecordRepository,
     private val activityLogRepository: ActivityLogRepository,
@@ -71,8 +71,8 @@ class HealthShieldService(
         var completedHabits = 0
 
         // 1. Active medication or supplement items
-        val activeItems = medicationRepository.findByUserIdAndActiveTrue(user.id)
-        val hasActiveItems = activeItems.isNotEmpty()
+        val activeMedicines = medicineRepository.findByUserIdAndIsActive(user.id, true)
+        val hasActiveItems = activeMedicines.isNotEmpty()
         
         if (hasActiveItems) {
             // Simplified check: checking if there is any DoseLog for today with status TAKEN
@@ -80,8 +80,8 @@ class HealthShieldService(
             val endOfDay = date.plusDays(1).atStartOfDay()
             
             var hasTakenDose = false
-            for (item in activeItems) {
-                val logs = doseLogRepository.findByMedicationId(item.id)
+            for (medicine in activeMedicines) {
+                val logs = doseLogRepository.findByMedicineId(medicine.id)
                 val takenLogs = logs.filter { 
                     it.takenTime != null && 
                     !it.takenTime.isBefore(startOfDay) && 

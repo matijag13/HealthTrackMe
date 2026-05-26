@@ -35,6 +35,10 @@ data class Medicine(
     
     @Column(nullable = true)
     val sideEffects: String? = null,
+
+    @Column(nullable = false, name = "item_type")
+    @Enumerated(EnumType.STRING)
+    val itemType: ItemType = ItemType.MEDICATION,
     
     @Column(nullable = false)
     val isActive: Boolean = true,
@@ -45,4 +49,11 @@ data class Medicine(
     @Column(nullable = false)
     val updatedAt: LocalDateTime = LocalDateTime.now()
 )
+
+enum class ItemType {
+    MEDICATION,
+    VITAMIN,
+    SUPPLEMENT,
+    OTHER
+}
 
