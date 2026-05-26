@@ -1,0 +1,617 @@
+<!DOCTYPE html>
+<html lang="sl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --navy: #1A3A5C;
+    --blue: #4A90D9;
+    --teal: #2EC4B6;
+    --soft-blue: #EAF4FB;
+    --warn: #F5A623;
+    --danger: #E05252;
+    --success: #27AE60;
+    --bg: #F0F6FC;
+    --card: #FFFFFF;
+    --text: #1A1A2E;
+    --muted: #6B7280;
+    --border: #DDE8F0;
+    --phone-w: 320px;
+    --phone-h: 640px;
+    --radius: 20px;
+    --radius-sm: 12px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: linear-gradient(135deg, #0D2137 0%, #1A3A5C 50%, #0F4C75 100%);
+    min-height: 100vh;
+    padding: 24px 16px;
+    color: var(--text);
+  }
+
+  .page-title {
+    text-align: center;
+    color: white;
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+    margin-bottom: 4px;
+  }
+  .page-sub {
+    text-align: center;
+    color: rgba(255,255,255,0.5);
+    font-size: 13px;
+    margin-bottom: 28px;
+  }
+
+  .screens-row {
+    display: flex;
+    gap: 20px;
+    justify-content: center;
+    flex-wrap: wrap;
+    align-items: flex-start;
+  }
+
+  .screen-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+  }
+  .screen-label {
+    color: rgba(255,255,255,0.6);
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+
+  .phone {
+    width: var(--phone-w);
+    height: var(--phone-h);
+    background: var(--card);
+    border-radius: 36px;
+    overflow: hidden;
+    position: relative;
+    box-shadow: 0 32px 80px rgba(0,0,0,0.5), 0 0 0 8px #0D2137, 0 0 0 10px #2a4a6a;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Status bar */
+  .status-bar {
+    background: var(--navy);
+    padding: 10px 20px 6px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-shrink: 0;
+  }
+  .status-time { color: white; font-size: 12px; font-weight: 600; }
+  .status-icons { color: white; font-size: 11px; opacity: 0.8; }
+
+  /* Header */
+  .app-header {
+    background: var(--navy);
+    padding: 8px 18px 14px;
+    flex-shrink: 0;
+  }
+  .app-header-row { display: flex; justify-content: space-between; align-items: center; }
+  .app-logo { color: white; font-size: 16px; font-weight: 700; }
+  .app-logo span { color: var(--teal); }
+  .avatar { width: 30px; height: 30px; border-radius: 50%; background: linear-gradient(135deg, var(--blue), var(--teal)); display: flex; align-items: center; justify-content: center; color: white; font-size: 12px; font-weight: 600; }
+  .greeting { color: rgba(255,255,255,0.7); font-size: 11px; margin-top: 6px; }
+  .greeting strong { color: white; font-weight: 600; }
+
+  /* Scroll content */
+  .screen-content {
+    flex: 1;
+    overflow-y: auto;
+    background: var(--bg);
+    padding: 14px;
+    scrollbar-width: none;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .screen-content::-webkit-scrollbar { display: none; }
+
+  /* Cards */
+  .card {
+    background: var(--card);
+    border-radius: var(--radius-sm);
+    padding: 14px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+  }
+  .card-title {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    margin-bottom: 10px;
+  }
+
+  /* Wellness ring */
+  .wellness-card {
+    background: linear-gradient(135deg, var(--navy), #2a5298);
+    color: white;
+    border-radius: var(--radius-sm);
+    padding: 16px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  .ring-wrap { position: relative; width: 70px; height: 70px; flex-shrink: 0; }
+  .ring-wrap svg { transform: rotate(-90deg); }
+  .ring-center { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); text-align: center; }
+  .ring-num { font-size: 20px; font-weight: 700; color: white; line-height: 1; }
+  .ring-label { font-size: 8px; color: rgba(255,255,255,0.6); }
+  .wellness-info { flex: 1; }
+  .wellness-title { font-size: 13px; font-weight: 600; margin-bottom: 4px; }
+  .wellness-sub { font-size: 11px; color: rgba(255,255,255,0.6); line-height: 1.4; }
+
+  /* Stats row */
+  .stats-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+  .stat-item { background: var(--card); border-radius: 10px; padding: 10px 8px; text-align: center; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+  .stat-icon { font-size: 16px; margin-bottom: 4px; }
+  .stat-val { font-size: 15px; font-weight: 700; color: var(--navy); line-height: 1; }
+  .stat-lbl { font-size: 9px; color: var(--muted); margin-top: 2px; }
+
+  /* Alert */
+  .alert-card {
+    background: #FFF8E8;
+    border: 1.5px solid #F5A623;
+    border-radius: var(--radius-sm);
+    padding: 12px 14px;
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+  }
+  .alert-icon { font-size: 18px; flex-shrink: 0; }
+  .alert-text { font-size: 12px; color: #7A5000; line-height: 1.4; }
+  .alert-title { font-weight: 600; font-size: 12px; color: #7A5000; margin-bottom: 2px; }
+
+  /* Medication list */
+  .med-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .med-item:last-child { border-bottom: none; padding-bottom: 0; }
+  .med-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+  .med-name { font-size: 13px; font-weight: 500; color: var(--navy); flex: 1; }
+  .med-time { font-size: 11px; color: var(--muted); }
+  .med-check { width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; flex-shrink: 0; }
+  .med-done { background: var(--success); color: white; }
+  .med-pending { background: var(--border); color: var(--muted); }
+
+  /* Chart bars */
+  .mini-chart { display: flex; align-items: flex-end; gap: 4px; height: 48px; }
+  .bar { flex: 1; border-radius: 4px 4px 0 0; min-height: 4px; }
+  .chart-labels { display: flex; gap: 4px; margin-top: 4px; }
+  .chart-lbl { flex: 1; text-align: center; font-size: 9px; color: var(--muted); }
+
+  /* Bottom nav */
+  .bottom-nav {
+    background: var(--card);
+    border-top: 1px solid var(--border);
+    display: flex;
+    padding: 8px 4px 10px;
+    flex-shrink: 0;
+  }
+  .nav-item {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    cursor: pointer;
+  }
+  .nav-icon { font-size: 18px; }
+  .nav-lbl { font-size: 9px; font-weight: 500; color: var(--muted); }
+  .nav-item.active .nav-icon { filter: none; }
+  .nav-item.active .nav-lbl { color: var(--blue); font-weight: 600; }
+  .nav-dot { width: 4px; height: 4px; border-radius: 50%; background: var(--blue); }
+
+  /* Screen 2 — Dnevnik */
+  .mood-row { display: flex; justify-content: space-between; margin-bottom: 8px; }
+  .mood-btn {
+    width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    font-size: 20px; border: 2.5px solid var(--border); cursor: pointer; transition: all .2s;
+  }
+  .mood-btn.selected { border-color: var(--blue); background: var(--soft-blue); transform: scale(1.12); }
+
+  .symptom-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip {
+    padding: 5px 12px; border-radius: 20px; font-size: 11px; font-weight: 500;
+    border: 1.5px solid var(--border); color: var(--muted); cursor: pointer;
+  }
+  .chip.active { background: var(--soft-blue); border-color: var(--blue); color: var(--blue); }
+
+  .slider-wrap { position: relative; margin: 8px 0 2px; }
+  .slider-track { height: 6px; background: var(--border); border-radius: 3px; position: relative; }
+  .slider-fill { height: 6px; border-radius: 3px; background: linear-gradient(90deg, var(--teal), var(--blue)); }
+  .slider-thumb { width: 18px; height: 18px; border-radius: 50%; background: white; border: 3px solid var(--blue); position: absolute; top: -6px; box-shadow: 0 2px 6px rgba(74,144,217,0.4); }
+  .slider-labels { display: flex; justify-content: space-between; font-size: 9px; color: var(--muted); margin-top: 4px; }
+
+  .save-btn {
+    background: linear-gradient(135deg, var(--blue), #2a7bc4);
+    color: white; border: none; border-radius: 12px; padding: 13px;
+    font-size: 14px; font-weight: 600; font-family: 'DM Sans', sans-serif;
+    width: 100%; cursor: pointer; letter-spacing: -0.2px;
+    box-shadow: 0 4px 16px rgba(74,144,217,0.4);
+  }
+
+  /* Screen 3 — Poročilo */
+  .report-header-card {
+    background: linear-gradient(135deg, var(--teal), #1a9e94);
+    border-radius: var(--radius-sm);
+    padding: 14px;
+    color: white;
+  }
+  .report-title { font-size: 14px; font-weight: 700; margin-bottom: 2px; }
+  .report-sub { font-size: 11px; opacity: 0.8; margin-bottom: 10px; }
+  .report-btn {
+    background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.4);
+    color: white; border-radius: 8px; padding: 7px 14px;
+    font-size: 12px; font-weight: 600; font-family: 'DM Sans', sans-serif;
+    cursor: pointer; display: inline-flex; align-items: center; gap: 6px;
+  }
+
+  .trend-row { display: flex; align-items: center; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--border); }
+  .trend-row:last-child { border-bottom: none; }
+  .trend-icon { font-size: 20px; width: 32px; text-align: center; }
+  .trend-info { flex: 1; }
+  .trend-name { font-size: 12px; font-weight: 500; color: var(--navy); }
+  .trend-val { font-size: 11px; color: var(--muted); }
+  .trend-badge { font-size: 10px; padding: 3px 8px; border-radius: 10px; font-weight: 500; }
+  .badge-ok { background: #E8F8F0; color: var(--success); }
+  .badge-warn { background: #FFF3E0; color: #E67E22; }
+  .badge-good { background: #EAF4FB; color: var(--blue); }
+
+  /* Figma note */
+  .figma-note {
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 14px;
+    padding: 16px 20px;
+    max-width: 960px;
+    margin: 24px auto 0;
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+  }
+  .figma-icon { font-size: 28px; flex-shrink: 0; }
+  .figma-text { color: rgba(255,255,255,0.7); font-size: 12px; line-height: 1.6; }
+  .figma-text strong { color: white; }
+</style>
+
+<div class="page-title">HealthTrackMe — UI Mockup</div>
+<div class="page-sub">Vizualna podoba aplikacije · 3 ključni zasloni</div>
+
+<div class="screens-row">
+
+  <!-- SCREEN 1: Dashboard -->
+  <div class="screen-wrap">
+    <div class="screen-label">Domov</div>
+    <div class="phone">
+      <div class="status-bar">
+        <span class="status-time">09:41</span>
+        <span class="status-icons">●●● WiFi 🔋</span>
+      </div>
+      <div class="app-header">
+        <div class="app-header-row">
+          <div class="app-logo">Health<span>Track</span>Me</div>
+          <div class="avatar">MK</div>
+        </div>
+        <div class="greeting">Dobro jutro, <strong>Marko</strong> 👋</div>
+      </div>
+      <div class="screen-content">
+
+        <div class="wellness-card">
+          <div class="ring-wrap">
+            <svg width="70" height="70" viewBox="0 0 70 70">
+              <circle cx="35" cy="35" r="28" fill="none" stroke="rgba(255,255,255,0.15)" stroke-width="7"/>
+              <circle cx="35" cy="35" r="28" fill="none" stroke="#2EC4B6" stroke-width="7" stroke-dasharray="176" stroke-dashoffset="44" stroke-linecap="round"/>
+            </svg>
+            <div class="ring-center">
+              <div class="ring-num">75</div>
+              <div class="ring-label">/ 100</div>
+            </div>
+          </div>
+          <div class="wellness-info">
+            <div class="wellness-title">Zdravstveni indeks</div>
+            <div class="wellness-sub">Danes se počutite nadpovprečno dobro. Nadaljevajte z redno aktivnostjo.</div>
+          </div>
+        </div>
+
+        <div class="stats-row">
+          <div class="stat-item">
+            <div class="stat-icon">❤️</div>
+            <div class="stat-val" style="color:#E05252">72</div>
+            <div class="stat-lbl">utrip/min</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-icon">🚶</div>
+            <div class="stat-val" style="color:var(--blue)">6.842</div>
+            <div class="stat-lbl">koraki</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-icon">😴</div>
+            <div class="stat-val" style="color:var(--navy)">7h 20m</div>
+            <div class="stat-lbl">spanje</div>
+          </div>
+        </div>
+
+        <div class="alert-card">
+          <div class="alert-icon">⚠️</div>
+          <div>
+            <div class="alert-title">Opozorilo — srčni utrip</div>
+            <div class="alert-text">Zadnja 3 dni je vaš utrip v mirovanju nad 85 bpm. Priporočamo obisk zdravnika.</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Zdravila danes</div>
+          <div class="med-item">
+            <div class="med-dot" style="background:#4A90D9"></div>
+            <div class="med-name">Metformin 500mg</div>
+            <div class="med-time">08:00</div>
+            <div class="med-check med-done">✓</div>
+          </div>
+          <div class="med-item">
+            <div class="med-dot" style="background:#E05252"></div>
+            <div class="med-name">Ramipril 5mg</div>
+            <div class="med-time">12:00</div>
+            <div class="med-check med-pending">○</div>
+          </div>
+          <div class="med-item">
+            <div class="med-dot" style="background:#2EC4B6"></div>
+            <div class="med-name">Vitamin D3</div>
+            <div class="med-time">20:00</div>
+            <div class="med-check med-pending">○</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Počutje — 7 dni</div>
+          <div class="mini-chart">
+            <div class="bar" style="height:55%;background:#4A90D9;opacity:.5"></div>
+            <div class="bar" style="height:70%;background:#4A90D9;opacity:.6"></div>
+            <div class="bar" style="height:45%;background:#4A90D9;opacity:.5"></div>
+            <div class="bar" style="height:80%;background:#4A90D9;opacity:.7"></div>
+            <div class="bar" style="height:65%;background:#4A90D9;opacity:.6"></div>
+            <div class="bar" style="height:90%;background:#4A90D9"></div>
+            <div class="bar" style="height:75%;background:#2EC4B6"></div>
+          </div>
+          <div class="chart-labels">
+            <div class="chart-lbl">Pon</div><div class="chart-lbl">Tor</div>
+            <div class="chart-lbl">Sre</div><div class="chart-lbl">Čet</div>
+            <div class="chart-lbl">Pet</div><div class="chart-lbl">Sob</div>
+            <div class="chart-lbl">Ned</div>
+          </div>
+        </div>
+      </div>
+      <div class="bottom-nav">
+        <div class="nav-item active">
+          <div class="nav-icon">🏠</div>
+          <div class="nav-lbl">Domov</div>
+          <div class="nav-dot"></div>
+        </div>
+        <div class="nav-item"><div class="nav-icon">📓</div><div class="nav-lbl">Dnevnik</div></div>
+        <div class="nav-item"><div class="nav-icon">💊</div><div class="nav-lbl">Zdravila</div></div>
+        <div class="nav-item"><div class="nav-icon">📊</div><div class="nav-lbl">Poročila</div></div>
+        <div class="nav-item"><div class="nav-icon">👤</div><div class="nav-lbl">Profil</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SCREEN 2: Dnevnik vnos -->
+  <div class="screen-wrap">
+    <div class="screen-label">Dnevnik zdravja</div>
+    <div class="phone">
+      <div class="status-bar">
+        <span class="status-time">09:41</span>
+        <span class="status-icons">●●● WiFi 🔋</span>
+      </div>
+      <div class="app-header">
+        <div class="app-header-row">
+          <div style="color:rgba(255,255,255,0.6);font-size:13px">← Nazaj</div>
+          <div class="app-logo" style="font-size:14px">Dnevni vnos</div>
+          <div style="width:40px"></div>
+        </div>
+      </div>
+      <div class="screen-content">
+
+        <div class="card">
+          <div class="card-title">Kako se počutite danes?</div>
+          <div class="mood-row">
+            <div class="mood-btn">😰</div>
+            <div class="mood-btn">😔</div>
+            <div class="mood-btn">😐</div>
+            <div class="mood-btn selected">😊</div>
+            <div class="mood-btn">🤩</div>
+          </div>
+          <div style="text-align:center;font-size:12px;color:var(--blue);font-weight:500;margin-top:4px">Dobro</div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Raven energije</div>
+          <div class="slider-wrap">
+            <div class="slider-track">
+              <div class="slider-fill" style="width:65%"></div>
+              <div class="slider-thumb" style="left:calc(65% - 9px)"></div>
+            </div>
+          </div>
+          <div class="slider-labels"><span>Izčrpan</span><span>Poln energije</span></div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Simptomi danes</div>
+          <div class="symptom-chips">
+            <div class="chip active">Glavobol</div>
+            <div class="chip">Vrtoglavica</div>
+            <div class="chip">Bolečine</div>
+            <div class="chip active">Utrujenost</div>
+            <div class="chip">Slabost</div>
+            <div class="chip">Zasoplost</div>
+            <div class="chip">+ Dodaj</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Stres</div>
+          <div class="slider-wrap">
+            <div class="slider-track">
+              <div class="slider-fill" style="width:30%;background:linear-gradient(90deg,#2EC4B6,#27AE60)"></div>
+              <div class="slider-thumb" style="left:calc(30% - 9px);border-color:var(--teal)"></div>
+            </div>
+          </div>
+          <div class="slider-labels"><span>Brez stresa</span><span>Zelo pod stresom</span></div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Opomba za zdravnika</div>
+          <div style="background:var(--bg);border-radius:8px;padding:10px;font-size:12px;color:var(--muted);line-height:1.5;min-height:52px">
+            Zjutraj rahel glavobol, popoldne boljše...
+          </div>
+        </div>
+
+        <button class="save-btn">💾 Shrani vnos</button>
+      </div>
+      <div class="bottom-nav">
+        <div class="nav-item"><div class="nav-icon">🏠</div><div class="nav-lbl">Domov</div></div>
+        <div class="nav-item active">
+          <div class="nav-icon">📓</div>
+          <div class="nav-lbl">Dnevnik</div>
+          <div class="nav-dot"></div>
+        </div>
+        <div class="nav-item"><div class="nav-icon">💊</div><div class="nav-lbl">Zdravila</div></div>
+        <div class="nav-item"><div class="nav-icon">📊</div><div class="nav-lbl">Poročila</div></div>
+        <div class="nav-item"><div class="nav-icon">👤</div><div class="nav-lbl">Profil</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SCREEN 3: Poročilo -->
+  <div class="screen-wrap">
+    <div class="screen-label">Poročila</div>
+    <div class="phone">
+      <div class="status-bar">
+        <span class="status-time">09:41</span>
+        <span class="status-icons">●●● WiFi 🔋</span>
+      </div>
+      <div class="app-header">
+        <div class="app-header-row">
+          <div class="app-logo">Health<span>Track</span>Me</div>
+          <div style="color:rgba(255,255,255,0.7);font-size:12px">Maj 2025</div>
+        </div>
+      </div>
+      <div class="screen-content">
+
+        <div class="report-header-card">
+          <div class="report-title">📄 Poročilo za zdravnika</div>
+          <div class="report-sub">Mesečni povzetek · Maj 2025</div>
+          <button class="report-btn">⬇ Izvozi PDF</button>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Trendi ta mesec</div>
+          <div class="trend-row">
+            <div class="trend-icon">❤️</div>
+            <div class="trend-info">
+              <div class="trend-name">Srčni utrip</div>
+              <div class="trend-val">Povp. 74 bpm · Max 112 bpm</div>
+            </div>
+            <div class="trend-badge badge-warn">↑ Povišan</div>
+          </div>
+          <div class="trend-row">
+            <div class="trend-icon">😴</div>
+            <div class="trend-info">
+              <div class="trend-name">Spanje</div>
+              <div class="trend-val">Povp. 7h 15min</div>
+            </div>
+            <div class="trend-badge badge-ok">✓ Normalno</div>
+          </div>
+          <div class="trend-row">
+            <div class="trend-icon">🚶</div>
+            <div class="trend-info">
+              <div class="trend-name">Dnevni koraki</div>
+              <div class="trend-val">Povp. 7.240 korakov</div>
+            </div>
+            <div class="trend-badge badge-good">↑ Dobro</div>
+          </div>
+          <div class="trend-row">
+            <div class="trend-icon">💊</div>
+            <div class="trend-info">
+              <div class="trend-name">Adherenca zdravil</div>
+              <div class="trend-val">87% upoštevanje terapije</div>
+            </div>
+            <div class="trend-badge badge-ok">✓ Dobro</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Pogosti simptomi</div>
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <div style="display:flex;align-items:center;gap:8px">
+              <div style="font-size:12px;color:var(--navy);font-weight:500;width:80px">Glavobol</div>
+              <div style="flex:1;height:8px;background:var(--border);border-radius:4px">
+                <div style="width:60%;height:8px;background:var(--blue);border-radius:4px"></div>
+              </div>
+              <div style="font-size:11px;color:var(--muted);width:24px;text-align:right">18x</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px">
+              <div style="font-size:12px;color:var(--navy);font-weight:500;width:80px">Utrujenost</div>
+              <div style="flex:1;height:8px;background:var(--border);border-radius:4px">
+                <div style="width:40%;height:8px;background:var(--teal);border-radius:4px"></div>
+              </div>
+              <div style="font-size:11px;color:var(--muted);width:24px;text-align:right">12x</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px">
+              <div style="font-size:12px;color:var(--navy);font-weight:500;width:80px">Vrtoglavica</div>
+              <div style="flex:1;height:8px;background:var(--border);border-radius:4px">
+                <div style="width:20%;height:8px;background:#F5A623;border-radius:4px"></div>
+              </div>
+              <div style="font-size:11px;color:var(--muted);width:24px;text-align:right">6x</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card" style="background:var(--soft-blue);border:1.5px solid #BDD9F2">
+          <div style="font-size:12px;font-weight:600;color:var(--navy);margin-bottom:6px">📤 Pošlji zdravniku</div>
+          <div style="font-size:11px;color:var(--muted);margin-bottom:10px">PDF poročilo bo vključevalo vse trende, zdravila in simptome.</div>
+          <div style="display:flex;gap:8px">
+            <div style="flex:1;background:var(--blue);color:white;border-radius:8px;padding:8px;text-align:center;font-size:12px;font-weight:600">Email</div>
+            <div style="flex:1;background:white;color:var(--blue);border:1.5px solid var(--blue);border-radius:8px;padding:8px;text-align:center;font-size:12px;font-weight:600">WhatsApp</div>
+          </div>
+        </div>
+      </div>
+      <div class="bottom-nav">
+        <div class="nav-item"><div class="nav-icon">🏠</div><div class="nav-lbl">Domov</div></div>
+        <div class="nav-item"><div class="nav-icon">📓</div><div class="nav-lbl">Dnevnik</div></div>
+        <div class="nav-item"><div class="nav-icon">💊</div><div class="nav-lbl">Zdravila</div></div>
+        <div class="nav-item active">
+          <div class="nav-icon">📊</div>
+          <div class="nav-lbl">Poročila</div>
+          <div class="nav-dot"></div>
+        </div>
+        <div class="nav-item"><div class="nav-icon">👤</div><div class="nav-lbl">Profil</div></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="figma-note">
+  <div class="figma-icon">🎨</div>
+  <div class="figma-text">
+    <strong>Figma — naslednji korak za vizualno podobo.</strong> Ta mockup prikazuje vizijo in barvno paleto. Za produkcijske prototype priporočamo Figma (brezplačno za posameznike). Tam kreiraš component library z Design Tokens (barve, tipografija, spacing), lo-fi wireframe za vse zaslone, hi-fi prototype za user testing, in Figma Dev Mode handoff za razvijalce. Osnovna barvna paleta: <strong>#1A3A5C</strong> (navy), <strong>#4A90D9</strong> (modra), <strong>#2EC4B6</strong> (teal). Pisava: DM Sans.
+  </div>
+</div>
