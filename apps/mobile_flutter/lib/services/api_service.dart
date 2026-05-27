@@ -16,7 +16,7 @@ class ApiService {
   static const _prefsKeyBaseUrl = 'healthtrackme_api_base_url';
   static const _prefsKeyActiveUserId = 'healthtrackme_active_user_id';
   static const _prefsKeyAuthToken = 'auth_token';
-  static const String _webDefault = 'http://localhost:8081/api/v1';
+  static const String _webDefault = 'http://localhost:8080/api/v1';
   static const String _androidDefault = 'http://10.0.2.2:8080/api/v1';
 
   late SharedPreferences _prefs;
@@ -189,9 +189,9 @@ class ApiService {
 
   List<String> _webFallbackBaseUrls() {
     return [
-      'http://localhost:8081/api/v1',
       'http://localhost:8080/api/v1',
-      'http://127.0.0.1:8081/api/v1',
+      'http://localhost:8080/api/v1',
+      'http://127.0.0.1:8080/api/v1',
       'http://127.0.0.1:8080/api/v1',
     ];
   }
@@ -706,6 +706,35 @@ class ApiService {
         headers: {'Content-Type': 'application/json'}, body: body);
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw Exception(_responseMessage(response) ?? 'Could not log dose');
+    }
+  }
+
+  // Compatibility methods used by UI: logDose and deleteMedicine
+  Future<void> logDose(
+    int medicineId,
+    DateTime takenAt,
+    String status,
+  ) async {
+    final response = await _postRaw(
+      '/medicines/$medicineId/doses',
+      body: {
+        'takenAt': takenAt.toIso8601String(),
+        'status': status,
+      },
+    );
+
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw Exception('Failed to log dose');
+    }
+  }
+
+  Future<void> deleteMedicine(int medicineId) async {
+    final response = await _deleteRaw(
+      '/medicines/$medicineId',
+    );
+
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw Exception('Failed to delete medicine');
     }
   }
 

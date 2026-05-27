@@ -51,6 +51,8 @@ data class Medicine(
 )
 
 enum class ItemType {
+    // Backward compatibility for older seeded rows using MEDICINE.
+    MEDICINE,
     MEDICATION,
     VITAMIN,
     SUPPLEMENT,

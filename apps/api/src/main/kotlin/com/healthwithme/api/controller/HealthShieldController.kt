@@ -17,8 +17,10 @@ class HealthShieldController(
         return try {
             val response = healthShieldService.getHealthShieldForUser(userId)
             ResponseEntity.ok(response)
+        } catch (e: RuntimeException) {
+            ResponseEntity.status(404).build<HealthShieldResponseDto>()
         } catch (e: Exception) {
-            ResponseEntity.badRequest().build()
+            ResponseEntity.status(500).build<HealthShieldResponseDto>()
         }
     }
 }

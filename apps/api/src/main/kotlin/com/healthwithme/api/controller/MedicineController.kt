@@ -88,8 +88,12 @@ class MedicineController(private val medicineService: MedicineService) {
         return try {
             val medicines = medicineService.getMedicinesByUser(userId)
             ResponseEntity.ok().body(ApiResponse(success = true, message = "Medicines found", data = medicines))
+        } catch (e: IllegalArgumentException) {
+            ResponseEntity.status(404)
+                .body(ApiResponse(success = false, message = e.message ?: "Not found", data = null))
         } catch (e: Exception) {
-            ResponseEntity.notFound().build()
+            ResponseEntity.status(500)
+                .body(ApiResponse(success = false, message = e.message ?: "Server error", data = null))
         }
     }
 
@@ -98,8 +102,12 @@ class MedicineController(private val medicineService: MedicineService) {
         return try {
             val medicines = medicineService.getActiveMedicinesByUser(userId)
             ResponseEntity.ok().body(ApiResponse(success = true, message = "Medicines found", data = medicines))
+        } catch (e: IllegalArgumentException) {
+            ResponseEntity.status(404)
+                .body(ApiResponse(success = false, message = e.message ?: "Not found", data = null))
         } catch (e: Exception) {
-            ResponseEntity.notFound().build()
+            ResponseEntity.status(500)
+                .body(ApiResponse(success = false, message = e.message ?: "Server error", data = null))
         }
     }
 }

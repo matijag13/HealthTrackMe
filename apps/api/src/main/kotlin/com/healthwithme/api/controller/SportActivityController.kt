@@ -39,8 +39,12 @@ class SportActivityController(private val activityService: SportActivityService)
         return try {
             val activities = activityService.getActivitiesByUser(userId)
             ResponseEntity.ok().body(ApiResponse(success = true, message = "Activities found", data = activities))
+        } catch (e: IllegalArgumentException) {
+            ResponseEntity.status(404)
+                .body(ApiResponse(success = false, message = e.message ?: "Not found", data = null))
         } catch (e: Exception) {
-            ResponseEntity.notFound().build()
+            ResponseEntity.status(500)
+                .body(ApiResponse(success = false, message = e.message ?: "Server error", data = null))
         }
     }
 

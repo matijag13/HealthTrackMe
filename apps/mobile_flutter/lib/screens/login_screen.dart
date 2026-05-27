@@ -40,6 +40,7 @@ class _LoginScreenState extends State<LoginScreen> {
         (u) => u.email == email,
         orElse: () => throw Exception('Account not found. Please register first.'),
       );
+      await _api.setActiveUserId(null);
       await _api.setActiveUserId(user.id);
       if (!mounted) return;
       context.goNamed('home');

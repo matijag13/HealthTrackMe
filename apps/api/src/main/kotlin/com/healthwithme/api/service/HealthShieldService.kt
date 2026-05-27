@@ -187,8 +187,6 @@ class HealthShieldService(
         }
 
         status.currentLevel = calculateLevel(status.totalConsistencyPoints)
-
-        healthShieldDailyPointsRepository.save(daily)
     }
 
     private fun calculateLevel(points: Int): Int {

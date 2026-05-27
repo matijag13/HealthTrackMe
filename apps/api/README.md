@@ -316,7 +316,7 @@ The API will be available at `http://localhost:8080`
 
 ### Seeded demo accounts
 
-On startup, Flyway inserts one admin account and a few demo users so the backend is not empty after a fresh database setup.
+On startup, Flyway inserts one admin account and five demo users so the backend is not empty after a fresh database setup. The unified demo dataset is seeded by `V100__reset_and_seed_demo_data.sql`, which clears the older demo rows and replaces them with a richer history.
 
 | Role | Email | Password |
 | --- | --- | --- |
@@ -325,6 +325,7 @@ On startup, Flyway inserts one admin account and a few demo users so the backend
 | User | `luka.horvat@example.com` | `Demo@12345` |
 | User | `maja.kovac@example.com` | `Demo@12345` |
 | User | `nina.zupan@example.com` | `Demo@12345` |
+| User | `sara@demo.com` | `Demo@12345` |
 
 ## Database
 
