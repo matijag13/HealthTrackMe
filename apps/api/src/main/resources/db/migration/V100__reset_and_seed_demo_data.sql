@@ -339,9 +339,15 @@ SELECT
     CASE WHEN gs.n::int % 6 = 0 THEN 'muscle soreness' ELSE NULL END,
     CASE WHEN gs.n::int % 4 = 0 THEN 'Hydration and recovery are on track.' ELSE 'Training load looks good.' END,
     ROUND((79 + ((gs.n::int % 3) * 0.2))::numeric, 1),
+    CASE (gs.n::int % 3)
+        WHEN 0 THEN 'GOOD'
+        WHEN 1 THEN 'FAIR'
+        ELSE 'EXCELLENT'
+    END,
     58 + (gs.n::int % 13),
     118 + (gs.n::int % 5),
     72 + (gs.n::int % 4),
+    NULL,
     NULL,
     36.4 + ((gs.n::int % 2) * 0.1),
     97 + (gs.n::int % 2),
@@ -398,9 +404,15 @@ SELECT
     END,
     CASE WHEN gs.n::int % 5 = 0 THEN 'Keep up the walking routine.' ELSE 'Blood pressure plan is consistent.' END,
     ROUND((71 + ((gs.n::int % 2) * 0.4))::numeric, 1),
+    CASE (gs.n::int % 3)
+        WHEN 0 THEN 'GOOD'
+        WHEN 1 THEN 'FAIR'
+        ELSE 'EXCELLENT'
+    END,
     68 + (gs.n::int % 9),
     132 + (gs.n::int % 6),
     76 + (gs.n::int % 5),
+    NULL,
     NULL,
     36.6 + ((gs.n::int % 3) * 0.1),
     96 + (gs.n::int % 3),
