@@ -86,6 +86,32 @@ CREATE TABLE IF NOT EXISTS medicines (
     CONSTRAINT ck_medicines_item_type CHECK (item_type IN ('MEDICATION', 'VITAMIN', 'SUPPLEMENT', 'OTHER'))
 );
 
+CREATE TABLE IF NOT EXISTS wearable_devices (
+    id BIGSERIAL PRIMARY KEY,
+    user_id BIGINT NOT NULL,
+    device_name VARCHAR(255) NOT NULL,
+    device_type VARCHAR(50) NOT NULL,
+    device_id VARCHAR(255) NOT NULL,
+    serial_number VARCHAR(255),
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    last_sync_time TIMESTAMP,
+    connected_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_wearable_devices_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    CONSTRAINT ux_wearable_devices_device_id UNIQUE (device_id),
+    CONSTRAINT ck_wearable_devices_device_type CHECK (
+        device_type IN (
+            'SMARTWATCH',
+            'FITNESS_TRACKER',
+            'HEART_MONITOR',
+            'BLOOD_PRESSURE_MONITOR',
+            'GLUCOSE_MONITOR',
+            'SLEEP_TRACKER',
+            'OTHER'
+        )
+    )
+);
+
 CREATE TABLE IF NOT EXISTS dose_logs (
     id BIGSERIAL PRIMARY KEY,
     medicine_id BIGINT NOT NULL,
@@ -121,6 +147,8 @@ CREATE UNIQUE INDEX IF NOT EXISTS ux_users_email ON users(email);
 CREATE INDEX IF NOT EXISTS ix_health_entries_user_date ON health_entries(user_id, entry_date);
 CREATE INDEX IF NOT EXISTS ix_medicines_user_active ON medicines(user_id, is_active);
 CREATE INDEX IF NOT EXISTS ix_medicines_user_type_active ON medicines(user_id, item_type, is_active);
+CREATE INDEX IF NOT EXISTS ix_wearable_devices_user_active ON wearable_devices(user_id, is_active);
+CREATE INDEX IF NOT EXISTS ix_wearable_devices_user_type_active ON wearable_devices(user_id, device_type, is_active);
 CREATE INDEX IF NOT EXISTS ix_dose_logs_medicine_time ON dose_logs(medicine_id, scheduled_time);
 CREATE INDEX IF NOT EXISTS ix_sleep_records_user_date ON sleep_records(user_id, sleep_date);
 CREATE INDEX IF NOT EXISTS ix_activity_logs_user_date ON activity_logs(user_id, activity_date);

@@ -49,11 +49,7 @@ class MedicineService(
     }
 
     fun getMedicinesByUser(userId: Long): List<MedicineDto> {
-        userRepository.findById(userId)
-            .orElseThrow { IllegalArgumentException("User not found") }
-        
-        return medicineRepository.findByUserId(userId)
-            .map { toMedicineDto(it) }
+        return getActiveMedicinesByUser(userId)
     }
 
     fun getActiveMedicinesByUser(userId: Long): List<MedicineDto> {
@@ -151,10 +147,15 @@ class MedicineService(
     }
 
     fun deleteMedicine(id: Long): Boolean {
-        medicineRepository.findById(id)
+        val medicine = medicineRepository.findById(id)
             .orElseThrow { IllegalArgumentException("Medicine not found") }
-        
-        medicineRepository.deleteById(id)
+
+        val deactivatedMedicine = medicine.copy(
+            isActive = false,
+            updatedAt = LocalDateTime.now()
+        )
+
+        medicineRepository.save(deactivatedMedicine)
         return true
     }
 

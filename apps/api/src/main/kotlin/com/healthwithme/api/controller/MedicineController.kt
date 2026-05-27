@@ -110,5 +110,23 @@ class MedicineController(private val medicineService: MedicineService) {
                 .body(ApiResponse(success = false, message = e.message ?: "Server error", data = null))
         }
     }
+
+    @DeleteMapping("/{medicineId}")
+    fun deleteMedicine(@PathVariable("medicineId") medicineId: Long): ResponseEntity<ApiResponse<Boolean>> {
+        return try {
+            val deleted = medicineService.deleteMedicine(medicineId)
+            ResponseEntity.ok().body(
+                ApiResponse(success = true, message = "Medicine deleted", data = deleted)
+            )
+        } catch (e: IllegalArgumentException) {
+            ResponseEntity.status(HttpStatus.NOT_FOUND).body(
+                ApiResponse(success = false, message = e.message ?: "Medicine not found", data = false)
+            )
+        } catch (e: Exception) {
+            ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
+                ApiResponse(success = false, message = e.message ?: "Server error", data = false)
+            )
+        }
+    }
 }
 
