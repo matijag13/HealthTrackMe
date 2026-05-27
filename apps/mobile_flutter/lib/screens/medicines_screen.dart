@@ -14,7 +14,7 @@ import 'router_pages.dart';
 /// - Today's Schedule (grouped Morning/Afternoon/Evening/Night)
 /// - Dose logging (POST /api/medicines/{id}/dose)
 /// - Active | All tabs with Slidable medicine cards
-/// - FAB to add medicine (bottom sheet + POST /api/medicines)
+/// - FAB to add medicine (bottom sheet + POST /api/v1/medicines/users/{userId})
 /// - Simple scheduling metadata stored in SharedPreferences (notification ids)
 /// Note: Actual flutter_local_notifications integration is left as TODO — this file
 /// stores notification information so it can be wired later.
@@ -26,7 +26,8 @@ class MedicinesScreen extends StatefulWidget {
   State<MedicinesScreen> createState() => _MedicinesScreenState();
 }
 
-class _MedicinesScreenState extends State<MedicinesScreen> with AutomaticKeepAliveClientMixin {
+class _MedicinesScreenState extends State<MedicinesScreen>
+    with AutomaticKeepAliveClientMixin {
   final ApiService _api = ApiService.instance;
   late Future<List<Medicine>> _future;
   List<Medicine>? _cached;
@@ -56,8 +57,12 @@ class _MedicinesScreenState extends State<MedicinesScreen> with AutomaticKeepAli
   }
 
   Future<void> _refresh() async {
-    setState(() => _future = _load());
-    await _future;
+    final future = _load();
+    if (!mounted) return;
+    setState(() {
+      _future = future;
+    });
+    await future;
   }
 
   Future<void> _postDose(int id, {DateTime? at, String? status}) async {
@@ -69,17 +74,24 @@ class _MedicinesScreenState extends State<MedicinesScreen> with AutomaticKeepAli
     });
     try {
       final uri = Uri.parse('${_api.baseUrl}/medicines/$id/dose');
-      final resp = await http.post(uri, headers: {'Content-Type': 'application/json'}, body: body);
+      final resp = await http.post(uri,
+          headers: {'Content-Type': 'application/json'}, body: body);
       if (resp.statusCode >= 200 && resp.statusCode < 300) {
         // Refresh list
         await _refresh();
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Dose logged')));
+        if (mounted)
+          ScaffoldMessenger.of(context)
+              .showSnackBar(const SnackBar(content: Text('Dose logged')));
       } else {
         final msg = resp.body.isNotEmpty ? resp.body : 'Could not log dose';
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+        if (mounted)
+          ScaffoldMessenger.of(context)
+              .showSnackBar(SnackBar(content: Text(msg)));
       }
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Network error')));
+      if (mounted)
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('Network error')));
     }
   }
 
@@ -91,10 +103,14 @@ class _MedicinesScreenState extends State<MedicinesScreen> with AutomaticKeepAli
 
     for (final m in meds) {
       final label = m.scheduleLabel.toLowerCase();
-      if (label.contains('morning')) morning.add(m);
-      else if (label.contains('afternoon')) afternoon.add(m);
-      else if (label.contains('evening') || label.contains('night')) evening.add(m);
-      else night.add(m);
+      if (label.contains('morning'))
+        morning.add(m);
+      else if (label.contains('afternoon'))
+        afternoon.add(m);
+      else if (label.contains('evening') || label.contains('night'))
+        evening.add(m);
+      else
+        night.add(m);
     }
 
     return {
@@ -118,20 +134,33 @@ class _MedicinesScreenState extends State<MedicinesScreen> with AutomaticKeepAli
         padding: const EdgeInsets.all(14),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-            const Text("Today's schedule", style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+            const Text("Today's schedule",
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
             // Adherence / summary
-            Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6), decoration: BoxDecoration(color: Colors.blue.shade50, borderRadius: BorderRadius.circular(16)), child: Text(_adherenceLabel(meds), style: const TextStyle(fontWeight: FontWeight.w700, color: Colors.blue))),
+            Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                    color: Colors.blue.shade50,
+                    borderRadius: BorderRadius.circular(16)),
+                child: Text(_adherenceLabel(meds),
+                    style: const TextStyle(
+                        fontWeight: FontWeight.w700, color: Colors.blue))),
           ]),
           const SizedBox(height: 8),
           ...groups.entries.where((e) => e.value.isNotEmpty).map((entry) {
             final title = entry.key;
             final list = entry.value;
-            return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              const SizedBox(height: 8),
-              Text(title, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
-              const SizedBox(height: 6),
-              ...list.map((m) => _buildScheduleTile(m)),
-            ]);
+            return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SizedBox(height: 8),
+                  Text(title,
+                      style: const TextStyle(
+                          fontSize: 13, fontWeight: FontWeight.w700)),
+                  const SizedBox(height: 6),
+                  ...list.map((m) => _buildScheduleTile(m)),
+                ]);
           }).toList(),
         ]),
       ),
@@ -142,8 +171,15 @@ class _MedicinesScreenState extends State<MedicinesScreen> with AutomaticKeepAli
     final isMissed = m.endDate != null && m.endDate!.isBefore(DateTime.now());
     return ListTile(
       contentPadding: EdgeInsets.zero,
-      leading: Container(width: 12, height: 12, decoration: BoxDecoration(color: Colors.blue, shape: BoxShape.circle)),
-      title: Text(m.name, style: TextStyle(fontWeight: FontWeight.w700, color: isMissed ? Colors.red : null)),
+      leading: Container(
+          width: 12,
+          height: 12,
+          decoration:
+              BoxDecoration(color: Colors.blue, shape: BoxShape.circle)),
+      title: Text(m.name,
+          style: TextStyle(
+              fontWeight: FontWeight.w700,
+              color: isMissed ? Colors.red : null)),
       subtitle: Text(m.dosage ?? m.frequency ?? ''),
       trailing: Checkbox(
         value: _takenToday.contains(m.id),
@@ -157,7 +193,8 @@ class _MedicinesScreenState extends State<MedicinesScreen> with AutomaticKeepAli
           }
         },
       ),
-      onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => MedicineDetailPage(medicineId: m.id))),
+      onTap: () => Navigator.of(context).push(MaterialPageRoute(
+          builder: (_) => MedicineDetailPage(medicineId: m.id))),
     );
   }
 
@@ -167,25 +204,46 @@ class _MedicinesScreenState extends State<MedicinesScreen> with AutomaticKeepAli
       startActionPane: ActionPane(
         motion: const ScrollMotion(),
         children: [
-          SlidableAction(onPressed: (_) => _postDose(m.id), backgroundColor: Colors.green, icon: Icons.check, label: 'Log dose'),
+          SlidableAction(
+              onPressed: (_) => _postDose(m.id),
+              backgroundColor: Colors.green,
+              icon: Icons.check,
+              label: 'Log dose'),
         ],
       ),
       endActionPane: ActionPane(
         motion: const ScrollMotion(),
         children: [
-          SlidableAction(onPressed: (_) => _editMedicine(m), backgroundColor: Colors.blue, icon: Icons.edit, label: 'Edit'),
-          SlidableAction(onPressed: (_) => _deleteMedicine(m), backgroundColor: Colors.red, icon: Icons.delete, label: 'Delete'),
+          SlidableAction(
+              onPressed: (_) => _editMedicine(m),
+              backgroundColor: Colors.blue,
+              icon: Icons.edit,
+              label: 'Edit'),
+          SlidableAction(
+              onPressed: (_) => _deleteMedicine(m),
+              backgroundColor: Colors.red,
+              icon: Icons.delete,
+              label: 'Delete'),
         ],
       ),
       child: Card(
         child: ListTile(
-          leading: Container(width: 12, height: 12, decoration: BoxDecoration(color: Colors.teal, shape: BoxShape.circle)),
-          title: Text(m.name, style: const TextStyle(fontWeight: FontWeight.w700)),
-          subtitle: Text('${m.dosage ?? '—'} · ${m.frequency ?? m.scheduleLabel}'),
+          leading: Container(
+              width: 12,
+              height: 12,
+              decoration:
+                  BoxDecoration(color: Colors.teal, shape: BoxShape.circle)),
+          title:
+              Text(m.name, style: const TextStyle(fontWeight: FontWeight.w700)),
+          subtitle:
+              Text('${m.dosage ?? '—'} · ${m.frequency ?? m.scheduleLabel}'),
           trailing: m.startDate != null && m.endDate != null
-              ? Text('${_daysRemaining(m)} days', style: TextStyle(color: _daysRemaining(m) <= 3 ? Colors.red : Colors.grey))
+              ? Text('${_daysRemaining(m)} days',
+                  style: TextStyle(
+                      color: _daysRemaining(m) <= 3 ? Colors.red : Colors.grey))
               : null,
-          onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => MedicineDetailPage(medicineId: m.id))),
+          onTap: () => Navigator.of(context).push(MaterialPageRoute(
+              builder: (_) => MedicineDetailPage(medicineId: m.id))),
         ),
       ),
     );
@@ -203,22 +261,50 @@ class _MedicinesScreenState extends State<MedicinesScreen> with AutomaticKeepAli
       final resp = await http.delete(uri);
       if (resp.statusCode >= 200 && resp.statusCode < 300) {
         await _refresh();
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Medicine deleted')));
+        if (mounted)
+          ScaffoldMessenger.of(context)
+              .showSnackBar(const SnackBar(content: Text('Medicine deleted')));
       } else {
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Could not delete medicine')));
+        if (mounted)
+          ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Could not delete medicine')));
       }
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Network error')));
+      if (mounted)
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('Network error')));
     }
   }
 
   void _editMedicine(Medicine m) {
     // Reuse existing add/edit page (from router_pages) or show bottom sheet.
-    showModalBottomSheet(context: context, isScrollControlled: true, builder: (_) => MedicineEditSheet(medicine: m, onSaved: _refresh));
+    showModalBottomSheet<bool>(
+        context: context,
+        isScrollControlled: true,
+        builder: (_) => MedicineEditSheet(medicine: m)).then((saved) async {
+      if (saved == true) {
+        await _refresh();
+        if (mounted) {
+          ScaffoldMessenger.of(context)
+              .showSnackBar(const SnackBar(content: Text('Medicine saved')));
+        }
+      }
+    });
   }
 
   Future<void> _showAddSheet() async {
-    await showModalBottomSheet(context: context, isScrollControlled: true, builder: (_) => MedicineEditSheet(onSaved: _refresh));
+    final saved = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => const MedicineEditSheet(),
+    );
+    if (saved == true) {
+      await _refresh();
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('Medicine saved')));
+      }
+    }
   }
 
   @override
@@ -231,7 +317,12 @@ class _MedicinesScreenState extends State<MedicinesScreen> with AutomaticKeepAli
         child: FutureBuilder<List<Medicine>>(
           future: _future,
           builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting && _cached == null) return Center(child: Padding(padding: const EdgeInsets.all(16), child: LoadingSkeleton.medicines(context)));
+            if (snapshot.connectionState == ConnectionState.waiting &&
+                _cached == null)
+              return Center(
+                  child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: LoadingSkeleton.medicines(context)));
             final meds = snapshot.data ?? _cached ?? const <Medicine>[];
             if (meds.isEmpty) {
               return ListView(
@@ -267,7 +358,8 @@ class _MedicinesScreenState extends State<MedicinesScreen> with AutomaticKeepAli
 class _MedicinesTabs extends StatefulWidget {
   final List<Medicine> medicines;
   final Widget Function(Medicine) buildCard;
-  const _MedicinesTabs({required this.medicines, required this.buildCard, super.key});
+  const _MedicinesTabs(
+      {required this.medicines, required this.buildCard, super.key});
 
   @override
   State<_MedicinesTabs> createState() => _MedicinesTabsState();
@@ -283,42 +375,58 @@ class _MedicinesTabsState extends State<_MedicinesTabs> {
     final list = _index == 0 ? active : all;
     return Card(
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Row(children: [
-            Expanded(child: InkWell(
-              onTap: () => setState(() => _index = 0),
-              child: Container(
-                padding: const EdgeInsets.symmetric(vertical: 10),
-                decoration: BoxDecoration(
-                  border: Border(bottom: BorderSide(
-                    color: _index == 0 ? Theme.of(context).primaryColor : Colors.transparent,
-                    width: 2,
-                  )),
-                ),
-                child: Text('Active', textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: _index == 0 ? Theme.of(context).primaryColor : Colors.grey,
-                    fontWeight: _index == 0 ? FontWeight.w700 : FontWeight.normal,
-                  )),
+        Row(children: [
+          Expanded(
+              child: InkWell(
+            onTap: () => setState(() => _index = 0),
+            child: Container(
+              padding: const EdgeInsets.symmetric(vertical: 10),
+              decoration: BoxDecoration(
+                border: Border(
+                    bottom: BorderSide(
+                  color: _index == 0
+                      ? Theme.of(context).primaryColor
+                      : Colors.transparent,
+                  width: 2,
+                )),
               ),
-            )),
-            Expanded(child: InkWell(
-              onTap: () => setState(() => _index = 1),
-              child: Container(
-                padding: const EdgeInsets.symmetric(vertical: 10),
-                decoration: BoxDecoration(
-                  border: Border(bottom: BorderSide(
-                    color: _index == 1 ? Theme.of(context).primaryColor : Colors.transparent,
-                    width: 2,
-                  )),
-                ),
-                child: Text('All', textAlign: TextAlign.center,
+              child: Text('Active',
+                  textAlign: TextAlign.center,
                   style: TextStyle(
-                    color: _index == 1 ? Theme.of(context).primaryColor : Colors.grey,
-                    fontWeight: _index == 1 ? FontWeight.w700 : FontWeight.normal,
+                    color: _index == 0
+                        ? Theme.of(context).primaryColor
+                        : Colors.grey,
+                    fontWeight:
+                        _index == 0 ? FontWeight.w700 : FontWeight.normal,
                   )),
+            ),
+          )),
+          Expanded(
+              child: InkWell(
+            onTap: () => setState(() => _index = 1),
+            child: Container(
+              padding: const EdgeInsets.symmetric(vertical: 10),
+              decoration: BoxDecoration(
+                border: Border(
+                    bottom: BorderSide(
+                  color: _index == 1
+                      ? Theme.of(context).primaryColor
+                      : Colors.transparent,
+                  width: 2,
+                )),
               ),
-            )),
-          ]),
+              child: Text('All',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: _index == 1
+                        ? Theme.of(context).primaryColor
+                        : Colors.grey,
+                    fontWeight:
+                        _index == 1 ? FontWeight.w700 : FontWeight.normal,
+                  )),
+            ),
+          )),
+        ]),
         const Divider(height: 1),
         ...list.map((m) => widget.buildCard(m)).toList(),
       ]),
@@ -328,8 +436,7 @@ class _MedicinesTabsState extends State<_MedicinesTabs> {
 
 class MedicineEditSheet extends StatefulWidget {
   final Medicine? medicine;
-  final VoidCallback? onSaved;
-  const MedicineEditSheet({this.medicine, this.onSaved, super.key});
+  const MedicineEditSheet({this.medicine, super.key});
 
   @override
   State<MedicineEditSheet> createState() => _MedicineEditSheetState();
@@ -340,10 +447,11 @@ class _MedicineEditSheetState extends State<MedicineEditSheet> {
   final _name = TextEditingController();
   final _dosage = TextEditingController();
   final _frequency = TextEditingController();
-  final _doctor = TextEditingController();
-  final _notes = TextEditingController();
+  final _reason = TextEditingController();
+  final _sideEffects = TextEditingController();
   DateTime? _start;
   DateTime? _end;
+  bool _saving = false;
 
   @override
   void initState() {
@@ -353,6 +461,8 @@ class _MedicineEditSheetState extends State<MedicineEditSheet> {
       _name.text = m.name;
       _dosage.text = m.dosage ?? '';
       _frequency.text = m.frequency ?? '';
+      _reason.text = m.reason ?? '';
+      _sideEffects.text = m.sideEffects ?? '';
       _start = m.startDate;
       _end = m.endDate;
     }
@@ -363,69 +473,125 @@ class _MedicineEditSheetState extends State<MedicineEditSheet> {
     _name.dispose();
     _dosage.dispose();
     _frequency.dispose();
-    _doctor.dispose();
-    _notes.dispose();
+    _reason.dispose();
+    _sideEffects.dispose();
     super.dispose();
   }
 
   Future<void> _save() async {
+    if (_saving) return;
     if (!_formKey.currentState!.validate()) return;
+    setState(() => _saving = true);
+
     final api = ApiService.instance;
-    final uri = Uri.parse('${api.baseUrl}/medicines');
-    final body = jsonEncode({
-      'name': _name.text.trim(),
-      'dosage': _dosage.text.trim().isEmpty ? null : _dosage.text.trim(),
-      'frequency': _frequency.text.trim().isEmpty ? null : _frequency.text.trim(),
-      'startDate': _start != null ? _start!.toIso8601String().split('T').first : null,
-      'endDate': _end != null ? _end!.toIso8601String().split('T').first : null,
-      'prescribingDoctor': _doctor.text.trim().isEmpty ? null : _doctor.text.trim(),
-      'notes': _notes.text.trim().isEmpty ? null : _notes.text.trim(),
-    });
+    final messenger = ScaffoldMessenger.of(context);
+    final payload = Medicine(
+      id: 0,
+      name: _name.text.trim(),
+      dosage: _dosage.text.trim().isEmpty ? null : _dosage.text.trim(),
+      frequency: _frequency.text.trim().isEmpty ? null : _frequency.text.trim(),
+      reason: _reason.text.trim().isEmpty ? null : _reason.text.trim(),
+      startDate: _start,
+      endDate: _end,
+      sideEffects:
+          _sideEffects.text.trim().isEmpty ? null : _sideEffects.text.trim(),
+      isActive: true,
+    ).toJson();
     try {
-      final resp = await http.post(uri, headers: {'Content-Type': 'application/json'}, body: body);
-      if (resp.statusCode >= 200 && resp.statusCode < 300) {
-        if (mounted) Navigator.pop(context);
-        if (widget.onSaved != null) widget.onSaved!();
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Medicine saved')));
-      } else {
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Could not save medicine')));
+      final ok = await api.createMedicine(payload);
+      if (!ok) {
+        if (mounted)
+          messenger.showSnackBar(
+              const SnackBar(content: Text('Could not save medicine')));
+        return;
       }
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Network error')));
+      if (mounted)
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('Network error')));
+      return;
+    } finally {
+      if (mounted) {
+        setState(() => _saving = false);
+      } else {
+        _saving = false;
+      }
     }
+
+    if (mounted) Navigator.pop(context, true);
   }
 
   Future<void> _pickDate(BuildContext ctx, bool start) async {
     final now = DateTime.now();
     final initial = start ? (_start ?? now) : (_end ?? now);
-    final picked = await showDatePicker(context: ctx, initialDate: initial, firstDate: DateTime(2000), lastDate: DateTime(2100));
+    final picked = await showDatePicker(
+        context: ctx,
+        initialDate: initial,
+        firstDate: DateTime(2000),
+        lastDate: DateTime(2100));
     if (picked != null) setState(() => start ? _start = picked : _end = picked);
   }
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      padding:
+          EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
       child: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Form(
           key: _formKey,
           child: Column(mainAxisSize: MainAxisSize.min, children: [
-            Text(widget.medicine == null ? 'Add medicine' : 'Edit medicine', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+            Text(widget.medicine == null ? 'Add medicine' : 'Edit medicine',
+                style:
+                    const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
             const SizedBox(height: 12),
-            TextFormField(controller: _name, decoration: const InputDecoration(labelText: 'Medicine name'), validator: (v) => (v ?? '').trim().isEmpty ? 'Required' : null),
+            TextFormField(
+                controller: _name,
+                decoration: const InputDecoration(labelText: 'Medicine name'),
+                validator: (v) => (v ?? '').trim().isEmpty ? 'Required' : null),
             const SizedBox(height: 8),
-            TextFormField(controller: _dosage, decoration: const InputDecoration(labelText: 'Dosage (e.g. 500mg)')),
+            TextFormField(
+                controller: _dosage,
+                decoration:
+                    const InputDecoration(labelText: 'Dosage (e.g. 500mg)')),
             const SizedBox(height: 8),
-            TextFormField(controller: _frequency, decoration: const InputDecoration(labelText: 'Frequency')),
+            TextFormField(
+                controller: _frequency,
+                decoration: const InputDecoration(labelText: 'Frequency')),
             const SizedBox(height: 8),
-            Row(children: [Expanded(child: OutlinedButton(onPressed: () => _pickDate(context, true), child: Text(_start == null ? 'Start date' : _start!.toIso8601String().split('T').first))), const SizedBox(width: 8), Expanded(child: OutlinedButton(onPressed: () => _pickDate(context, false), child: Text(_end == null ? 'End date (optional)' : _end!.toIso8601String().split('T').first))) ]),
+            Row(children: [
+              Expanded(
+                  child: OutlinedButton(
+                      onPressed: () => _pickDate(context, true),
+                      child: Text(_start == null
+                          ? 'Start date'
+                          : _start!.toIso8601String().split('T').first))),
+              const SizedBox(width: 8),
+              Expanded(
+                  child: OutlinedButton(
+                      onPressed: () => _pickDate(context, false),
+                      child: Text(_end == null
+                          ? 'End date (optional)'
+                          : _end!.toIso8601String().split('T').first)))
+            ]),
             const SizedBox(height: 8),
-            TextFormField(controller: _doctor, decoration: const InputDecoration(labelText: 'Prescribing doctor (optional)')),
+            TextFormField(
+                controller: _reason,
+                decoration: const InputDecoration(labelText: 'Reason')),
             const SizedBox(height: 8),
-            TextFormField(controller: _notes, decoration: const InputDecoration(labelText: 'Notes / instructions'), maxLines: 3),
+            TextFormField(
+                controller: _sideEffects,
+                decoration:
+                    const InputDecoration(labelText: 'Side effects / notes'),
+                maxLines: 3),
             const SizedBox(height: 12),
-            Row(children: [Expanded(child: ElevatedButton(onPressed: _save, child: const Text('Save')))]),
+            Row(children: [
+              Expanded(
+                  child: ElevatedButton(
+                      onPressed: _saving ? null : _save,
+                      child: Text(_saving ? 'Saving...' : 'Save')))
+            ]),
             const SizedBox(height: 12),
           ]),
         ),
@@ -433,4 +599,3 @@ class _MedicineEditSheetState extends State<MedicineEditSheet> {
     );
   }
 }
-

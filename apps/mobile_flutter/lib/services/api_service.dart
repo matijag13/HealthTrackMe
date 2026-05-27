@@ -53,59 +53,59 @@ class ApiService {
     _sportActivitiesEndpointMissing = false;
   }
 
-   Future<void> init() async {
-     _prefs = await SharedPreferences.getInstance();
-     final stored = _prefs.getString(_prefsKeyBaseUrl);
+  Future<void> init() async {
+    _prefs = await SharedPreferences.getInstance();
+    final stored = _prefs.getString(_prefsKeyBaseUrl);
 
-     final preferred = _normalizeBaseUrl(stored ?? _baseUrl);
-     if (stored != preferred) {
-       await _prefs.setString(_prefsKeyBaseUrl, preferred);
-     }
+    final preferred = _normalizeBaseUrl(stored ?? _baseUrl);
+    if (stored != preferred) {
+      await _prefs.setString(_prefsKeyBaseUrl, preferred);
+    }
 
-     // Don't wait for reachable URL check - use preferred URL and check in background
-     _baseUrl = preferred;
-     _validateAndUpdateBaseUrlInBackground();
+    // Don't wait for reachable URL check - use preferred URL and check in background
+    _baseUrl = preferred;
+    _validateAndUpdateBaseUrlInBackground();
 
-     _activeUserId = _prefs.getInt(_prefsKeyActiveUserId);
-     _authToken = _prefs.getString(_prefsKeyAuthToken);
+    _activeUserId = _prefs.getInt(_prefsKeyActiveUserId);
+    _authToken = _prefs.getString(_prefsKeyAuthToken);
 
-     // Run reconciliation in background without blocking app startup
-     _reconcileStoredActiveUserIdInBackground();
-   }
+    // Run reconciliation in background without blocking app startup
+    _reconcileStoredActiveUserIdInBackground();
+  }
 
-   /// Check API connectivity in background without blocking initialization
-   Future<void> _validateAndUpdateBaseUrlInBackground() async {
-     try {
-       final reachable = await _resolveReachableBaseUrl(preferredBaseUrl: _baseUrl);
-       if (reachable != _baseUrl) {
-         _baseUrl = reachable;
-         await _prefs.setString(_prefsKeyBaseUrl, reachable);
-       }
-     } catch (e) {
-       debugPrint('Background URL validation error: $e');
-     }
-   }
+  /// Check API connectivity in background without blocking initialization
+  Future<void> _validateAndUpdateBaseUrlInBackground() async {
+    try {
+      final reachable =
+          await _resolveReachableBaseUrl(preferredBaseUrl: _baseUrl);
+      if (reachable != _baseUrl) {
+        _baseUrl = reachable;
+        await _prefs.setString(_prefsKeyBaseUrl, reachable);
+      }
+    } catch (e) {
+      debugPrint('Background URL validation error: $e');
+    }
+  }
 
-   /// Reconcile active user in background without blocking app startup
-   Future<void> _reconcileStoredActiveUserIdInBackground() async {
-     try {
-       final current = _activeUserId;
-       if (current == null) return;
+  /// Reconcile active user in background without blocking app startup
+  Future<void> _reconcileStoredActiveUserIdInBackground() async {
+    try {
+      final current = _activeUserId;
+      if (current == null) return;
 
-       final users = await getUsers();
-       if (users.isEmpty) return;
+      final users = await getUsers();
+      if (users.isEmpty) return;
 
-       final exists = users.any((u) => u.id == current);
-       if (exists) return;
+      final exists = users.any((u) => u.id == current);
+      if (exists) return;
 
-       final selected = users.firstWhere((u) => u.isActive, orElse: () => users.first);
-       await setActiveUserId(selected.id);
-     } catch (e) {
-       debugPrint('Background user reconciliation error: $e');
-     }
-   }
-
-
+      final selected =
+          users.firstWhere((u) => u.isActive, orElse: () => users.first);
+      await setActiveUserId(selected.id);
+    } catch (e) {
+      debugPrint('Background user reconciliation error: $e');
+    }
+  }
 
   Future<void> setBaseUrl(String value) async {
     final normalized = _normalizeBaseUrl(value);
@@ -138,7 +138,8 @@ class ApiService {
     }
   }
 
-  Future<String?> getAuthToken() async => _authToken ?? _prefs.getString(_prefsKeyAuthToken);
+  Future<String?> getAuthToken() async =>
+      _authToken ?? _prefs.getString(_prefsKeyAuthToken);
 
   Future<void> clearAuthToken() async => setAuthToken(null);
 
@@ -154,12 +155,16 @@ class ApiService {
 
     final uri = Uri.tryParse(normalized);
     if (uri != null && uri.hasScheme && uri.host.isNotEmpty) {
-      final segments = uri.pathSegments.where((segment) => segment.isNotEmpty).toList();
+      final segments =
+          uri.pathSegments.where((segment) => segment.isNotEmpty).toList();
       final apiIndex = _findApiV1Index(segments);
       final canonicalSegments = apiIndex >= 0
           ? segments.sublist(0, apiIndex + 2)
           : <String>[...segments, 'api', 'v1'];
-      return uri.replace(pathSegments: canonicalSegments).toString().replaceFirst(RegExp(r'/+$'), '');
+      return uri
+          .replace(pathSegments: canonicalSegments)
+          .toString()
+          .replaceFirst(RegExp(r'/+$'), '');
     }
 
     final apiV1Index = normalized.indexOf('/api/v1');
@@ -168,7 +173,8 @@ class ApiService {
     }
 
     if (normalized.endsWith('/api')) return '$normalized/v1';
-    if (normalized.endsWith('/api/v1')) return normalized.replaceFirst(RegExp(r'(/api/v1)+$'), '/api/v1');
+    if (normalized.endsWith('/api/v1'))
+      return normalized.replaceFirst(RegExp(r'(/api/v1)+$'), '/api/v1');
     return '$normalized/api/v1';
   }
 
@@ -190,68 +196,73 @@ class ApiService {
     ];
   }
 
-    Future<bool> _canReachUrl(String baseUrl) async {
-     try {
-       final testUrl = '$baseUrl/users';
-       debugPrint('Attempting to reach: $testUrl');
-       final response = await http.get(Uri.parse(testUrl)).timeout(const Duration(seconds: 1));
-       final success = response.statusCode >= 200 && response.statusCode < 300;
-       if (!success) {
-         debugPrint('  Response code: ${response.statusCode}');
-       }
-       return success;
-     } catch (e) {
-       debugPrint('  Connection failed: $e');
-       return false;
-     }
-   }
-
-   Future<String> _resolveReachableBaseUrl({required String preferredBaseUrl}) async {
-     final candidates = <String>[];
-     candidates.add(preferredBaseUrl);
-
-     // Only add fallbacks if preferred is not reachable
-     if (kIsWeb) {
-       // Add web fallbacks
-       for (final fallback in _webFallbackBaseUrls()) {
-         if (!candidates.contains(fallback)) candidates.add(fallback);
-       }
-     } else {
-       // Add Android fallbacks only as secondary options
-       const androidFallbacks = [
-         'http://10.0.2.2:8081/api/v1',
-         'http://10.0.2.2:8080/api/v1',
-       ];
-       for (final fallback in androidFallbacks) {
-         if (!candidates.contains(fallback)) candidates.add(fallback);
-       }
-     }
-
-     // Try to reach the preferred URL with shorter timeout
-     for (final candidate in candidates.take(2)) {
-       // Only try first 2 candidates to avoid excessive delays
-       debugPrint('Testing API connectivity: $candidate');
-       try {
-         if (await _canReachUrl(candidate).timeout(const Duration(seconds: 1))) {
-           debugPrint('Connected to API at: $candidate');
-           return candidate;
-         }
-       } catch (e) {
-         debugPrint('Timeout testing $candidate: $e');
-       }
-     }
-
-     debugPrint('Could not reach any API candidate, using preferred: $preferredBaseUrl');
-     return preferredBaseUrl;
-   }
-
-   Uri _uri(String path, {Map<String, String>? queryParameters}) {
-    final cleanPath = path.startsWith('/') ? path : '/$path';
-      final normalizedBase = _normalizeBaseUrl(_baseUrl);
-      if (normalizedBase != _baseUrl) {
-        _baseUrl = normalizedBase;
+  Future<bool> _canReachUrl(String baseUrl) async {
+    try {
+      final testUrl = '$baseUrl/users';
+      debugPrint('Attempting to reach: $testUrl');
+      final response = await http
+          .get(Uri.parse(testUrl))
+          .timeout(const Duration(seconds: 1));
+      final success = response.statusCode >= 200 && response.statusCode < 300;
+      if (!success) {
+        debugPrint('  Response code: ${response.statusCode}');
       }
-      final uri = Uri.parse('$normalizedBase$cleanPath').replace(queryParameters: queryParameters);
+      return success;
+    } catch (e) {
+      debugPrint('  Connection failed: $e');
+      return false;
+    }
+  }
+
+  Future<String> _resolveReachableBaseUrl(
+      {required String preferredBaseUrl}) async {
+    final candidates = <String>[];
+    candidates.add(preferredBaseUrl);
+
+    // Only add fallbacks if preferred is not reachable
+    if (kIsWeb) {
+      // Add web fallbacks
+      for (final fallback in _webFallbackBaseUrls()) {
+        if (!candidates.contains(fallback)) candidates.add(fallback);
+      }
+    } else {
+      // Add Android fallbacks only as secondary options
+      const androidFallbacks = [
+        'http://10.0.2.2:8081/api/v1',
+        'http://10.0.2.2:8080/api/v1',
+      ];
+      for (final fallback in androidFallbacks) {
+        if (!candidates.contains(fallback)) candidates.add(fallback);
+      }
+    }
+
+    // Try to reach the preferred URL with shorter timeout
+    for (final candidate in candidates.take(2)) {
+      // Only try first 2 candidates to avoid excessive delays
+      debugPrint('Testing API connectivity: $candidate');
+      try {
+        if (await _canReachUrl(candidate).timeout(const Duration(seconds: 1))) {
+          debugPrint('Connected to API at: $candidate');
+          return candidate;
+        }
+      } catch (e) {
+        debugPrint('Timeout testing $candidate: $e');
+      }
+    }
+
+    debugPrint(
+        'Could not reach any API candidate, using preferred: $preferredBaseUrl');
+    return preferredBaseUrl;
+  }
+
+  Uri _uri(String path, {Map<String, String>? queryParameters}) {
+    final cleanPath = path.startsWith('/') ? path : '/$path';
+    final normalizedBase = _normalizeBaseUrl(_baseUrl);
+    if (normalizedBase != _baseUrl) {
+      _baseUrl = normalizedBase;
+    }
+    final uri = Uri.parse('$normalizedBase$cleanPath')
+        .replace(queryParameters: queryParameters);
     debugPrint('URI: ${uri.toString()}');
     return uri;
   }
@@ -273,7 +284,9 @@ class ApiService {
     }
   }
 
-  Future<http.Response> _getRaw(String path, {Map<String, String>? queryParameters, Map<String, String>? headers}) async {
+  Future<http.Response> _getRaw(String path,
+      {Map<String, String>? queryParameters,
+      Map<String, String>? headers}) async {
     final uri = _uri(path, queryParameters: queryParameters);
     final h = _authHeaders(headers);
     final resp = await http.get(uri, headers: h);
@@ -281,7 +294,10 @@ class ApiService {
     return resp;
   }
 
-  Future<http.Response> _postRaw(String path, {Object? body, Map<String, String>? queryParameters, Map<String, String>? headers}) async {
+  Future<http.Response> _postRaw(String path,
+      {Object? body,
+      Map<String, String>? queryParameters,
+      Map<String, String>? headers}) async {
     final uri = _uri(path, queryParameters: queryParameters);
     final h = _authHeaders(headers);
     final resp = await http.post(uri, headers: h, body: body);
@@ -289,7 +305,10 @@ class ApiService {
     return resp;
   }
 
-  Future<http.Response> _putRaw(String path, {Object? body, Map<String, String>? queryParameters, Map<String, String>? headers}) async {
+  Future<http.Response> _putRaw(String path,
+      {Object? body,
+      Map<String, String>? queryParameters,
+      Map<String, String>? headers}) async {
     final uri = _uri(path, queryParameters: queryParameters);
     final h = _authHeaders(headers);
     final resp = await http.put(uri, headers: h, body: body);
@@ -297,7 +316,9 @@ class ApiService {
     return resp;
   }
 
-  Future<http.Response> _deleteRaw(String path, {Map<String, String>? queryParameters, Map<String, String>? headers}) async {
+  Future<http.Response> _deleteRaw(String path,
+      {Map<String, String>? queryParameters,
+      Map<String, String>? headers}) async {
     final uri = _uri(path, queryParameters: queryParameters);
     final h = _authHeaders(headers);
     final resp = await http.delete(uri, headers: h);
@@ -305,13 +326,15 @@ class ApiService {
     return resp;
   }
 
-  Future<http.Response> _multipartPost(String path, {required File file, String fieldName = 'file'}) async {
+  Future<http.Response> _multipartPost(String path,
+      {required File file, String fieldName = 'file'}) async {
     final uri = _uri(path);
     final request = http.MultipartRequest('POST', uri);
     request.headers.addAll(_authHeaders({}));
     final stream = http.ByteStream(file.openRead());
     final length = await file.length();
-    final multipartFile = http.MultipartFile(fieldName, stream, length, filename: file.path.split('/').last);
+    final multipartFile = http.MultipartFile(fieldName, stream, length,
+        filename: file.path.split('/').last);
     request.files.add(multipartFile);
     final streamed = await request.send();
     final response = await http.Response.fromStream(streamed);
@@ -337,7 +360,8 @@ class ApiService {
     return decoded;
   }
 
-  List<T> _parseList<T>(http.Response response, T Function(dynamic json) fromJson) {
+  List<T> _parseList<T>(
+      http.Response response, T Function(dynamic json) fromJson) {
     final decoded = _unwrapData(_decodeBody(response));
     if (decoded is List) {
       return decoded.map(fromJson).toList();
@@ -348,7 +372,8 @@ class ApiService {
     return const [];
   }
 
-  T? _parseSingle<T>(http.Response response, T Function(dynamic json) fromJson) {
+  T? _parseSingle<T>(
+      http.Response response, T Function(dynamic json) fromJson) {
     final decoded = _unwrapData(_decodeBody(response));
     if (decoded == null) return null;
     if (decoded is Map<String, dynamic> || decoded is Map) {
@@ -383,7 +408,8 @@ class ApiService {
       if (exists) return _activeUserId;
     }
 
-    final selected = users.firstWhere((user) => user.isActive, orElse: () => users.first);
+    final selected =
+        users.firstWhere((user) => user.isActive, orElse: () => users.first);
     await setActiveUserId(selected.id);
     return selected.id;
   }
@@ -422,7 +448,7 @@ class ApiService {
     return getUser(id);
   }
 
-   Future<User> createUser({
+  Future<User> createUser({
     required String email,
     required String password,
     required String firstName,
@@ -433,16 +459,18 @@ class ApiService {
     String? allergies,
   }) async {
     try {
-      final response = await _postRaw('/users', headers: {'Content-Type': 'application/json'}, body: jsonEncode({
-        'email': email,
-        'password': password,
-        'firstName': firstName,
-        'lastName': lastName,
-        'dateOfBirth': dateOfBirth,
-        'userType': userType,
-        'medicalConditions': medicalConditions,
-        'allergies': allergies,
-      }));
+      final response = await _postRaw('/users',
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({
+            'email': email,
+            'password': password,
+            'firstName': firstName,
+            'lastName': lastName,
+            'dateOfBirth': dateOfBirth,
+            'userType': userType,
+            'medicalConditions': medicalConditions,
+            'allergies': allergies,
+          }));
 
       if (response.statusCode >= 200 && response.statusCode < 300) {
         final created = _parseSingle(response, User.fromJson);
@@ -460,7 +488,9 @@ class ApiService {
   }
 
   Future<User> updateUser(int id, User user) async {
-    final response = await _putRaw('/users/$id', headers: {'Content-Type': 'application/json'}, body: jsonEncode(user.toUpdateJson()));
+    final response = await _putRaw('/users/$id',
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode(user.toUpdateJson()));
 
     if (response.statusCode >= 200 && response.statusCode < 300) {
       final updated = _parseSingle(response, User.fromJson);
@@ -491,36 +521,56 @@ class ApiService {
     }
   }
 
-  Future<HealthEntry> createHealthEntry(HealthEntry entry, {int? userId}) async {
+  Future<HealthEntry> createHealthEntry(HealthEntry entry,
+      {int? userId}) async {
     final id = _effectiveUserId(userId: userId);
     if (id == null) {
       throw StateError('No active user selected');
     }
-    final response = await _postRaw('/health-entries/users/$id', headers: {'Content-Type': 'application/json'}, body: jsonEncode(entry.toJson()));
+    final response = await _postRaw('/health-entries/users/$id',
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode(entry.toJson()));
 
     if (response.statusCode >= 200 && response.statusCode < 300) {
       final created = _parseSingle(response, HealthEntry.fromJson);
       if (created != null) return created;
     }
-    throw Exception(_responseMessage(response) ?? 'Could not save health entry');
+    throw Exception(
+        _responseMessage(response) ?? 'Could not save health entry');
   }
 
   // Medicine endpoints
-  Future<List<Medicine>> getMedicines({int? userId, bool activeOnly = false}) async {
+  Future<List<Medicine>> getMedicines(
+      {int? userId, bool activeOnly = false}) async {
     final id = _effectiveUserId(userId: userId);
     if (id == null) return const [];
     try {
-      final path = activeOnly ? '/medicines/users/$id/active' : '/medicines/users/$id';
+      final path =
+          activeOnly ? '/medicines/users/$id/active' : '/medicines/users/$id';
       final response = await _getRaw(path);
       if (response.statusCode >= 200 && response.statusCode < 300) {
         final medicines = _parseList(response, Medicine.fromJson);
-        medicines.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+        medicines.sort(
+            (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
         return medicines;
       }
       return const [];
     } catch (_) {
       return const [];
     }
+  }
+
+  Future<bool> createMedicine(Map<String, dynamic> payload,
+      {int? userId}) async {
+    final id = userId ?? await ensureActiveUserId();
+    if (id == null) return false;
+
+    final response = await _postRaw(
+      '/medicines/users/$id',
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode(payload),
+    );
+    return response.statusCode == 200 || response.statusCode == 201;
   }
 
   // Sport activity endpoints
@@ -538,7 +588,9 @@ class ApiService {
       if (response.statusCode >= 200 && response.statusCode < 300) {
         final decoded = _unwrapData(_decodeBody(response));
         if (decoded is List) {
-          return decoded.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+          return decoded
+              .map((e) => Map<String, dynamic>.from(e as Map))
+              .toList();
         }
       }
       return const [];
@@ -547,7 +599,8 @@ class ApiService {
     }
   }
 
-  Future<bool> createSportActivity(Map<String, dynamic> payload, {int? userId}) async {
+  Future<bool> createSportActivity(Map<String, dynamic> payload,
+      {int? userId}) async {
     if (_sportActivitiesEndpointMissing) return false;
     final id = userId ?? await ensureActiveUserId();
     if (id == null) return false;
@@ -569,11 +622,14 @@ class ApiService {
   }
 
   // Alerts endpoints
-  Future<List<HealthAlertSummary>> getHealthAlerts({int? userId, bool unreadOnly = false}) async {
+  Future<List<HealthAlertSummary>> getHealthAlerts(
+      {int? userId, bool unreadOnly = false}) async {
     final id = _effectiveUserId(userId: userId);
     if (id == null) return const [];
     try {
-      final path = unreadOnly ? '/health-alerts/users/$id/unread' : '/health-alerts/users/$id';
+      final path = unreadOnly
+          ? '/health-alerts/users/$id/unread'
+          : '/health-alerts/users/$id';
       final response = await _getRaw(path);
       if (response.statusCode >= 200 && response.statusCode < 300) {
         final alerts = _parseList(response, HealthAlertSummary.fromJson);
@@ -589,14 +645,17 @@ class ApiService {
   Future<HealthReport> getMonthlyReport(DateTime month, {int? userId}) async {
     final id = _effectiveUserId(userId: userId);
     if (id == null) {
-      return HealthReport.fromEntries(month: month, entries: const [], medicines: const []);
+      return HealthReport.fromEntries(
+          month: month, entries: const [], medicines: const []);
     }
     try {
       final entries = await getHealthEntries(userId: id);
       final medicines = await getMedicines(userId: id, activeOnly: false);
-      return HealthReport.fromEntries(month: month, entries: entries, medicines: medicines);
+      return HealthReport.fromEntries(
+          month: month, entries: entries, medicines: medicines);
     } catch (_) {
-      return HealthReport.fromEntries(month: month, entries: const [], medicines: const []);
+      return HealthReport.fromEntries(
+          month: month, entries: const [], medicines: const []);
     }
   }
 
@@ -630,21 +689,30 @@ class ApiService {
       return null;
     }
   }
+
   String _dateOnly(DateTime date) {
     return date.toIso8601String().split('T').first;
   }
 
   // Dose logging
-  Future<void> logMedicineDose(int medicineId, DateTime date, String status) async {
-    final body = jsonEncode({'date': _dateOnly(date), 'time': date.toIso8601String().split('T').last, 'status': status});
-    final response = await _postRaw('/medicines/$medicineId/dose', headers: {'Content-Type': 'application/json'}, body: body);
+  Future<void> logMedicineDose(
+      int medicineId, DateTime date, String status) async {
+    final body = jsonEncode({
+      'date': _dateOnly(date),
+      'time': date.toIso8601String().split('T').last,
+      'status': status
+    });
+    final response = await _postRaw('/medicines/$medicineId/dose',
+        headers: {'Content-Type': 'application/json'}, body: body);
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw Exception(_responseMessage(response) ?? 'Could not log dose');
     }
   }
 
-  Future<Map<String, dynamic>> getMedicineAdherence(int medicineId, {int days = 30}) async {
-    final response = await _getRaw('/medicines/$medicineId/adherence', queryParameters: {'days': days.toString()});
+  Future<Map<String, dynamic>> getMedicineAdherence(int medicineId,
+      {int days = 30}) async {
+    final response = await _getRaw('/medicines/$medicineId/adherence',
+        queryParameters: {'days': days.toString()});
     if (response.statusCode >= 200 && response.statusCode < 300) {
       final data = _unwrapData(_decodeBody(response));
       if (data is Map) return Map<String, dynamic>.from(data);
@@ -654,10 +722,16 @@ class ApiService {
   }
 
   // Vitals history
-  Future<List<Map<String, dynamic>>> getVitalsHistory(String metric, {int days = 90, int? userId}) async {
+  Future<List<Map<String, dynamic>>> getVitalsHistory(String metric,
+      {int days = 90, int? userId}) async {
     final id = _effectiveUserId(userId: userId);
     if (id == null) return const [];
-    final response = await _getRaw('/health-entries/vitals-history', queryParameters: {'userId': id.toString(), 'metric': metric, 'days': days.toString()});
+    final response = await _getRaw('/health-entries/vitals-history',
+        queryParameters: {
+          'userId': id.toString(),
+          'metric': metric,
+          'days': days.toString()
+        });
     if (response.statusCode >= 200 && response.statusCode < 300) {
       final decoded = _unwrapData(_decodeBody(response));
       if (decoded is List) {
@@ -665,16 +739,19 @@ class ApiService {
       }
       return const [];
     }
-    throw Exception(_responseMessage(response) ?? 'Could not fetch vitals history');
+    throw Exception(
+        _responseMessage(response) ?? 'Could not fetch vitals history');
   }
 
   // Profile photo upload
   Future<void> uploadProfilePhoto(File imageFile) async {
     final id = _activeUserId;
     if (id == null) throw StateError('No active user');
-    final response = await _multipartPost('/users/$id/profile-photo', file: imageFile);
+    final response =
+        await _multipartPost('/users/$id/profile-photo', file: imageFile);
     if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw Exception(_responseMessage(response) ?? 'Could not upload profile photo');
+      throw Exception(
+          _responseMessage(response) ?? 'Could not upload profile photo');
     }
   }
 
