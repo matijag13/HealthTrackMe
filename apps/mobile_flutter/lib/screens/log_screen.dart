@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'dart:convert';
 import 'package:table_calendar/table_calendar.dart';
 import 'package:go_router/go_router.dart';
+import '../utils/health_utils.dart';
 
 import '../models/models.dart';
 import '../services/api_service.dart';
@@ -99,15 +101,49 @@ class _LogScreenState extends State<LogScreen> with AutomaticKeepAliveClientMixi
     energyLevel = (e.energyLevel ?? 50).toDouble();
     stressLevel = (e.stressLevel ?? 50).toDouble();
     sleepHours = e.sleepHours ?? 8.0;
-    // Parse notes - if it looks like a map toString, extract just the notes field
-    final raw = e.notes ?? '';
-    if (raw.startsWith('{') && raw.contains('notes:')) {
-      final match = RegExp(r'notes: ([^,}]+)').firstMatch(raw);
-      notesController.text = match?.group(1)?.trim() ?? '';
-    } else {
-      notesController.text = raw;
-    }
     selectedSymptoms = List.from(e.symptoms);
+
+    // The notes field is stored as a JSON blob. Extract only the human-written
+    // 'notes' sub-key so we never show raw JSON in the text field.
+    final raw = e.notes ?? '';
+    notesController.text = extractNote(raw);
+
+    // Restore vitals from the stored JSON so editing a day repopulates fields
+    try {
+      if (raw.startsWith('{')) {
+        final decoded = Map<String, dynamic>.from(jsonDecode(raw));
+        final vitals = decoded['vitals'] as Map<String, dynamic>?;
+        if (vitals != null) {
+          weightController.text = vitals['weight']?.toString() ?? '';
+          heartController.text = vitals['heartRate']?.toString() ?? '';
+          tempController.text = vitals['temp']?.toString() ?? '';
+          spo2Controller.text = vitals['spo2']?.toString() ?? '';
+          final bp = vitals['bp']?.toString() ?? '/';
+          final parts = bp.split('/');
+          if (parts.length == 2) {
+            systolicController.text = parts[0];
+            diastolicController.text = parts[1];
+          }
+        }
+        final nutrition = decoded['nutrition'] as Map<String, dynamic>?;
+        if (nutrition != null) {
+          waterController.text = nutrition['waterMl']?.toString() ?? '';
+          caloriesController.text = nutrition['calories']?.toString() ?? '';
+          alcoholUnits = (nutrition['alcoholUnits'] as num?)?.toInt() ?? 0;
+        }
+        final activity = decoded['activity'] as Map<String, dynamic>?;
+        if (activity != null) {
+          stepsController.text = activity['steps']?.toString() ?? '';
+          activeMinutesController.text = activity['activeMinutes']?.toString() ?? '';
+        }
+      }
+    } catch (_) {}
+
+    // Also restore directly stored vitals (new entries use explicit fields)
+    if (e.heartRate != null && heartController.text.isEmpty) heartController.text = e.heartRate.toString();
+    if (e.weight != null && weightController.text.isEmpty) weightController.text = e.weight.toString();
+    if (e.waterIntakeMl != null && waterController.text.isEmpty) waterController.text = e.waterIntakeMl.toString();
+    if (e.caloriesConsumed != null && caloriesController.text.isEmpty) caloriesController.text = e.caloriesConsumed.toString();
   }
 
   int _calculateWellbeingScore() {
@@ -159,6 +195,18 @@ class _LogScreenState extends State<LogScreen> with AutomaticKeepAliveClientMixi
       'menstrualTracking': menstrualCycleTracking,
     };
 
+    // If user entered steps in the quick field, include it inside notes.activity so
+    // the app can surface steps on dashboard even when sport-activities endpoint
+    // isn't relied upon. Also populate HealthEntry vitals/nutrition fields so they
+    // are visible immediately in UI and exported properly.
+    final int? parsedWater = int.tryParse(waterController.text);
+    final int? parsedCalories = int.tryParse(caloriesController.text);
+    final int? parsedSteps = int.tryParse(stepsController.text);
+
+    if (parsedSteps != null && parsedSteps > 0) {
+      payloadNotes['activity'] = {'steps': parsedSteps, 'activeMinutes': int.tryParse(activeMinutesController.text) ?? 0};
+    }
+
     final entry = HealthEntry(
       id: 0,
       entryDate: DateTime.now(),
@@ -167,10 +215,26 @@ class _LogScreenState extends State<LogScreen> with AutomaticKeepAliveClientMixi
       mood: selectedMood,
       energyLevel: energyLevel.round(),
       sleepHours: sleepHours,
-       sleepQuality: sleepQualityStars >= 4 ? 'GOOD' : (sleepQualityStars >= 2 ? 'FAIR' : 'POOR'),
-       stressLevel: stressLevel.round(),
-       notes: notesController.text.trim(),
-     );
+      sleepQuality: sleepQualityStars >= 4 ? 'GOOD' : (sleepQualityStars >= 2 ? 'FAIR' : 'POOR'),
+      stressLevel: stressLevel.round(),
+      // map vitals/nutrition into explicit fields the backend recognizes
+      weight: double.tryParse(weightController.text),
+      heartRate: int.tryParse(heartController.text),
+      systolicBp: int.tryParse(systolicController.text),
+      diastolicBp: int.tryParse(diastolicController.text),
+      bloodGlucose: double.tryParse(glucoseController.text),
+      bodyTemperature: double.tryParse(tempController.text),
+      spO2: int.tryParse(spo2Controller.text),
+      waterIntakeMl: parsedWater,
+      caloriesConsumed: parsedCalories,
+      alcoholUnits: (alcoholUnits > 0) ? alcoholUnits.toDouble() : null,
+      painLevel: painLevel.round(),
+      bedtime: bedtime?.format(context),
+      wakeTime: waketime?.format(context),
+      sleepQualityStars: sleepQualityStars,
+      tags: selectedTags.isNotEmpty ? selectedTags : tags,
+      notes: jsonEncode(payloadNotes),
+    );
 
     try {
       await _api.createHealthEntry(entry, userId: activeUserId);
@@ -232,21 +296,17 @@ class _LogScreenState extends State<LogScreen> with AutomaticKeepAliveClientMixi
   }
 
   Future<void> _openHistory() async {
-    // Full screen calendar showing marked days
-    await showDialog(
-      context: context,
-      builder: (context) => Dialog(
-        insetPadding: const EdgeInsets.all(8),
-        child: Container(
+    // Push a full-screen page with AppBar so the user has a clear Back button
+    final parentContext = context;
+    await Navigator.of(context).push(MaterialPageRoute(builder: (ctx) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Diary history')),
+        body: Container(
           width: double.infinity,
-          height: MediaQuery.of(context).size.height * 0.85,
+          height: double.infinity,
           padding: const EdgeInsets.all(12),
           child: Column(
             children: [
-              Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                const Text('Diary history', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
-                IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.of(context).pop()),
-              ]),
               const SizedBox(height: 8),
               Expanded(
                 child: TableCalendar(
@@ -264,9 +324,9 @@ class _LogScreenState extends State<LogScreen> with AutomaticKeepAliveClientMixi
                   onDaySelected: (selected, focused) {
                     final found = _entries.where((e) => e.entryDate.year == selected.year && e.entryDate.month == selected.month && e.entryDate.day == selected.day).toList();
                     if (found.isNotEmpty) {
-                      Navigator.of(context).pop();
-                      // navigate to read-only view
-                      context.goNamed('diaryDate', pathParameters: {'date': selected.toIso8601String().split('T').first});
+                      Navigator.of(ctx).pop();
+                      // navigate to read-only view using parent context so GoRouter works at root
+                      parentContext.goNamed('diaryDate', pathParameters: {'date': selected.toIso8601String().split('T').first});
                     }
                   },
                 ),
@@ -274,8 +334,8 @@ class _LogScreenState extends State<LogScreen> with AutomaticKeepAliveClientMixi
             ],
           ),
         ),
-      ),
-    );
+      );
+    }));
   }
 
   @override
@@ -299,19 +359,32 @@ class _LogScreenState extends State<LogScreen> with AutomaticKeepAliveClientMixi
                   padding: const EdgeInsets.all(12),
                   child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                     if (_todayLogged)
-                      Card(
-                        color: AppColors.softBlue,
+                      Container(
+                        margin: const EdgeInsets.only(bottom: 12),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFE8F5E9),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: const Color(0xFF4CAF50).withOpacity(0.4)),
+                        ),
                         child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                           child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                            Row(children: const [Icon(Icons.check_circle, color: AppColors.success), SizedBox(width: 8), Text('✅ Today logged')]),
-                            TextButton(onPressed: () => setState(() => _todayLogged = false), child: const Text('Edit')),
+                            const Row(children: [
+                              Icon(Icons.check_circle, color: Color(0xFF4CAF50), size: 18),
+                              SizedBox(width: 8),
+                              Text('Today already logged', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                            ]),
+                            TextButton(
+                              onPressed: () => setState(() => _todayLogged = false),
+                              child: const Text('Update', style: TextStyle(fontSize: 13)),
+                            ),
                           ]),
                         ),
                       ),
                     const SizedBox(height: 10),
 
                     // SECTION 1 - Mood & quick
+                    _sectionHeader('How you feel', Icons.mood),
                     ExpansionTile(
                       initiallyExpanded: true,
                       title: const Text('How do you feel?'),
@@ -340,14 +413,27 @@ class _LogScreenState extends State<LogScreen> with AutomaticKeepAliveClientMixi
                               )
                               .toList(),
                         ),
-                        const SizedBox(height: 12),
+                        const SizedBox(height: 8),
                         const Text('Energy'),
                         HealthSlider(value: energyLevel, onChanged: (v) => setState(() => energyLevel = v), leftLabel: '0', rightLabel: '100'),
+                        const SizedBox(height: 6),
+                        Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                          const Text('0'),
+                          Text('${energyLevel.round()}', style: const TextStyle(fontWeight: FontWeight.w700, color: Colors.blue)),
+                          const Text('100'),
+                        ]),
                         const SizedBox(height: 8),
                         const Text('Stress'),
                         HealthSlider(value: stressLevel, onChanged: (v) => setState(() => stressLevel = v), leftLabel: '0', rightLabel: '100', sliderColor: AppColors.danger),
+                        const SizedBox(height: 6),
+                        Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                          const Text('0'),
+                          Text('${stressLevel.round()}', style: const TextStyle(fontWeight: FontWeight.w700, color: Colors.blue)),
+                          const Text('100'),
+                        ]),
                         const SizedBox(height: 8),
-                        TextField(controller: notesController, minLines: 3, maxLines: 5, decoration: InputDecoration(hintText: 'How was your day?', border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)))),
+                        _sectionHeader('Notes', Icons.edit_note),
+                        TextField(controller: notesController, minLines: 2, maxLines: 5, decoration: InputDecoration(hintText: 'How was your day? Any symptoms or observations...', border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)))),
                         const SizedBox(height: 8),
                         Wrap(spacing: 6, children: tags.map((t) => FilterChip(
                           label: Text('#$t'),
@@ -365,6 +451,7 @@ class _LogScreenState extends State<LogScreen> with AutomaticKeepAliveClientMixi
                     ),
 
                     // SECTION 2 - Vitals
+                    _sectionHeader('Vitals', Icons.favorite),
                     ExpansionTile(title: const Text('Vitals'), children: [
                       const SizedBox(height: 8),
                       Row(children: [Expanded(child: TextField(controller: weightController, keyboardType: TextInputType.numberWithOptions(decimal: true), decoration: InputDecoration(labelText: 'Weight', border: OutlineInputBorder(borderRadius: BorderRadius.circular(8))))), const SizedBox(width: 8), DropdownButton<bool>(value: weightIsKg, items: const [DropdownMenuItem(value: true, child: Text('kg')), DropdownMenuItem(value: false, child: Text('lb'))], onChanged: (v) => setState(() => weightIsKg = v ?? true))]),
@@ -382,6 +469,7 @@ class _LogScreenState extends State<LogScreen> with AutomaticKeepAliveClientMixi
                     ]),
 
                     // SECTION 3 - Sleep
+                    _sectionHeader('Sleep', Icons.bedtime),
                     ExpansionTile(title: const Text('Sleep'), children: [
                       const SizedBox(height: 8),
                       Row(children: [Expanded(child: Text('Duration: ${sleepHours.toStringAsFixed(1)} h')), Slider(value: sleepHours, min: 0, max: 12, divisions: 24, onChanged: (v) => setState(() => sleepHours = v))]),
@@ -396,6 +484,7 @@ class _LogScreenState extends State<LogScreen> with AutomaticKeepAliveClientMixi
                     ]),
 
                     // SECTION 4 - Activity & Steps
+                    _sectionHeader('Activity', Icons.directions_walk),
                     ExpansionTile(title: const Text('Activity & Steps'), children: [
                       const SizedBox(height: 8),
                       Row(children: [Expanded(child: TextField(controller: stepsController, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: 'Steps', border: OutlineInputBorder(borderRadius: BorderRadius.circular(8))))), const SizedBox(width: 8), ElevatedButton(onPressed: () => setState(() => stepsController.text = ((int.tryParse(stepsController.text) ?? 0) + 200).toString()), child: const Text('+200'))]),
@@ -406,6 +495,7 @@ class _LogScreenState extends State<LogScreen> with AutomaticKeepAliveClientMixi
                     ]),
 
                     // SECTION 5 - Nutrition
+                    _sectionHeader('Nutrition', Icons.local_dining),
                     ExpansionTile(title: const Text('Nutrition'), children: [
                       const SizedBox(height: 8),
                       Row(children: [Expanded(child: TextField(controller: waterController, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: 'Water (ml)', border: OutlineInputBorder(borderRadius: BorderRadius.circular(8))))), const SizedBox(width: 8), ElevatedButton(onPressed: () => setState(() => waterController.text = ((int.tryParse(waterController.text) ?? 0) + 200).toString()), child: const Text('+200ml'))]),
@@ -424,7 +514,18 @@ class _LogScreenState extends State<LogScreen> with AutomaticKeepAliveClientMixi
                     ]),
 
                     const SizedBox(height: 16),
-                    SizedBox(height: 56, width: double.infinity, child: ElevatedButton(onPressed: _saving ? null : _saveEntry, style: ElevatedButton.styleFrom(backgroundColor: AppColors.blue, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)), disabledBackgroundColor: AppColors.muted), child: _saving ? const SizedBox(height: 24, width: 24, child: CircularProgressIndicator(color: Colors.white)) : const Text('Save Entry', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)))),
+                    SizedBox(width: double.infinity, child: ElevatedButton(
+                      onPressed: _saving ? null : _saveEntry,
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        backgroundColor: AppColors.blue,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        disabledBackgroundColor: AppColors.muted,
+                      ),
+                      child: _saving
+                          ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                          : const Text('Save entry', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+                    )),
                     const SizedBox(height: 40),
                   ]),
                 ),
@@ -436,6 +537,19 @@ class _LogScreenState extends State<LogScreen> with AutomaticKeepAliveClientMixi
   void _showInfo(String title, String text) {
     showDialog(context: context, builder: (c) => AlertDialog(title: Text(title), content: Text(text), actions: [TextButton(onPressed: () => Navigator.of(c).pop(), child: const Text('OK'))]));
   }
+
+  Widget _sectionHeader(String title, IconData icon) => Padding(
+    padding: const EdgeInsets.only(top: 24, bottom: 8),
+    child: Row(children: [
+      Icon(icon, size: 16, color: Colors.blue),
+      const SizedBox(width: 8),
+      Text(title.toUpperCase(), style: const TextStyle(
+        fontSize: 11, fontWeight: FontWeight.w700,
+        color: Colors.blue, letterSpacing: 1.2)),
+      const SizedBox(width: 8),
+      const Expanded(child: Divider()),
+    ]),
+  );
 
   @override
   void dispose() {
@@ -548,4 +662,3 @@ class _ActivityFormState extends State<_ActivityForm> {
     );
   }
 }
-

@@ -1,12 +1,14 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:percent_indicator/percent_indicator.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
+import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
+import '../utils/health_utils.dart';
 
 import '../models/models.dart';
 import '../services/api_service.dart';
-import 'log_screen.dart';
 import '../widgets/widgets.dart';
 
 class HealthScreenTabbed extends StatefulWidget {
@@ -33,8 +35,42 @@ class _HealthScreenTabbedState extends State<HealthScreenTabbed> with SingleTick
 
   Future<void> _loadAll() async {
     setState(() => _loading = true);
-    final entries = await _api.getHealthEntries();
-    final sport = await _fetchSportActivities();
+    // declare locals so they are available after the try/catch
+    List<HealthEntry> entries = [];
+    List<Map<String, dynamic>> sport = [];
+    try {
+      // ensure there's an active user id before making API calls
+      await _api.ensureActiveUserId();
+
+      entries = await _api.getHealthEntries();
+      sport = await _fetchSportActivities();
+
+      // Also extract any steps that were recorded using the quick steps field
+      // in the Log screen (we store them in HealthEntry.notes as JSON under activity.steps).
+      // This ensures the activity tab shows steps even when sport-activity records aren't created.
+      final today = DateTime.now();
+      final todaysEntries = entries.where((e) => e.entryDate.year == today.year && e.entryDate.month == today.month && e.entryDate.day == today.day).toList();
+      if (todaysEntries.isNotEmpty) {
+        final e = todaysEntries.first;
+        if (e.notes != null && e.notes!.startsWith('{')) {
+          try {
+            final parsed = Map<String, dynamic>.from(jsonDecode(e.notes!));
+            final activity = parsed['activity'];
+            if (activity is Map && activity['steps'] != null) {
+              final s = int.tryParse(activity['steps'].toString()) ?? 0;
+              if (s > 0) {
+                sport.add({'start': e.entryDate.toIso8601String(), 'steps': s});
+              }
+            }
+          } catch (_) {
+            // ignore parsing errors
+          }
+        }
+      }
+    } catch (_) {
+      // ignore errors; we'll surface an empty state below
+    }
+
     setState(() {
       _entries = entries;
       _sportActivities = sport;
@@ -75,28 +111,31 @@ class _HealthScreenTabbedState extends State<HealthScreenTabbed> with SingleTick
         ),
       ),
       body: _loading
-          ? Center(child: Padding(padding: const EdgeInsets.all(16), child: LoadingSkeleton.health(context)))
-          : TabBarView(controller: _tabController, children: [
-              _vitalsTab(context),
-              _activityTab(context),
-              _sleepTab(context),
-              _bodyTab(context),
-              _historyTab(context),
-            ]),
+          ? const Center(child: CircularProgressIndicator())
+          : RefreshIndicator(
+              onRefresh: _loadAll,
+              child: TabBarView(controller: _tabController, children: [
+                _vitalsTab(context),
+                _activityTab(context),
+                _sleepTab(context),
+                _bodyTab(context),
+                _historyTab(context),
+              ]),
+            ),
     );
   }
 
   // Vitals tab implementation (uses available fields on HealthEntry)
   Widget _vitalsTab(BuildContext context) {
-    if (_entries.isEmpty) {
-      return EmptyState(
-        animationUrl: 'https://assets2.lottiefiles.com/packages/lf20_1pxqjqps.json',
-        title: 'No readings yet',
-        subtitle: 'Log your vitals in the daily diary',
-        buttonLabel: 'Log vitals',
-        onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const LogScreen())),
-      );
-    }
+     if (_entries.isEmpty) {
+       return EmptyState(
+         animationUrl: 'https://assets2.lottiefiles.com/packages/lf20_1pxqjqps.json',
+         title: 'No readings yet',
+         subtitle: 'Log your vitals in the daily diary',
+         buttonLabel: 'Log vitals',
+         onPressed: () => context.goNamed('log'),
+       );
+     }
 
     final latest = _entries.first;
     final vitals = <Map<String, dynamic>>[
@@ -104,10 +143,11 @@ class _HealthScreenTabbedState extends State<HealthScreenTabbed> with SingleTick
       {'key': 'sleep', 'label': 'Sleep', 'unit': 'h', 'icon': Icons.bedtime, 'normalMin': 4, 'normalMax': 9},
       {'key': 'steps', 'label': 'Steps (today)', 'unit': '', 'icon': Icons.directions_walk, 'normalMin': 0, 'normalMax': 10000},
       {'key': 'stress', 'label': 'Stress', 'unit': '%', 'icon': Icons.psychology, 'normalMin': 0, 'normalMax': 50},
-      {'key': 'wellbeing', 'label': 'Wellbeing', 'unit': '%', 'icon': Icons.emoji_emotions, 'normalMin': 0, 'normalMax': 100},
+      {'key': 'wellbeing', 'label': 'Wellbeing', 'unit': '/10', 'icon': Icons.emoji_emotions, 'normalMin': 5, 'normalMax': 10},
     ];
 
     return ListView.builder(
+      physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.all(12),
       itemCount: vitals.length,
       itemBuilder: (context, idx) {
@@ -143,14 +183,14 @@ class _HealthScreenTabbedState extends State<HealthScreenTabbed> with SingleTick
     final prevDays = List.generate(7, (i) => DateTime(prevWeekStart.year, prevWeekStart.month, prevWeekStart.day + i));
     final stepsPrevWeek = prevDays.map((d) => _sumStepsForDay(d)).toList();
 
-    final totalSteps = stepsThisWeek.fold<int>(0, (a, b) => a + b);
+    final totalSteps = _sportActivities.fold<int>(0, (s, a) => s + ((a['steps'] as int?) ?? 0)) + _stepsFromEntries;
     final activeDays = stepsThisWeek.where((s) => s > 0).length;
-    final avg = activeDays > 0 ? (totalSteps / 7).round() : 0;
+    final avg = totalSteps > 0 ? (totalSteps / 7).round() : 0;
     final streak = _longestStepStreak(_entries);
 
     return RefreshIndicator(
       onRefresh: _loadAll,
-      child: ListView(padding: const EdgeInsets.all(12), children: [
+      child: ListView(padding: const EdgeInsets.all(12), physics: const AlwaysScrollableScrollPhysics(), children: [
         const SectionHeader(title: 'Weekly steps', subtitle: 'This week vs previous week'),
         const SizedBox(height: 12),
         SizedBox(height: 180, child: _weeklyBarChart(stepsThisWeek, stepsPrevWeek)),
@@ -176,9 +216,9 @@ class _HealthScreenTabbedState extends State<HealthScreenTabbed> with SingleTick
           ),
         ),
         const SizedBox(height: 12),
-        const SectionHeader(title: 'Workouts', subtitle: 'Recent activities'),
-        const SizedBox(height: 8),
-        if (_sportActivities.isEmpty) EmptyState(animationUrl: '', title: 'No workouts yet', subtitle: 'Log a workout to see your stats', buttonLabel: 'Log workout', onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const LogScreen()))) else ..._sportActivities.map((act) => Slidable(
+         const SectionHeader(title: 'Workouts', subtitle: 'Recent activities'),
+         const SizedBox(height: 8),
+         if (_sportActivities.isEmpty) EmptyState(animationUrl: '', title: 'No workouts yet', subtitle: 'Log a workout to see your stats', buttonLabel: 'Log workout', onPressed: () => context.goNamed('log')) else ..._sportActivities.map((act) => Slidable(
               key: ValueKey(act['id'] ?? act.hashCode),
               endActionPane: ActionPane(motion: const ScrollMotion(), children: [SlidableAction(onPressed: (_) => _deleteActivity(act), backgroundColor: AppColors.danger, icon: Icons.delete, label: 'Delete')]),
               child: ListTile(
@@ -218,7 +258,7 @@ class _HealthScreenTabbedState extends State<HealthScreenTabbed> with SingleTick
     final sleepEntries = _entries.where((e) => e.sleepHours != null).toList();
     if (sleepEntries.isEmpty) return Center(child: Text('No sleep readings yet — log sleep in the daily diary'));
     final last14 = sleepEntries.take(14).toList().reversed.toList();
-    return ListView(padding: const EdgeInsets.all(12), children: [
+    return ListView(padding: const EdgeInsets.all(12), physics: const AlwaysScrollableScrollPhysics(), children: [
       const SectionHeader(title: 'Sleep (last 14 nights)', subtitle: 'Hours per night and quality'),
       const SizedBox(height: 12),
       SizedBox(height: 220, child: _sleepBarChart(last14)),
@@ -233,10 +273,79 @@ class _HealthScreenTabbedState extends State<HealthScreenTabbed> with SingleTick
 
   // Body tab implementation
   Widget _bodyTab(BuildContext context) {
-    return ListView(padding: const EdgeInsets.all(12), children: [
-      const SectionHeader(title: 'Body', subtitle: 'Weight and BMI'),
+    // Extract weight from explicit field OR from notes JSON
+    final weightEntries = _entries.map((e) {
+      double? w = e.weight;
+      if (w == null && e.notes != null && e.notes!.startsWith('{')) {
+        try {
+          final d = jsonDecode(e.notes!) as Map<String, dynamic>;
+          final vitals = d['vitals'] as Map?;
+          w = double.tryParse(vitals?['weight']?.toString() ?? '');
+        } catch (_) {}
+      }
+      return w != null ? MapEntry(e.entryDate, w) : null;
+    }).whereType<MapEntry<DateTime, double>>().toList();
+
+    if (weightEntries.isEmpty) {
+      return Center(child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          const Icon(Icons.monitor_weight_outlined, size: 64, color: Colors.grey),
+          const SizedBox(height: 16),
+          const Text('No weight data yet', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
+          const SizedBox(height: 8),
+          const Text('Log your weight in the daily diary', textAlign: TextAlign.center, style: TextStyle(color: Colors.grey)),
+          const SizedBox(height: 24),
+          ElevatedButton(onPressed: () => context.goNamed('log'), child: const Text('Log now')),
+        ]),
+      ));
+    }
+
+    weightEntries.sort((a, b) => b.key.compareTo(a.key));
+    final latest = weightEntries.first.value;
+    final oldest = weightEntries.last.value;
+    final change = latest - oldest;
+
+    return ListView(padding: const EdgeInsets.all(16), physics: const AlwaysScrollableScrollPhysics(), children: [
+      // Current weight card
+      Card(child: Padding(padding: const EdgeInsets.all(16), child: Row(children: [
+        const Icon(Icons.monitor_weight, size: 40, color: Colors.blue),
+        const SizedBox(width: 16),
+        Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text('${latest.toStringAsFixed(1)} kg',
+              style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w800)),
+          Text(change == 0 ? 'No change' :
+              '${change > 0 ? '+' : ''}${change.toStringAsFixed(1)} kg since first entry',
+              style: TextStyle(color: change > 0 ? Colors.orange : Colors.green)),
+        ]),
+      ]))),
       const SizedBox(height: 12),
-      const Card(child: Padding(padding: EdgeInsets.all(12), child: Text('Weight tracking is not available in the current data model. Record weight in the diary to enable weight trends.'))),
+      // Weight trend chart
+      Card(child: Padding(padding: const EdgeInsets.all(16), child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('Weight trend', style: TextStyle(fontWeight: FontWeight.w700)),
+          const SizedBox(height: 12),
+          SizedBox(height: 180, child: LineChart(LineChartData(
+            gridData: FlGridData(show: true, drawVerticalLine: false),
+            titlesData: FlTitlesData(
+              leftTitles: AxisTitles(sideTitles: SideTitles(showTitles: true, interval: 5)),
+              bottomTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+              topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+              rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            ),
+            borderData: FlBorderData(show: false),
+            lineBarsData: [LineChartBarData(
+              spots: List.generate(weightEntries.length, (i) =>
+                  FlSpot(i.toDouble(), weightEntries.reversed.toList()[i].value)),
+              isCurved: true,
+              color: Colors.blue,
+              barWidth: 3,
+              dotData: FlDotData(show: weightEntries.length < 10),
+            )],
+          ))),
+        ],
+      ))),
     ]);
   }
 
@@ -244,7 +353,7 @@ class _HealthScreenTabbedState extends State<HealthScreenTabbed> with SingleTick
   Widget _historyTab(BuildContext context) {
     return FutureBuilder<List<HealthEntry>>(future: _api.getHealthEntries(), builder: (context, snapshot) {
       final entries = snapshot.data ?? const [];
-      return ListView(padding: const EdgeInsets.all(12), children: [
+        return ListView(padding: const EdgeInsets.all(12), physics: const AlwaysScrollableScrollPhysics(), children: [
         const SectionHeader(title: 'History & export', subtitle: 'Filter, view and export your diary history'),
         const SizedBox(height: 12),
         Row(children: [ElevatedButton(onPressed: _exportCsv, child: const Text('Export CSV')), const SizedBox(width: 8), ElevatedButton(onPressed: _exportPdf, child: const Text('Export PDF'))]),
@@ -264,7 +373,7 @@ class _HealthScreenTabbedState extends State<HealthScreenTabbed> with SingleTick
                       const SizedBox(height: 8),
                       Text('Symptoms: ${e.symptoms.isEmpty ? 'None' : e.symptoms.join(', ')}'),
                       const SizedBox(height: 8),
-                      Text('Notes: ${(e.notes ?? '').toString()}'),
+                      Text('Notes: ${extractNote(e.notes)}'),
                     ],
                   ),
                 )
@@ -306,7 +415,9 @@ class _HealthScreenTabbedState extends State<HealthScreenTabbed> with SingleTick
       case 'stress':
         return e.stressLevel;
       case 'wellbeing':
-        return e.effectiveWellbeingScore;
+        // Return the raw wellbeingScore if present (backend/app stores 0-10),
+        // otherwise fall back to the computed effectiveWellbeingScore.
+        return e.wellbeingScore ?? e.effectiveWellbeingScore;
       case 'steps':
         return _sumStepsForDay(DateTime.now());
       default:
@@ -356,7 +467,41 @@ class _HealthScreenTabbedState extends State<HealthScreenTabbed> with SingleTick
         sum += (a['steps'] as int?) ?? 0;
       }
     }
+
+    // Also include any steps recorded in diary entries for that day (if not already represented in sport activities)
+    for (final e in _entries) {
+      if (e.entryDate.year == day.year && e.entryDate.month == day.month && e.entryDate.day == day.day) {
+        if (e.notes == null || !e.notes!.startsWith('{')) continue;
+        try {
+          final d = jsonDecode(e.notes!) as Map<String, dynamic>;
+          final act = d['activity'] as Map?;
+          final s = int.tryParse(act?['steps']?.toString() ?? '') ?? 0;
+          if (s <= 0) continue;
+          // check whether a sport activity with same steps already exists for the same day to avoid double-counting
+          final existsInSport = _sportActivities.any((a) {
+            final t = DateTime.tryParse(a['start']?.toString() ?? '') ?? DateTime.fromMillisecondsSinceEpoch(0);
+            return t.year == day.year && t.month == day.month && t.day == day.day && ((a['steps'] as int?) ?? 0) == s;
+          });
+          if (!existsInSport) sum += s;
+        } catch (_) {
+          // ignore parsing errors
+        }
+      }
+    }
     return sum;
+  }
+
+  int get _stepsFromEntries {
+    return _entries.fold(0, (sum, e) {
+      if (e.notes == null || !e.notes!.startsWith('{')) return sum as int;
+      try {
+        final d = jsonDecode(e.notes!) as Map<String, dynamic>;
+        final act = d['activity'] as Map?;
+        return (sum as int) + (int.tryParse(act?['steps']?.toString() ?? '') ?? 0);
+      } catch (_) {
+        return sum as int;
+      }
+    });
   }
 
   int _longestStepStreak(List<HealthEntry> entries) {
@@ -397,7 +542,18 @@ class _HealthScreenTabbedState extends State<HealthScreenTabbed> with SingleTick
           bottomTitles: AxisTitles(
             sideTitles: SideTitles(
               showTitles: true,
-              getTitlesWidget: (v, meta) => Text(['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][v.toInt()]),
+              getTitlesWidget: (value, meta) {
+                const days = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+                final now = DateTime.now();
+                final dayIndex = value.toInt();
+                final date = DateTime(now.year, now.month, now.day)
+                    .subtract(Duration(days: 6 - dayIndex));
+                return SideTitleWidget(
+                  axisSide: meta.axisSide,
+                  child: Text(days[date.weekday - 1],
+                      style: const TextStyle(fontSize: 10)),
+                );
+              },
             ),
           ),
           leftTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
@@ -415,15 +571,24 @@ class _HealthScreenTabbedState extends State<HealthScreenTabbed> with SingleTick
   }
 
   Widget _bedtimePlot(List<HealthEntry> entries) {
+    // Deduplicate entries by calendar date to avoid duplicate dots for same day
+    final seen = <String>{};
+    final uniqueEntries = entries.where((e) {
+      final key = '${e.entryDate.year}-${e.entryDate.month.toString().padLeft(2,'0')}-${e.entryDate.day.toString().padLeft(2,'0')}';
+      return seen.add(key);
+    }).toList();
+
     // Simple dots showing bedtime if notes contained bedtime (best-effort). We'll fallback to random for demo.
     final spots = <Widget>[];
-    for (var i = 0; i < entries.length; i++) {
-      final label = entries[i].entryDate.toLocal().toIso8601String().split('T').first;
-      final text = entries[i].notes ?? '';
+    for (var i = 0; i < uniqueEntries.length; i++) {
+      final label = uniqueEntries[i].entryDate.toLocal().toIso8601String().split('T').first;
+      final text = extractNote(uniqueEntries[i].notes);
       spots.add(Row(children: [Text(label), const SizedBox(width: 8), const Icon(Icons.circle, size: 8, color: AppColors.navy), const SizedBox(width: 8), Expanded(child: Text(text.length > 60 ? '${text.substring(0, 60)}…' : text))]));
     }
     return ListView(children: spots);
   }
+
+  // Note extraction moved to lib/utils/health_utils.dart -> extractNote()
 
   // Weight trend chart removed - weight isn't available on HealthEntry in current model.
 

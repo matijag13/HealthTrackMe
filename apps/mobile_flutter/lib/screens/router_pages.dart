@@ -9,6 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/models.dart';
 import '../services/api_service.dart';
 import '../widgets/widgets.dart';
+import '../utils/health_utils.dart';
 import 'edit_profile_screen.dart';
 
 class _HealthSnapshot {
@@ -215,7 +216,7 @@ class HealthScreen extends StatelessWidget {
                   child: ListTile(
                     leading: const Icon(Icons.today_rounded),
                     title: Text('Latest entry · ${_formatDate(latest.entryDate)}'),
-                    subtitle: Text('Mood: ${latest.mood ?? '—'} · Sleep: ${latest.sleepHours?.toStringAsFixed(1) ?? '—'} h · Notes: ${(latest.notes ?? '').trim().isEmpty ? 'none' : latest.notes!}'),
+                    subtitle: Text('Mood: ${latest.mood ?? '—'} · Sleep: ${latest.sleepHours?.toStringAsFixed(1) ?? '—'} h · Notes: ${extractNote(latest.notes).isEmpty ? 'none' : extractNote(latest.notes)}'),
                   ),
                 ),
               ],
@@ -277,7 +278,7 @@ class HealthVitalsPage extends StatelessWidget {
                               const SizedBox(height: 8),
                               Text('Mood: ${latest.mood ?? '—'}'),
                               Text('Symptoms: ${latest.symptoms.isEmpty ? 'None' : latest.symptoms.join(', ')}'),
-                              Text('Notes: ${(latest.notes ?? '').trim().isEmpty ? 'No notes' : latest.notes!}'),
+                                Text('Notes: ${extractNote(latest.notes).isEmpty ? 'No notes' : extractNote(latest.notes)}'),
                             ],
                           ),
                         ),
@@ -623,7 +624,7 @@ class DiaryEntryViewPage extends StatelessWidget {
                                 Text('Sleep: ${match.sleepHours?.toStringAsFixed(1) ?? '—'} h'),
                                 Text('Symptoms: ${match.symptoms.isEmpty ? 'None' : match.symptoms.join(', ')}'),
                                 const SizedBox(height: 8),
-                                Text('Notes: ${(match.notes ?? '').trim().isEmpty ? 'No notes' : match.notes!}'),
+                                 Text('Notes: ${extractNote(match.notes).isEmpty ? 'No notes' : extractNote(match.notes)}'),
                               ],
                             ),
                           ),
@@ -827,19 +828,105 @@ class ProfileMedicalHistoryPage extends StatelessWidget {
   }
 }
 
-class ProfileExportPage extends StatelessWidget {
+class ProfileExportPage extends StatefulWidget {
   const ProfileExportPage({super.key});
 
-  Future<void> _copySummary(BuildContext context) async {
-    final summary = await ApiService.instance.getHealthSummary();
-    if (!context.mounted) return;
-    if (summary == null || summary.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('No export summary available yet.')));
-      return;
+  @override
+  State<ProfileExportPage> createState() => _ProfileExportPageState();
+}
+
+class _ProfileExportPageState extends State<ProfileExportPage> {
+  bool _exportingHealth = false;
+  bool _exportingActivities = false;
+  bool _exportingAll = false;
+
+  Future<void> _exportHealthEntries() async {
+    setState(() => _exportingHealth = true);
+    try {
+      final api = ApiService.instance;
+      final id = await api.ensureActiveUserId();
+      if (id == null) { _snack('No active user found.'); return; }
+
+      // Hit the CSV endpoint directly via the raw getter
+      final response = await api.exportCsv('/export/health-entries/csv/$id');
+      if (response == null || response.isEmpty) {
+        _snack('No health entries to export yet.');
+        return;
+      }
+      await Clipboard.setData(ClipboardData(text: response));
+      _snack('Health entries CSV copied to clipboard ✓', success: true);
+    } catch (e) {
+      _snack('Export failed: $e');
+    } finally {
+      if (mounted) setState(() => _exportingHealth = false);
     }
-    await Clipboard.setData(ClipboardData(text: summary));
-    if (!context.mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Summary copied to clipboard.')));
+  }
+
+  Future<void> _exportActivities() async {
+    setState(() => _exportingActivities = true);
+    try {
+      final api = ApiService.instance;
+      final id = await api.ensureActiveUserId();
+      if (id == null) { _snack('No active user found.'); return; }
+
+      final response = await api.exportCsv('/export/sport-activities/csv/$id');
+      if (response == null || response.isEmpty) {
+        _snack('No sport activities to export yet.');
+        return;
+      }
+      await Clipboard.setData(ClipboardData(text: response));
+      _snack('Activities CSV copied to clipboard ✓', success: true);
+    } catch (e) {
+      _snack('Export failed: $e');
+    } finally {
+      if (mounted) setState(() => _exportingActivities = false);
+    }
+  }
+
+  Future<void> _exportAll() async {
+    setState(() => _exportingAll = true);
+    try {
+      final api = ApiService.instance;
+      final id = await api.ensureActiveUserId();
+      if (id == null) { _snack('No active user found.'); return; }
+
+      final response = await api.exportCsv('/export/all/$id');
+      if (response == null || response.isEmpty) {
+        _snack('No data to export yet.');
+        return;
+      }
+      await Clipboard.setData(ClipboardData(text: response));
+      _snack('Full export copied to clipboard ✓', success: true);
+    } catch (e) {
+      _snack('Export failed: $e');
+    } finally {
+      if (mounted) setState(() => _exportingAll = false);
+    }
+  }
+
+  Future<void> _copySummary() async {
+    try {
+      final summary = await ApiService.instance.getHealthSummary();
+      if (!mounted) return;
+      if (summary == null || summary.isEmpty) {
+        _snack('No summary available yet.');
+        return;
+      }
+      await Clipboard.setData(ClipboardData(text: summary));
+      if (!mounted) return;
+      _snack('Summary copied to clipboard ✓', success: true);
+    } catch (e) {
+      _snack('Failed: $e');
+    }
+  }
+
+  void _snack(String msg, {bool success = false}) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(msg),
+      backgroundColor: success ? Colors.green : null,
+      behavior: SnackBarBehavior.floating,
+    ));
   }
 
   @override
@@ -849,17 +936,79 @@ class ProfileExportPage extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          const SectionHeader(title: 'Export data', subtitle: 'Copy your health summary or prepare it for sharing.'),
-          const SizedBox(height: 12),
+          const SectionHeader(
+            title: 'Export data',
+            subtitle: 'Download your health data as CSV or copy a summary.',
+          ),
+          const SizedBox(height: 16),
+
+          // Health summary (text)
           Card(
             child: ListTile(
               leading: const Icon(Icons.description_outlined),
               title: const Text('Health summary'),
-              subtitle: const Text('Uses the backend export summary endpoint.'),
+              subtitle: const Text('AI-generated text summary of your data.'),
               trailing: ElevatedButton(
-                onPressed: () => _copySummary(context),
+                onPressed: _copySummary,
                 child: const Text('Copy'),
               ),
+            ),
+          ),
+          const SizedBox(height: 10),
+
+          // Health entries CSV
+          Card(
+            child: ListTile(
+              leading: const Icon(Icons.favorite_border_rounded),
+              title: const Text('Health entries CSV'),
+              subtitle: const Text('All logged entries with vitals, mood, sleep…'),
+              trailing: _exportingHealth
+                  ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2))
+                  : ElevatedButton(
+                      onPressed: _exportHealthEntries,
+                      child: const Text('Export'),
+                    ),
+            ),
+          ),
+          const SizedBox(height: 10),
+
+          // Sport activities CSV
+          Card(
+            child: ListTile(
+              leading: const Icon(Icons.directions_run_rounded),
+              title: const Text('Sport activities CSV'),
+              subtitle: const Text('All workouts — type, duration, calories, distance.'),
+              trailing: _exportingActivities
+                  ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2))
+                  : ElevatedButton(
+                      onPressed: _exportActivities,
+                      child: const Text('Export'),
+                    ),
+            ),
+          ),
+          const SizedBox(height: 10),
+
+          // Full export
+          Card(
+            child: ListTile(
+              leading: const Icon(Icons.download_rounded),
+              title: const Text('Full export'),
+              subtitle: const Text('Summary + all entries + all activities combined.'),
+              trailing: _exportingAll
+                  ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2))
+                  : ElevatedButton(
+                      onPressed: _exportAll,
+                      child: const Text('All'),
+                    ),
+            ),
+          ),
+
+          const SizedBox(height: 20),
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 4),
+            child: Text(
+              'Tip: paste the copied CSV into Excel, Google Sheets, or Numbers.',
+              style: TextStyle(fontSize: 12, color: AppColors.muted),
             ),
           ),
         ],
@@ -944,6 +1093,3 @@ class _MetricCard extends StatelessWidget {
 extension _FirstOrNull<T> on Iterable<T> {
   T? get firstOrNull => isEmpty ? null : first;
 }
-
-
-

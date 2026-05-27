@@ -25,7 +25,15 @@ class _MainAppState extends State<MainApp> {
       bottomNavigationBar: NavigationBar(
         selectedIndex: widget.navigationShell.currentIndex,
         onDestinationSelected: (index) {
-          widget.navigationShell.goBranch(index);
+          // Force branch to the branch's initial location so switching tabs
+          // reliably navigates to the expected screen (avoids showing the
+          // previous branch view in some edge cases).
+          try {
+            widget.navigationShell.goBranch(index, initialLocation: true);
+          } catch (_) {
+            // Fallback if goBranch signature differs in the environment
+            widget.navigationShell.goBranch(index);
+          }
         },
         destinations: const [
           NavigationDestination(

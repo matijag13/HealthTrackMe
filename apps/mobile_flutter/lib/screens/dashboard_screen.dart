@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
@@ -57,33 +58,68 @@ class _DashboardScreenState extends State<DashboardScreen> with AutomaticKeepAli
       _loading = true;
       _error = false;
     });
+    try {
+      // Ensure active user id is set before making parallel API calls
+      await _api.ensureActiveUserId();
 
+      final results = await Future.wait([
+        _api.getCurrentUser(),
+        _api.getHealthEntries(),
+        _api.getMedicines(activeOnly: false),
+        _api.getHealthShield(),
+        _api.getSportActivities(),
+      ]);
+
+      // Unpack results
+      final user = results[0] as User?;
+      final entries = results[1] as List<HealthEntry>;
+      final medicines = results[2] as List<Medicine>;
+      final shield = results[3] as HealthShield?;
+      final sportActivities = (results[4] as List).map((e) => Map<String, dynamic>.from(e as Map)).toList();
+
+      // Also extract any steps that may have been recorded using the quick steps
+      // field (we store manual steps inside HealthEntry.notes as JSON under
+      // payload.activity.steps). This ensures the dashboard shows steps even
+      // when a dedicated sport-activity row wasn't created.
       try {
-        final user = await _api.getCurrentUser();
-        final entries = await _api.getHealthEntries();
-        final medicines = await _api.getMedicines(activeOnly: false);
-        final shield = await _api.getHealthShield();
+        final today = DateTime.now();
+        final todays = entries.where((e) => e.entryDate.year == today.year && e.entryDate.month == today.month && e.entryDate.day == today.day).toList();
+        if (todays.isNotEmpty) {
+          final e = todays.first;
+          if (e.notes != null && e.notes!.startsWith('{')) {
+            try {
+              final parsed = Map<String, dynamic>.from(jsonDecode(e.notes!));
+              final activity = parsed['activity'];
+              if (activity is Map && activity['steps'] != null) {
+                final s = int.tryParse(activity['steps'].toString()) ?? 0;
+                if (s > 0) {
+                  sportActivities.add({'start': e.entryDate.toIso8601String(), 'steps': s});
+                }
+              }
+            } catch (_) {
+              // ignore parsing errors
+            }
+          }
+        }
+      } catch (_) {}
 
-        // Try to fetch sport activities directly (some ApiService versions may not provide it)
-        final sportActivities = await _fetchSportActivities();
-
-        setState(() {
-          _state = _DashboardStateModel(
-            user: user,
-            entries: entries,
-            medicines: medicines,
-            shield: shield,
-            sportActivities: sportActivities,
-          );
-          _loading = false;
-        });
-      } catch (e) {
-        debugPrint('Dashboard load error: $e');
-        setState(() {
-          _error = true;
-          _loading = false;
-        });
-      }
+      setState(() {
+        _state = _DashboardStateModel(
+          user: user,
+          entries: entries,
+          medicines: medicines,
+          shield: shield,
+          sportActivities: sportActivities,
+        );
+        _loading = false;
+      });
+    } catch (e) {
+      debugPrint('Dashboard load error: $e');
+      setState(() {
+        _error = true;
+        _loading = false;
+      });
+    }
   }
 
   Future<List<Map<String, dynamic>>> _fetchSportActivities() async {
@@ -111,11 +147,11 @@ class _DashboardScreenState extends State<DashboardScreen> with AutomaticKeepAli
 
   String _moodLabel(String? mood) {
     switch (mood) {
-      case '😰': return 'Zelo slabo';
-      case '😔': return 'Slabo';
-      case '😐': return 'Nevtralno';
-      case '😊': return 'Dobro';
-      case '🤩': return 'Odlično';
+      case '😰': return 'Very bad';
+      case '😔': return 'Bad';
+      case '😐': return 'Neutral';
+      case '😊': return 'Good';
+      case '🤩': return 'Excellent';
       default: return mood ?? '—';
     }
   }
@@ -138,6 +174,16 @@ class _DashboardScreenState extends State<DashboardScreen> with AutomaticKeepAli
   // Helper empty entry for lookups when no entry exists for a day
   HealthEntry _emptyEntry() {
     return HealthEntry(id: 0, entryDate: DateTime.now(), symptoms: const [], wellbeingScore: 0, mood: null, energyLevel: 0, sleepHours: 0.0, sleepQuality: null, stressLevel: 0, notes: null, createdAt: null, updatedAt: null);
+  }
+
+  /// Returns today's HealthEntry if one was logged, or null.
+  HealthEntry? _todayEntry() {
+    final today = DateTime.now();
+    final matches = _state.entries.where((e) =>
+        e.entryDate.year == today.year &&
+        e.entryDate.month == today.month &&
+        e.entryDate.day == today.day);
+    return matches.isNotEmpty ? matches.first : null;
   }
 
   int _todaySteps() {
@@ -263,11 +309,12 @@ class _DashboardScreenState extends State<DashboardScreen> with AutomaticKeepAli
     final index = _todayHealthIndex();
     final sleep = _todaySleepHours();
     final steps = _todaySteps();
-    // Heart rate not currently stored on HealthEntry model; show placeholder
-    final bpm = 0;
+    final bpm = _todayEntry()?.heartRate ?? 0;
     final sleepPct = (sleep / 8).clamp(0.0, 1.0);
     final activityPct = (steps / 10000).clamp(0.0, 1.0);
-    final nutritionPct = 0.7;
+    final waterMl = _todayEntry()?.waterIntakeMl ?? 0;
+    final cals = _todayEntry()?.caloriesConsumed ?? 0;
+    final nutritionPct = (waterMl / 2000).clamp(0.0, 1.0); // target 2000ml/day
     final vitalsPct = (bpm > 0 ? (80 - (bpm - 60)).abs() / 80 : 0.6).clamp(0.0, 1.0);
 
     return Container(
@@ -315,7 +362,7 @@ class _DashboardScreenState extends State<DashboardScreen> with AutomaticKeepAli
             children: [
               _pill('😴 ${sleep > 0 ? '${sleep.toStringAsFixed(1)}h' : '—'} sleep', AppColors.navy.withValues(alpha: 0.08), AppColors.navy),
               _pill('👟 ${steps > 0 ? steps.toString() : '—'} steps', AppColors.teal.withValues(alpha: 0.08), AppColors.teal),
-              _pill('💓 ${bpm > 0 ? '$bpm bpm' : '—'}', AppColors.danger.withValues(alpha: 0.08), AppColors.danger),
+              _pill('💧 ${waterMl > 0 ? '${(waterMl/1000).toStringAsFixed(1)}L' : '—'}  🔥 ${cals > 0 ? '${cals}kcal' : '—'}', AppColors.blue.withValues(alpha: 0.08), AppColors.blue),
             ],
           ),
         ],
@@ -355,14 +402,29 @@ class _DashboardScreenState extends State<DashboardScreen> with AutomaticKeepAli
   Widget _buildQuickStats(BuildContext context) {
     if (_loading) return SizedBox(height: 120, child: ListView.separated(scrollDirection: Axis.horizontal, itemBuilder: (_, __) => Padding(padding: const EdgeInsets.only(right: 8), child: _shimmerBox(height: 100)), separatorBuilder: (_, __) => const SizedBox(), itemCount: 6));
 
+    final te = _todayEntry();
+    // Bug fix: calories key in sport-activity maps is 'caloriesBurned', not 'calories'
+    final todayCaloriesBurned = _state.sportActivities.isNotEmpty
+        ? _state.sportActivities
+            .map((e) => (e['caloriesBurned'] as int?) ?? (e['calories'] as int?) ?? 0)
+            .fold(0, (a, b) => a + b)
+        : 0;
+    // Bug fix: also include calories consumed from today's HealthEntry if present
+    final caloriesConsumed = te?.caloriesConsumed ?? 0;
+    final totalCalories = todayCaloriesBurned + caloriesConsumed;
+
     final cards = [
-      {'icon': '👟', 'name': 'Steps', 'value': _todaySteps() > 0 ? _todaySteps().toString() : '—', 'unit': ''},
-      {'icon': '💓', 'name': 'Heart', 'value': '—', 'unit': 'bpm'},
-      {'icon': '⚖️', 'name': 'Weight', 'value': '—', 'unit': 'kg'},
-      {'icon': '😴', 'name': 'Sleep', 'value': _todaySleepHours() > 0 ? '${_todaySleepHours().toStringAsFixed(1)}' : '—', 'unit': 'h'},
-      {'icon': '💧', 'name': 'Water', 'value': '—', 'unit': 'L'},
-      {'icon': '🔥', 'name': 'Calories', 'value': _state.sportActivities.isNotEmpty ? '${_state.sportActivities.map((e) => (e['calories'] ?? 0)).fold(0, (a, b) => a + (b as int))}' : '—', 'unit': 'kcal'},
-      {'icon': '🧠', 'name': 'Stress', 'value': _state.entries.isNotEmpty ? '${_state.entries.first.stressLevel?.round() ?? '—'}' : '—', 'unit': ''},
+      {'icon': '👟', 'name': 'Steps',    'value': _todaySteps() > 0 ? _todaySteps().toString() : '—',                                                    'unit': ''},
+      // Bug fix: was always '—'; now reads heartRate from today's HealthEntry
+      {'icon': '💓', 'name': 'Heart',    'value': (te?.heartRate != null) ? '${te!.heartRate}' : '—',                                                     'unit': 'bpm'},
+      // Bug fix: was always '—'; now reads weight from today's HealthEntry
+      {'icon': '⚖️', 'name': 'Weight',  'value': (te?.weight != null) ? te!.weight!.toStringAsFixed(1) : '—',                                            'unit': 'kg'},
+      {'icon': '😴', 'name': 'Sleep',    'value': _todaySleepHours() > 0 ? '${_todaySleepHours().toStringAsFixed(1)}' : '—',                             'unit': 'h'},
+      // Bug fix: was always '—'; now reads waterIntakeMl from today's HealthEntry
+      {'icon': '💧', 'name': 'Water',    'value': (te?.waterIntakeMl != null) ? '${(te!.waterIntakeMl! / 1000).toStringAsFixed(1)}' : '—',               'unit': 'L'},
+      // Bug fix: was using key 'calories' which doesn't exist; now 'caloriesBurned'
+      {'icon': '🔥', 'name': 'Calories', 'value': totalCalories > 0 ? '$totalCalories' : '—',                                                             'unit': 'kcal'},
+      {'icon': '🧠', 'name': 'Stress',   'value': te != null ? '${te.stressLevel?.round() ?? '—'}' : '—',                                                'unit': ''},
     ];
 
     return SizedBox(
@@ -426,9 +488,15 @@ class _DashboardScreenState extends State<DashboardScreen> with AutomaticKeepAli
       final entry = _state.entries.firstWhere((e) => e.entryDate.year == d.year && e.entryDate.month == d.month && e.entryDate.day == d.day, orElse: () => _emptyEntry());
       switch (name) {
         case 'Heart':
-          return (entry.energyLevel ?? 0).toDouble();
+          return (entry.heartRate ?? 0).toDouble();
         case 'Sleep':
           return (entry.effectiveSleepHours).toDouble();
+        case 'Water':
+          return (entry.waterIntakeMl ?? 0).toDouble();
+        case 'Weight':
+          return entry.weight ?? 0.0;
+        case 'Calories':
+          return (entry.caloriesConsumed ?? 0).toDouble();
         case 'Stress':
           return (entry.stressLevel ?? 0).toDouble();
         default:
@@ -586,7 +654,7 @@ class _DashboardScreenState extends State<DashboardScreen> with AutomaticKeepAli
                   final idx = v.toInt();
                   if (idx < 0 || idx >= days.length) return const SizedBox.shrink();
                   final d = days[idx];
-                  return SideTitleWidget(axisSide: meta.axisSide, child: Text(['Mon','Tue','Wed','Thu','Fri','Sat','Sun'][d.weekday % 7]));
+                  return SideTitleWidget(axisSide: meta.axisSide, child: Text(['Mon','Tue','Wed','Thu','Fri','Sat','Sun'][d.weekday - 1]));
                 })), leftTitles: AxisTitles(sideTitles: SideTitles(showTitles: true, interval: 25))),
                 borderData: FlBorderData(show: false),
                 lineBarsData: lines,

@@ -26,6 +26,9 @@ class NotificationService {
 
   Future<void> initialize() async {
     tz_data.initializeTimeZones();
+    // The timezone package automatically uses the device's configured timezone
+    // after tz_data.initializeTimeZones() is called. tz.local will reflect the
+    // device's local timezone (e.g., Europe/London if the phone is set to that timezone).
 
     const androidInit =
         AndroidInitializationSettings('@mipmap/ic_launcher');

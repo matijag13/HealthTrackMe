@@ -1017,7 +1017,30 @@ class HealthShieldCard extends StatelessWidget {
             child: Row(
               children: [
                 _statCell(icon: Icons.auto_graph, label: 'Total', value: '$totalPoints', valueColor: AppColors.navy),
-                _statCell(icon: Icons.flash_on, label: 'Today', value: '${todayPoints >= 0 ? '+' : ''}$todayPoints', valueColor: todayPoints >= 0 ? AppColors.success : AppColors.danger),
+                Expanded(
+                  child: Column(
+                    children: [
+                      const Icon(Icons.flash_on, size: 16, color: AppColors.muted),
+                      const SizedBox(height: 4),
+                      if (todayPoints < 0)
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text('$todayPoints', style: const TextStyle(color: Colors.red, fontSize: 16, fontWeight: FontWeight.w700)),
+                            const SizedBox(width: 4),
+                            Tooltip(
+                              message: 'Penalty points for missed habits or unhealthy patterns today',
+                              child: const Icon(Icons.info_outline, size: 14, color: Colors.red),
+                            ),
+                          ],
+                        )
+                      else
+                        Text('${todayPoints >= 0 ? '+' : ''}$todayPoints', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: todayPoints >= 0 ? AppColors.success : AppColors.danger)),
+                      const SizedBox(height: 2),
+                      const Text('Today', style: TextStyle(fontSize: 10, color: AppColors.muted), textAlign: TextAlign.center),
+                    ],
+                  ),
+                ),
                 _statCell(icon: Icons.task_alt, label: 'Habits', value: '$completedHabits/5', valueColor: AppColors.teal),
                 _statCell(icon: Icons.warning_amber_rounded, label: 'Fails', value: '$consecutiveFailedDays', valueColor: consecutiveFailedDays > 0 ? AppColors.warning : AppColors.muted),
               ],

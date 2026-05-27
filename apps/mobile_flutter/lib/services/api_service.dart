@@ -659,6 +659,22 @@ class ApiService {
     }
   }
 
+  /// Fetches a CSV export from the given [path] and returns the raw response
+  /// body as a string. Returns null on error or non-2xx status.
+  /// Used by ProfileExportPage for health-entries, sport-activities, and
+  /// the combined /all export.
+  Future<String?> exportCsv(String path) async {
+    try {
+      final response = await _getRaw(path);
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        return response.body.isNotEmpty ? response.body : null;
+      }
+      return null;
+    } catch (_) {
+      return null;
+    }
+  }
+
   Future<String?> getHealthSummary({int? userId}) async {
     final id = _effectiveUserId(userId: userId);
     if (id == null) return null;
