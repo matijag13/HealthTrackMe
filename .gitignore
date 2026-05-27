@@ -20,3 +20,8 @@ node_modules/
 
 .DS_Store
 Thumbs.db
+
+# Ignore Android keystore and key properties (do NOT commit)
+apps/mobile_flutter/android/key.properties
+*.jks
+healthtrackme.jks
