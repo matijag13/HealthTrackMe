@@ -82,7 +82,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             controller: _controller,
             onPageChanged: (i) => setState(() => _page = i),
             children: [
-
               // ================= PAGE 1 =================
               Container(
                 decoration: const BoxDecoration(
@@ -140,21 +139,23 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Align(alignment: Alignment.topRight, child: _skipButton()),
+                      Align(
+                          alignment: Alignment.topRight, child: _skipButton()),
                       const Text('Set up profile',
-                          style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800)),
+                          style: TextStyle(
+                              fontSize: 22, fontWeight: FontWeight.w800)),
                       TextField(controller: _fullNameCtrl),
                       const SizedBox(height: 10),
-
                       ListTile(
                         title: const Text('Date of birth'),
-                        subtitle: Text(_dob?.toIso8601String().split('T').first ?? 'Select'),
+                        subtitle: Text(
+                            _dob?.toIso8601String().split('T').first ??
+                                'Select'),
                         trailing: IconButton(
                           icon: const Icon(Icons.calendar_today),
                           onPressed: _pickDob,
                         ),
                       ),
-
                       const SizedBox(height: 20),
                       ElevatedButton(
                         onPressed: () => _controller.nextPage(
@@ -175,15 +176,18 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Align(alignment: Alignment.topRight, child: _skipButton()),
+                      Align(
+                          alignment: Alignment.topRight, child: _skipButton()),
                       const Text('Health goals',
-                          style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800)),
+                          style: TextStyle(
+                              fontSize: 22, fontWeight: FontWeight.w800)),
                       Slider(
                         value: _stepsGoal.toDouble(),
                         min: 5000,
                         max: 20000,
                         divisions: 15,
-                        onChanged: (v) => setState(() => _stepsGoal = v.round()),
+                        onChanged: (v) =>
+                            setState(() => _stepsGoal = v.round()),
                       ),
                       ElevatedButton(
                         onPressed: () => _controller.nextPage(
@@ -204,10 +208,12 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Align(alignment: Alignment.topRight, child: _skipButton()),
+                      Align(
+                          alignment: Alignment.topRight, child: _skipButton()),
                       const Text('Medical info'),
                       TextField(
-                        decoration: const InputDecoration(hintText: 'Add condition'),
+                        decoration:
+                            const InputDecoration(hintText: 'Add condition'),
                         onSubmitted: (v) {
                           if (v.isNotEmpty) setState(() => _chronic.add(v));
                         },
@@ -231,7 +237,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   child: Column(
                     children: [
                       const Text('Notifications',
-                          style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800)),
+                          style: TextStyle(
+                              fontSize: 22, fontWeight: FontWeight.w800)),
                       SwitchListTile(
                         value: _diaryEnabled,
                         onChanged: (v) => setState(() => _diaryEnabled = v),
@@ -247,7 +254,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               ),
             ],
           ),
-
           Positioned(
             bottom: 24,
             left: 0,
