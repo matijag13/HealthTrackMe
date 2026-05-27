@@ -676,10 +676,18 @@ class ApiService {
 
   // Health Shield endpoint
   Future<HealthShield?> getHealthShield({int? userId}) async {
-    final id = _effectiveUserId(userId: userId);
+    final id = userId ?? await ensureActiveUserId();
     if (id == null) return null;
     try {
-      final response = await _getRaw('/health-shield/$id');
+      var response = await _getRaw('/health-shield/$id');
+      if (response.statusCode == 404 && userId == null) {
+        // Active user id can become stale after DB reseeds; reconcile and retry once.
+        await setActiveUserId(null);
+        final reconciledId = await ensureActiveUserId();
+        if (reconciledId != null && reconciledId != id) {
+          response = await _getRaw('/health-shield/$reconciledId');
+        }
+      }
       if (response.statusCode >= 200 && response.statusCode < 300) {
         return _parseSingle(response, HealthShield.fromJson);
       }
@@ -715,17 +723,7 @@ class ApiService {
     DateTime takenAt,
     String status,
   ) async {
-    final response = await _postRaw(
-      '/medicines/$medicineId/doses',
-      body: {
-        'takenAt': takenAt.toIso8601String(),
-        'status': status,
-      },
-    );
-
-    if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw Exception('Failed to log dose');
-    }
+    await logMedicineDose(medicineId, takenAt, status);
   }
 
   Future<void> deleteMedicine(int medicineId) async {

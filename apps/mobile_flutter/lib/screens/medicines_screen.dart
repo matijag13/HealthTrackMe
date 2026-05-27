@@ -243,7 +243,9 @@ class _MedicinesScreenState extends State<MedicinesScreen>
 
   Widget _scheduleTile(Medicine m) {
     final taken = _takenToday.contains(m.id);
-    return ListTile(
+    return Material(
+      color: Colors.transparent,
+      child: ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
       leading: Container(
         width: 40,
@@ -301,6 +303,7 @@ class _MedicinesScreenState extends State<MedicinesScreen>
       ),
       onTap: () => Navigator.of(context).push(
         MaterialPageRoute(builder: (_) => MedicineDetailPage(medicineId: m.id)),
+      ),
       ),
     );
   }
