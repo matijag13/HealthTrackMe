@@ -259,17 +259,6 @@ class _LogScreenState extends State<LogScreen> with AutomaticKeepAliveClientMixi
     }
   }
 
-  Future<void> _showSuccessAndExit() async {
-    if (!mounted) return;
-    await showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) {
-        return const Center(child: _SuccessAnim());
-      },
-    );
-  }
-
   void _addCustomTag() {
     final t = customTagController.text.trim();
     if (t.isEmpty) return;

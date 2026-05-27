@@ -1,10 +1,6 @@
 ﻿import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-import 'dashboard_screen.dart';
-import 'medicines_screen.dart';
-import 'profile_screen.dart';
-
 class MainApp extends StatefulWidget {
   final StatefulNavigationShell navigationShell;
 

@@ -2,9 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../models/models.dart';
-import '../services/api_service.dart';
-
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});
 
@@ -15,28 +12,17 @@ class OnboardingScreen extends StatefulWidget {
 class _OnboardingScreenState extends State<OnboardingScreen> {
   final PageController _controller = PageController();
   int _page = 0;
-  final ApiService _api = ApiService.instance;
 
   final _fullNameCtrl = TextEditingController();
   DateTime? _dob;
   final _heightCtrl = TextEditingController();
   final _weightCtrl = TextEditingController();
-  String? _bloodType;
-  String _heightUnit = 'cm';
-  String _weightUnit = 'kg';
 
   int _stepsGoal = 10000;
-  double _sleepGoal = 8.0;
-  int _waterGoal = 2000;
 
   final List<String> _chronic = [];
-  final List<String> _allergies = [];
-  final _quickMedCtrl = TextEditingController();
 
   bool _diaryEnabled = true;
-  TimeOfDay _diaryTime = const TimeOfDay(hour: 20, minute: 0);
-  bool _medReminders = true;
-  bool _weeklyReport = false;
 
   @override
   void dispose() {
@@ -44,7 +30,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     _fullNameCtrl.dispose();
     _heightCtrl.dispose();
     _weightCtrl.dispose();
-    _quickMedCtrl.dispose();
     super.dispose();
   }
 
@@ -86,14 +71,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       lastDate: DateTime.now(),
     );
     if (picked != null) setState(() => _dob = picked);
-  }
-
-  Future<void> _pickTime() async {
-    final picked = await showTimePicker(
-      context: context,
-      initialTime: _diaryTime,
-    );
-    if (picked != null) setState(() => _diaryTime = picked);
   }
 
   @override
