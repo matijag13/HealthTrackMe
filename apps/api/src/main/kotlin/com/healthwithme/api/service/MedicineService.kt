@@ -65,9 +65,12 @@ class MedicineService(
             .orElseThrow { IllegalArgumentException("Medicine not found") }
         
         val updatedMedicine = medicine.copy(
+            name = request.name ?: medicine.name,
             dosage = request.dosage ?: medicine.dosage,
             frequency = request.frequency ?: medicine.frequency,
             reason = request.reason ?: medicine.reason,
+            startDate = request.startDate?.let { java.time.LocalDate.parse(it) } ?: medicine.startDate,
+            endDate = request.endDate?.let { java.time.LocalDate.parse(it) } ?: medicine.endDate,
             sideEffects = request.sideEffects ?: medicine.sideEffects,
             isActive = request.isActive ?: medicine.isActive,
             updatedAt = LocalDateTime.now()

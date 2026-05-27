@@ -5,6 +5,7 @@ import com.healthwithme.api.dto.DoseRequest
 import com.healthwithme.api.dto.AdherenceDailyPoint
 import com.healthwithme.api.dto.AdherenceResponse
 import com.healthwithme.api.dto.MedicineDto
+import com.healthwithme.api.dto.UpdateMedicineRequest
 import com.healthwithme.api.dto.ApiResponse
 import com.healthwithme.api.service.MedicineService
 import org.springframework.http.HttpStatus
@@ -80,6 +81,20 @@ class MedicineController(private val medicineService: MedicineService) {
             ResponseEntity.ok().body(ApiResponse(success = true, message = "Medicine found", data = medicine))
         } catch (e: Exception) {
             ResponseEntity.notFound().build()
+        }
+    }
+
+    @PutMapping("/{id}")
+    fun updateMedicine(@PathVariable id: Long, @RequestBody request: UpdateMedicineRequest): ResponseEntity<ApiResponse<MedicineDto>> {
+        return try {
+            val medicine = medicineService.updateMedicine(id, request)
+            ResponseEntity.ok().body(ApiResponse(success = true, message = "Medicine updated", data = medicine))
+        } catch (e: IllegalArgumentException) {
+            ResponseEntity.status(404)
+                .body(ApiResponse(success = false, message = e.message ?: "Medicine not found", data = null))
+        } catch (e: Exception) {
+            ResponseEntity.status(500)
+                .body(ApiResponse(success = false, message = e.message ?: "Server error", data = null))
         }
     }
 

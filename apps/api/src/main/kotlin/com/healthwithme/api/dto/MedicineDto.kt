@@ -23,9 +23,12 @@ data class CreateMedicineRequest(
 )
 
 data class UpdateMedicineRequest(
+    val name: String?,
     val dosage: String?,
     val frequency: String?,
     val reason: String?,
+    val startDate: String?,
+    val endDate: String?,
     val sideEffects: String?,
     val isActive: Boolean?
 )

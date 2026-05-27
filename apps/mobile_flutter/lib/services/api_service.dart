@@ -573,6 +573,16 @@ class ApiService {
     return response.statusCode == 200 || response.statusCode == 201;
   }
 
+  Future<bool> updateMedicine(
+      int medicineId, Map<String, dynamic> payload) async {
+    final response = await _putRaw(
+      '/medicines/$medicineId',
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode(payload),
+    );
+    return response.statusCode >= 200 && response.statusCode < 300;
+  }
+
   // Sport activity endpoints
   Future<List<Map<String, dynamic>>> getSportActivities({int? userId}) async {
     if (_sportActivitiesEndpointMissing) return const [];
@@ -748,7 +758,8 @@ class ApiService {
     );
 
     if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw Exception('Failed to delete medicine');
+      throw Exception(
+          _responseMessage(response) ?? 'Failed to delete medicine');
     }
   }
 
