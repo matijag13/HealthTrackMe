@@ -22,9 +22,9 @@ class SecurityConfig {
     fun corsConfigurationSource(): CorsConfigurationSource {
         val corsConfig = CorsConfiguration().apply {
             allowedOriginPatterns = listOf("http://localhost:*", "http://127.0.0.1:*")
-            allowedMethods = listOf("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH")
+            allowedMethods = listOf("GET", "POST", "PUT", "DELETE", "OPTIONS")
             allowedHeaders = listOf("*")
-            allowCredentials = true
+            allowCredentials = false
             maxAge = 3600
         }
         
@@ -38,13 +38,11 @@ class SecurityConfig {
         return object : WebMvcConfigurer {
             override fun addCorsMappings(registry: CorsRegistry) {
                 registry.addMapping("/**")
-                    .allowedOrigins(
-                        "http://localhost:9090",
-                        "http://localhost:3000",
-                        "http://127.0.0.1:9090",
-                        "http://127.0.0.1:3000"
+                    .allowedOriginPatterns(
+                        "http://localhost:*",
+                        "http://127.0.0.1:*"
                     )
-                    .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH")
+                    .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
                     .allowedHeaders("*")
                     .exposedHeaders("*")
                     .allowCredentials(false)

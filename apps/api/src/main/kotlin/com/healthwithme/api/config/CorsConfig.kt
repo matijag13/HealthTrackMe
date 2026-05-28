@@ -9,13 +9,11 @@ class CorsConfig : WebMvcConfigurer {
     override fun addCorsMappings(registry: CorsRegistry) {
         registry
             .addMapping("/api/**")
-            .allowedOrigins(
-                "http://localhost:9090",
-                "http://localhost:3000",
-                "http://127.0.0.1:9090",
-                "http://127.0.0.1:3000"
+            .allowedOriginPatterns(
+                "http://localhost:*",
+                "http://127.0.0.1:*"
             )
-            .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH")
+            .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
             .allowedHeaders("*")
             .allowCredentials(false)
             .maxAge(3600)
