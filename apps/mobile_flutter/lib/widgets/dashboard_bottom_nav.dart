@@ -66,7 +66,7 @@ class DashboardBottomNav extends StatelessWidget {
     VoidCallback onTap,
   ) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final activeColor = AppColors.primaryBlue;
+    const activeColor = AppColors.primaryBlue;
     final inactiveColor =
         isDark ? AppColors.darkTextSecondary : AppColors.textSecondary;
 
@@ -94,7 +94,7 @@ class DashboardBottomNav extends StatelessWidget {
               child: Container(
                 width: 4,
                 height: 4,
-                decoration: BoxDecoration(
+                decoration: const BoxDecoration(
                   color: activeColor,
                   shape: BoxShape.circle,
                 ),

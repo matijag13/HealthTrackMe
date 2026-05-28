@@ -16,7 +16,8 @@ class _HeartRateDetailScreenState extends State<HeartRateDetailScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      backgroundColor: isDark ? AppColors.darkBackground : AppColors.lightBackground,
+      backgroundColor:
+          isDark ? AppColors.darkBackground : AppColors.lightBackground,
       appBar: AppBar(
         backgroundColor: isDark ? AppColors.darkCard : AppColors.lightCard,
         elevation: 0,
@@ -38,19 +39,14 @@ class _HeartRateDetailScreenState extends State<HeartRateDetailScreen> {
           children: [
             _buildCurrentHRCard(context),
             const SizedBox(height: 20),
-
             _buildTimeRangeSelector(context),
             const SizedBox(height: 20),
-
             _buildHRTrendCard(context),
             const SizedBox(height: 20),
-
             _buildHRVCard(context),
             const SizedBox(height: 20),
-
             _buildRestingHRCard(context),
             const SizedBox(height: 20),
-
             _buildHealthInsightsCard(context),
             const SizedBox(height: 40),
           ],
@@ -80,7 +76,9 @@ class _HeartRateDetailScreenState extends State<HeartRateDetailScreen> {
               Text(
                 'Current Heart Rate',
                 style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                      color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary,
+                      color: isDark
+                          ? AppColors.darkTextSecondary
+                          : AppColors.textSecondary,
                     ),
               ),
               const SizedBox(height: 8),
@@ -127,7 +125,7 @@ class _HeartRateDetailScreenState extends State<HeartRateDetailScreen> {
               color: AppColors.primaryBlue.withValues(alpha: 0.1),
               shape: BoxShape.circle,
             ),
-            child: Center(
+            child: const Center(
               child: Icon(
                 Icons.favorite,
                 size: 40,
@@ -178,7 +176,9 @@ class _HeartRateDetailScreenState extends State<HeartRateDetailScreen> {
             style: Theme.of(context).textTheme.labelMedium?.copyWith(
                   color: isSelected
                       ? Colors.white
-                      : (isDark ? AppColors.darkTextPrimary : AppColors.textPrimary),
+                      : (isDark
+                          ? AppColors.darkTextPrimary
+                          : AppColors.textPrimary),
                   fontWeight: FontWeight.w600,
                 ),
           ),
@@ -220,7 +220,8 @@ class _HeartRateDetailScreenState extends State<HeartRateDetailScreen> {
     );
   }
 
-  Widget _buildHRStat(BuildContext context, String label, String value, Color color) {
+  Widget _buildHRStat(
+      BuildContext context, String label, String value, Color color) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
@@ -302,7 +303,9 @@ class _HeartRateDetailScreenState extends State<HeartRateDetailScreen> {
           Text(
             'Your heart rate variability is within optimal range. This indicates good cardiac autonomic function and stress resilience.',
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary,
+                  color: isDark
+                      ? AppColors.darkTextSecondary
+                      : AppColors.textSecondary,
                   height: 1.6,
                 ),
           ),
@@ -364,7 +367,9 @@ class _HeartRateDetailScreenState extends State<HeartRateDetailScreen> {
           Text(
             'A lower resting heart rate indicates improved cardiovascular fitness.',
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary,
+                  color: isDark
+                      ? AppColors.darkTextSecondary
+                      : AppColors.textSecondary,
                 ),
           ),
         ],

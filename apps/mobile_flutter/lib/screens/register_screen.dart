@@ -101,8 +101,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: Container(
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
             colors: [Color(0xFF0D2137), AppColors.navy, Color(0xFF0F4C75)],
           ),
         ),
@@ -118,9 +118,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       textAlign: TextAlign.center,
-                      text: TextSpan(
+                      text: const TextSpan(
                         text: 'Health',
-                        style: const TextStyle(
+                        style: TextStyle(
                             fontSize: 32,
                             fontWeight: FontWeight.w700,
                             color: Colors.white),
@@ -128,7 +128,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           TextSpan(
                               text: 'Track',
                               style: TextStyle(color: AppColors.teal)),
-                          const TextSpan(text: 'Me'),
+                          TextSpan(text: 'Me'),
                         ],
                       ),
                     ),
@@ -211,7 +211,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                               final narrow = constraints.maxWidth < 420;
 
                               final yearField = DropdownButtonFormField<int>(
-                                value: _selectedYear,
+                                initialValue: _selectedYear,
                                 hint: const Text('Year'),
                                 items: List.generate(100,
                                         (i) => DateTime.now().year - 80 + i)
@@ -226,7 +226,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                             BorderRadius.circular(10))),
                               );
                               final monthField = DropdownButtonFormField<int>(
-                                value: _selectedMonth,
+                                initialValue: _selectedMonth,
                                 hint: const Text('Month'),
                                 items: List.generate(12, (i) => i + 1)
                                     .map((m) => DropdownMenuItem(
@@ -242,7 +242,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                             BorderRadius.circular(10))),
                               );
                               final dayField = DropdownButtonFormField<int>(
-                                value: _selectedDay,
+                                initialValue: _selectedDay,
                                 hint: const Text('Day'),
                                 items: List.generate(31, (i) => i + 1)
                                     .map((d) => DropdownMenuItem(
@@ -283,7 +283,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           ),
                           const SizedBox(height: 16),
                           DropdownButtonFormField<String>(
-                            value: _selectedUserType,
+                            initialValue: _selectedUserType,
                             items: const [
                               DropdownMenuItem(
                                   value: 'PATIENT', child: Text('Patient')),

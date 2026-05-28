@@ -117,8 +117,8 @@ class DetectiveInsightCard extends StatelessWidget {
                   color: isDark
                       ? AppColors.primaryGreen.withValues(alpha: 0.08)
                       : AppColors.primaryGreen.withValues(alpha: 0.05),
-                  border: Border(
-                    left: const BorderSide(
+                  border: const Border(
+                    left: BorderSide(
                       color: AppColors.primaryGreen,
                       width: 3,
                     ),

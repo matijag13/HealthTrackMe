@@ -47,6 +47,7 @@ class _DarkModeDashboardScreenState extends State<DarkModeDashboardScreen> {
         );
         if (result != null && mounted) {
           final success = await _quickLogService.logMood(result['mood']);
+          if (!mounted) return;
           if (success) {
             QuickLogService.showLogSuccess(context, '✨ Mood logged!');
           } else {
@@ -62,6 +63,7 @@ class _DarkModeDashboardScreenState extends State<DarkModeDashboardScreen> {
         );
         if (result != null && mounted) {
           final success = await _quickLogService.logWater(result['water_ml']);
+          if (!mounted) return;
           if (success) {
             QuickLogService.showLogSuccess(context, '💧 Water logged!');
           } else {
@@ -78,6 +80,7 @@ class _DarkModeDashboardScreenState extends State<DarkModeDashboardScreen> {
         if (result != null && mounted) {
           final success =
               await _quickLogService.logMedication(result['medication']);
+          if (!mounted) return;
           if (success) {
             QuickLogService.showLogSuccess(context, '💊 Medication logged!');
           } else {
@@ -95,6 +98,7 @@ class _DarkModeDashboardScreenState extends State<DarkModeDashboardScreen> {
           final success = await _quickLogService.logSymptoms(
             List<String>.from(result['symptoms']),
           );
+          if (!mounted) return;
           if (success) {
             QuickLogService.showLogSuccess(context, '📝 Symptoms logged!');
           } else {
@@ -113,6 +117,7 @@ class _DarkModeDashboardScreenState extends State<DarkModeDashboardScreen> {
             result['sleep_hours'],
             result['sleep_minutes'],
           );
+          if (!mounted) return;
           if (success) {
             QuickLogService.showLogSuccess(context, '😴 Sleep logged!');
           } else {
@@ -232,7 +237,7 @@ class _DarkModeDashboardScreenState extends State<DarkModeDashboardScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     if (_loading) {
-      return Scaffold(
+      return const Scaffold(
         body: Center(
           child: CircularProgressIndicator(
             color: AppColors.primaryBlue,
@@ -372,7 +377,7 @@ class _DarkModeDashboardScreenState extends State<DarkModeDashboardScreen> {
               const SizedBox(height: 20),
 
               // AI Detective Insight
-              DetectiveInsightCard(
+              const DetectiveInsightCard(
                 badge: '✨ Strong week',
                 title: 'Your consistency is paying off',
                 description:
@@ -471,64 +476,62 @@ class _DarkModeDashboardScreenState extends State<DarkModeDashboardScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final borderColor = isDark ? AppColors.darkBorder : AppColors.border;
 
-    return Container(
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(12),
-        child: Stack(
-          children: [
-            Container(
-              decoration: BoxDecoration(
-                color: isDark ? AppColors.darkCard : AppColors.lightCard,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: borderColor,
-                  width: 0.5,
-                ),
-              ),
-              padding: const EdgeInsets.all(12),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    label,
-                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          color: isDark
-                              ? AppColors.darkTextSecondary
-                              : AppColors.textSecondary,
-                          fontSize: 11,
-                        ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    value,
-                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                          color: isDark
-                              ? AppColors.darkTextPrimary
-                              : AppColors.textPrimary,
-                          fontWeight: FontWeight.w700,
-                        ),
-                  ),
-                ],
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(12),
+      child: Stack(
+        children: [
+          Container(
+            decoration: BoxDecoration(
+              color: isDark ? AppColors.darkCard : AppColors.lightCard,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: borderColor,
+                width: 0.5,
               ),
             ),
-            Positioned.fill(
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: Container(
-                  width: 3,
-                  decoration: BoxDecoration(
-                    color: color,
-                    borderRadius: const BorderRadius.only(
-                      topLeft: Radius.circular(12),
-                      bottomLeft: Radius.circular(12),
-                    ),
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        color: isDark
+                            ? AppColors.darkTextSecondary
+                            : AppColors.textSecondary,
+                        fontSize: 11,
+                      ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  value,
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        color: isDark
+                            ? AppColors.darkTextPrimary
+                            : AppColors.textPrimary,
+                        fontWeight: FontWeight.w700,
+                      ),
+                ),
+              ],
+            ),
+          ),
+          Positioned.fill(
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Container(
+                width: 3,
+                decoration: BoxDecoration(
+                  color: color,
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(12),
+                    bottomLeft: Radius.circular(12),
                   ),
                 ),
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

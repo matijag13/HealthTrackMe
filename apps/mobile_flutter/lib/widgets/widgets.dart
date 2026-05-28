@@ -58,7 +58,8 @@ class WellnessRing extends StatelessWidget {
                     value: progress,
                     strokeWidth: 7,
                     backgroundColor: Colors.white.withValues(alpha: 0.15),
-                    valueColor: AlwaysStoppedAnimation<Color>(AppColors.teal),
+                    valueColor:
+                        const AlwaysStoppedAnimation<Color>(AppColors.teal),
                   ),
                 ),
                 // Center text
@@ -153,7 +154,7 @@ class StatItem extends StatelessWidget {
             const SizedBox(height: 2),
             Text(
               label,
-              style: TextStyle(
+              style: const TextStyle(
                 fontSize: 9,
                 color: AppColors.muted,
               ),
@@ -264,7 +265,7 @@ class MedicineItem extends StatelessWidget {
               children: [
                 Text(
                   name,
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w500,
                     color: AppColors.navy,
@@ -275,7 +276,7 @@ class MedicineItem extends StatelessWidget {
           ),
           Text(
             time,
-            style: TextStyle(
+            style: const TextStyle(
               fontSize: 11,
               color: AppColors.muted,
             ),
@@ -402,9 +403,9 @@ class HealthSlider extends StatelessWidget {
     return Column(
       children: [
         SliderTheme(
-          data: SliderThemeData(
+          data: const SliderThemeData(
             trackHeight: 6,
-            thumbShape: const RoundSliderThumbShape(
+            thumbShape: RoundSliderThumbShape(
               enabledThumbRadius: 9,
               elevation: 2,
             ),
@@ -478,7 +479,7 @@ class NavItem extends StatelessWidget {
               child: Container(
                 width: 4,
                 height: 4,
-                decoration: BoxDecoration(
+                decoration: const BoxDecoration(
                   color: AppColors.blue,
                   shape: BoxShape.circle,
                 ),
@@ -523,7 +524,7 @@ class TrendItem extends StatelessWidget {
               children: [
                 Text(
                   name,
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w500,
                     color: AppColors.navy,
@@ -531,7 +532,7 @@ class TrendItem extends StatelessWidget {
                 ),
                 Text(
                   value,
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontSize: 11,
                     color: AppColors.muted,
                   ),
@@ -1193,10 +1194,10 @@ class HealthShieldCard extends StatelessWidget {
                                     fontSize: 16,
                                     fontWeight: FontWeight.w700)),
                             const SizedBox(width: 4),
-                            Tooltip(
+                            const Tooltip(
                               message:
                                   'Penalty points for missed habits or unhealthy patterns today',
-                              child: const Icon(Icons.info_outline,
+                              child: Icon(Icons.info_outline,
                                   size: 14, color: Colors.red),
                             ),
                           ],

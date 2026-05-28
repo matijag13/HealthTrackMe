@@ -60,8 +60,7 @@ class AppTheme {
     final base = FlexColorScheme.light(
       primary: AppColors.primary,
       secondary: AppColors.teal,
-      surface: AppColors.lightSurface,
-      background: AppColors.lightBackground,
+      surface: AppColors.lightBackground,
       appBarStyle: FlexAppBarStyle.primary,
       subThemesData: const FlexSubThemesData(
         defaultRadius: 16,
@@ -115,7 +114,8 @@ class AppTheme {
       inputDecorationTheme: base.inputDecorationTheme.copyWith(
         filled: true,
         fillColor: AppColors.lightSurface,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
           borderSide: const BorderSide(color: AppColors.border),
@@ -135,7 +135,8 @@ class AppTheme {
           foregroundColor: Colors.white,
           elevation: 0,
           padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
@@ -143,7 +144,8 @@ class AppTheme {
           foregroundColor: AppColors.primary,
           side: const BorderSide(color: AppColors.primary, width: 1.2),
           padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ),
       ),
       navigationBarTheme: NavigationBarThemeData(
@@ -151,7 +153,8 @@ class AppTheme {
         indicatorColor: AppColors.primary.withValues(alpha: 0.12),
         elevation: 0,
       ),
-      snackBarTheme: const SnackBarThemeData(behavior: SnackBarBehavior.floating),
+      snackBarTheme:
+          const SnackBarThemeData(behavior: SnackBarBehavior.floating),
     );
   }
 
@@ -159,8 +162,7 @@ class AppTheme {
     final base = FlexColorScheme.dark(
       primary: AppColors.primaryBlue,
       secondary: AppColors.primaryGreen,
-      surface: AppColors.darkSurface,
-      background: AppColors.darkBackground,
+      surface: AppColors.darkBackground,
       appBarStyle: FlexAppBarStyle.background,
       subThemesData: const FlexSubThemesData(
         defaultRadius: 16,
@@ -174,7 +176,8 @@ class AppTheme {
       ),
     ).toTheme;
 
-    final textTheme = GoogleFonts.plusJakartaSansTextTheme(base.textTheme).apply(
+    final textTheme =
+        GoogleFonts.plusJakartaSansTextTheme(base.textTheme).apply(
       bodyColor: AppColors.darkTextPrimary,
       displayColor: AppColors.darkTextPrimary,
     );
@@ -183,16 +186,26 @@ class AppTheme {
     return base.copyWith(
       scaffoldBackgroundColor: AppColors.darkBackground,
       textTheme: textTheme.copyWith(
-        displayLarge: displayTheme.displayLarge?.copyWith(color: AppColors.darkTextPrimary),
-        displayMedium: displayTheme.displayMedium?.copyWith(color: AppColors.darkTextPrimary),
-        displaySmall: displayTheme.displaySmall?.copyWith(color: AppColors.darkTextPrimary),
-        headlineLarge: displayTheme.headlineLarge?.copyWith(color: AppColors.darkTextPrimary),
-        headlineMedium: displayTheme.headlineMedium?.copyWith(color: AppColors.darkTextPrimary),
-        headlineSmall: displayTheme.headlineSmall?.copyWith(color: AppColors.darkTextPrimary),
-        bodyLarge: textTheme.bodyLarge?.copyWith(color: AppColors.darkTextPrimary),
-        bodyMedium: textTheme.bodyMedium?.copyWith(color: AppColors.darkTextPrimary),
-        bodySmall: textTheme.bodySmall?.copyWith(color: AppColors.darkTextSecondary),
-        labelLarge: textTheme.labelLarge?.copyWith(color: AppColors.darkTextPrimary),
+        displayLarge: displayTheme.displayLarge
+            ?.copyWith(color: AppColors.darkTextPrimary),
+        displayMedium: displayTheme.displayMedium
+            ?.copyWith(color: AppColors.darkTextPrimary),
+        displaySmall: displayTheme.displaySmall
+            ?.copyWith(color: AppColors.darkTextPrimary),
+        headlineLarge: displayTheme.headlineLarge
+            ?.copyWith(color: AppColors.darkTextPrimary),
+        headlineMedium: displayTheme.headlineMedium
+            ?.copyWith(color: AppColors.darkTextPrimary),
+        headlineSmall: displayTheme.headlineSmall
+            ?.copyWith(color: AppColors.darkTextPrimary),
+        bodyLarge:
+            textTheme.bodyLarge?.copyWith(color: AppColors.darkTextPrimary),
+        bodyMedium:
+            textTheme.bodyMedium?.copyWith(color: AppColors.darkTextPrimary),
+        bodySmall:
+            textTheme.bodySmall?.copyWith(color: AppColors.darkTextSecondary),
+        labelLarge:
+            textTheme.labelLarge?.copyWith(color: AppColors.darkTextPrimary),
       ),
       appBarTheme: base.appBarTheme.copyWith(
         backgroundColor: AppColors.darkCard,
@@ -221,7 +234,8 @@ class AppTheme {
       inputDecorationTheme: base.inputDecorationTheme.copyWith(
         filled: true,
         fillColor: AppColors.darkSurface,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
           borderSide: const BorderSide(color: AppColors.darkBorder),
@@ -257,7 +271,8 @@ class AppTheme {
         indicatorColor: AppColors.primaryBlue.withValues(alpha: 0.20),
         elevation: 0,
       ),
-      snackBarTheme: const SnackBarThemeData(behavior: SnackBarBehavior.floating),
+      snackBarTheme:
+          const SnackBarThemeData(behavior: SnackBarBehavior.floating),
     );
   }
 }
@@ -286,7 +301,8 @@ class ThemeProvider extends ChangeNotifier {
     }
     _themeMode = mode;
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_themeModeKey, mode == ThemeMode.dark ? 'dark' : 'light');
+    await prefs.setString(
+        _themeModeKey, mode == ThemeMode.dark ? 'dark' : 'light');
     notifyListeners();
   }
 
@@ -298,4 +314,3 @@ class ThemeProvider extends ChangeNotifier {
 
   Future<void> useDarkTheme() => setThemeMode(ThemeMode.dark);
 }
-

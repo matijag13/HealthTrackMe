@@ -74,8 +74,8 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: Container(
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
             colors: [Color(0xFF0D2137), AppColors.navy, Color(0xFF0F4C75)],
           ),
         ),
@@ -91,9 +91,9 @@ class _LoginScreenState extends State<LoginScreen> {
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       textAlign: TextAlign.center,
-                      text: TextSpan(
+                      text: const TextSpan(
                         text: 'Health',
-                        style: const TextStyle(
+                        style: TextStyle(
                             fontSize: 32,
                             fontWeight: FontWeight.w700,
                             color: Colors.white),
@@ -101,7 +101,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           TextSpan(
                               text: 'Track',
                               style: TextStyle(color: AppColors.teal)),
-                          const TextSpan(text: 'Me'),
+                          TextSpan(text: 'Me'),
                         ],
                       ),
                     ),

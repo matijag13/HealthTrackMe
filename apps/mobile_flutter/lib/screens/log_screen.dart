@@ -112,7 +112,9 @@ class _LogScreenState extends State<LogScreen>
       _entries = entries;
       _todayLogged = todays.isNotEmpty;
       _todayEntry = todays.isNotEmpty ? todays.first : null;
-      if (_todayEntry != null) _populateFromEntry(_todayEntry!);
+      if (_todayEntry != null) {
+        _populateFromEntry(_todayEntry!);
+      }
       _loading = false;
     });
   }
@@ -162,14 +164,18 @@ class _LogScreenState extends State<LogScreen>
     } catch (_) {}
 
     // Also restore directly stored vitals (new entries use explicit fields)
-    if (e.heartRate != null && heartController.text.isEmpty)
+    if (e.heartRate != null && heartController.text.isEmpty) {
       heartController.text = e.heartRate.toString();
-    if (e.weight != null && weightController.text.isEmpty)
+    }
+    if (e.weight != null && weightController.text.isEmpty) {
       weightController.text = e.weight.toString();
-    if (e.waterIntakeMl != null && waterController.text.isEmpty)
+    }
+    if (e.waterIntakeMl != null && waterController.text.isEmpty) {
       waterController.text = e.waterIntakeMl.toString();
-    if (e.caloriesConsumed != null && caloriesController.text.isEmpty)
+    }
+    if (e.caloriesConsumed != null && caloriesController.text.isEmpty) {
       caloriesController.text = e.caloriesConsumed.toString();
+    }
   }
 
   int _calculateWellbeingScore() {
@@ -180,7 +186,9 @@ class _LogScreenState extends State<LogScreen>
   Future<void> _saveEntry() async {
     final activeUserId = _api.activeUserId;
     if (activeUserId == null) {
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
           content: Text('Please select an account in Profile first.')));
       return;
@@ -270,12 +278,16 @@ class _LogScreenState extends State<LogScreen>
 
     try {
       await _api.createHealthEntry(entry, userId: activeUserId);
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
       setState(() => _saving = false);
 
       // Show success then reload - use a local context reference
       final ctx = context;
-      if (!mounted) return;
+      if (!ctx.mounted) {
+        return;
+      }
 
       await showDialog(
         context: ctx,
@@ -283,9 +295,13 @@ class _LogScreenState extends State<LogScreen>
         builder: (_) => const Center(child: _SuccessAnim()),
       );
 
-      if (mounted) await _loadEntries();
+      if (mounted) {
+        await _loadEntries();
+      }
     } catch (e) {
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
       setState(() => _saving = false);
       ScaffoldMessenger.of(context)
           .showSnackBar(SnackBar(content: Text('Failed to save: $e')));
@@ -294,7 +310,9 @@ class _LogScreenState extends State<LogScreen>
 
   void _addCustomTag() {
     final t = customTagController.text.trim();
-    if (t.isEmpty) return;
+    if (t.isEmpty) {
+      return;
+    }
     setState(() {
       tags.add(t);
       customTagController.clear();
@@ -312,7 +330,9 @@ class _LogScreenState extends State<LogScreen>
           try {
             await _api.createSportActivity(map);
           } catch (_) {}
-          if (mounted) Navigator.of(context).pop();
+          if (context.mounted) {
+            Navigator.of(context).pop();
+          }
         }),
       ),
     );
@@ -347,7 +367,9 @@ class _LogScreenState extends State<LogScreen>
                   },
                   calendarBuilders:
                       CalendarBuilders(markerBuilder: (context, day, events) {
-                    if (events.isEmpty) return const SizedBox();
+                    if (events.isEmpty) {
+                      return const SizedBox();
+                    }
                     return Positioned(
                         bottom: 4,
                         child: Row(
@@ -359,7 +381,7 @@ class _LogScreenState extends State<LogScreen>
                                     height: 6,
                                     margin: const EdgeInsets.symmetric(
                                         horizontal: 1),
-                                    decoration: BoxDecoration(
+                                    decoration: const BoxDecoration(
                                         color: AppColors.teal,
                                         shape: BoxShape.circle)))));
                   }),
@@ -391,7 +413,7 @@ class _LogScreenState extends State<LogScreen>
   Widget build(BuildContext context) {
     super.build(context);
     final todayLabel =
-        '${DateTime.now().toLocal().toIso8601String().split('T').first}';
+        DateTime.now().toLocal().toIso8601String().split('T').first;
 
     return Scaffold(
       appBar: AppBar(
@@ -425,8 +447,8 @@ class _LogScreenState extends State<LogScreen>
                               color: const Color(0xFFE8F5E9),
                               borderRadius: BorderRadius.circular(12),
                               border: Border.all(
-                                  color:
-                                      const Color(0xFF4CAF50).withOpacity(0.4)),
+                                  color: const Color(0xFF4CAF50)
+                                      .withValues(alpha: 0.4)),
                             ),
                             child: Padding(
                               padding: const EdgeInsets.symmetric(
@@ -601,7 +623,7 @@ class _LogScreenState extends State<LogScreen>
                                 child: TextField(
                                     controller: weightController,
                                     keyboardType:
-                                        TextInputType.numberWithOptions(
+                                        const TextInputType.numberWithOptions(
                                             decimal: true),
                                     decoration: InputDecoration(
                                         labelText: 'Weight',
@@ -670,7 +692,7 @@ class _LogScreenState extends State<LogScreen>
                                 child: TextField(
                                     controller: glucoseController,
                                     keyboardType:
-                                        TextInputType.numberWithOptions(
+                                        const TextInputType.numberWithOptions(
                                             decimal: true),
                                     decoration: InputDecoration(
                                         labelText: 'Blood glucose',
@@ -695,7 +717,7 @@ class _LogScreenState extends State<LogScreen>
                                 child: TextField(
                                     controller: tempController,
                                     keyboardType:
-                                        TextInputType.numberWithOptions(
+                                        const TextInputType.numberWithOptions(
                                             decimal: true),
                                     decoration: InputDecoration(
                                         labelText: 'Temperature',
@@ -743,28 +765,32 @@ class _LogScreenState extends State<LogScreen>
                           ]),
                           const SizedBox(height: 8),
                           Row(children: [
-                            Expanded(child: Text('Bedtime')),
+                            const Expanded(child: Text('Bedtime')),
                             const SizedBox(width: 8),
                             TextButton(
                                 onPressed: () async {
                                   final t = await showTimePicker(
                                       context: context,
                                       initialTime: bedtime ??
-                                          TimeOfDay(hour: 23, minute: 0));
-                                  if (t != null) setState(() => bedtime = t);
+                                          const TimeOfDay(hour: 23, minute: 0));
+                                  if (t != null) {
+                                    setState(() => bedtime = t);
+                                  }
                                 },
                                 child:
                                     Text(bedtime?.format(context) ?? '23:00')),
                             const SizedBox(width: 16),
-                            Expanded(child: Text('Wake')),
+                            const Expanded(child: Text('Wake')),
                             const SizedBox(width: 8),
                             TextButton(
                                 onPressed: () async {
                                   final t = await showTimePicker(
                                       context: context,
                                       initialTime: waketime ??
-                                          TimeOfDay(hour: 7, minute: 30));
-                                  if (t != null) setState(() => waketime = t);
+                                          const TimeOfDay(hour: 7, minute: 30));
+                                  if (t != null) {
+                                    setState(() => waketime = t);
+                                  }
                                 },
                                 child:
                                     Text(waketime?.format(context) ?? '07:30'))
@@ -1019,7 +1045,9 @@ class _SuccessAnimState extends State<_SuccessAnim>
   void initState() {
     super.initState();
     Future.delayed(const Duration(milliseconds: 800), () {
-      if (mounted) Navigator.of(context).pop();
+      if (mounted) {
+        Navigator.of(context).pop();
+      }
     });
   }
 
@@ -1078,7 +1106,7 @@ class _ActivityFormState extends State<_ActivityForm> {
             key: _formKey,
             child: Column(children: [
               DropdownButtonFormField<String>(
-                  value: type,
+                  initialValue: type,
                   items: [
                     'Running',
                     'Walking',
@@ -1104,7 +1132,7 @@ class _ActivityFormState extends State<_ActivityForm> {
                 TextFormField(
                     controller: distanceCtrl,
                     keyboardType:
-                        TextInputType.numberWithOptions(decimal: true),
+                        const TextInputType.numberWithOptions(decimal: true),
                     decoration: const InputDecoration(
                         labelText: 'Distance (km)',
                         border: OutlineInputBorder())),
@@ -1117,7 +1145,7 @@ class _ActivityFormState extends State<_ActivityForm> {
                       border: OutlineInputBorder())),
               const SizedBox(height: 8),
               DropdownButtonFormField<String>(
-                  value: intensity,
+                  initialValue: intensity,
                   items: ['Light', 'Moderate', 'Hard', 'Max']
                       .map((s) => DropdownMenuItem(value: s, child: Text(s)))
                       .toList(),

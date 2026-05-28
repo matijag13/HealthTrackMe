@@ -26,7 +26,9 @@ class ApiService {
   bool _sportActivitiesEndpointMissing = false;
 
   static String _resolveDefaultBaseUrl() {
-    if (kIsWeb) return _webDefault;
+    if (kIsWeb) {
+      return _webDefault;
+    }
     return defaultTargetPlatform == TargetPlatform.android
         ? _androidDefault
         : _webDefault;
@@ -91,13 +93,19 @@ class ApiService {
   Future<void> _reconcileStoredActiveUserIdInBackground() async {
     try {
       final current = _activeUserId;
-      if (current == null) return;
+      if (current == null) {
+        return;
+      }
 
       final users = await getUsers();
-      if (users.isEmpty) return;
+      if (users.isEmpty) {
+        return;
+      }
 
       final exists = users.any((u) => u.id == current);
-      if (exists) return;
+      if (exists) {
+        return;
+      }
 
       final selected =
           users.firstWhere((u) => u.isActive, orElse: () => users.first);
@@ -172,9 +180,12 @@ class ApiService {
       return normalized.substring(0, apiV1Index + '/api/v1'.length);
     }
 
-    if (normalized.endsWith('/api')) return '$normalized/v1';
-    if (normalized.endsWith('/api/v1'))
+    if (normalized.endsWith('/api')) {
+      return '$normalized/v1';
+    }
+    if (normalized.endsWith('/api/v1')) {
       return normalized.replaceFirst(RegExp(r'(/api/v1)+$'), '/api/v1');
+    }
     return '$normalized/api/v1';
   }
 
@@ -269,7 +280,9 @@ class ApiService {
 
   Map<String, String> _authHeaders([Map<String, String>? extra]) {
     final headers = <String, String>{};
-    if (extra != null) headers.addAll(extra);
+    if (extra != null) {
+      headers.addAll(extra);
+    }
     if (_authToken != null && _authToken!.isNotEmpty) {
       headers['Authorization'] = 'Bearer $_authToken';
     }
@@ -290,7 +303,9 @@ class ApiService {
     final uri = _uri(path, queryParameters: queryParameters);
     final h = _authHeaders(headers);
     final resp = await http.get(uri, headers: h);
-    if (resp.statusCode == 401) await _handleUnauthorized(resp);
+    if (resp.statusCode == 401) {
+      await _handleUnauthorized(resp);
+    }
     return resp;
   }
 
@@ -301,7 +316,9 @@ class ApiService {
     final uri = _uri(path, queryParameters: queryParameters);
     final h = _authHeaders(headers);
     final resp = await http.post(uri, headers: h, body: body);
-    if (resp.statusCode == 401) await _handleUnauthorized(resp);
+    if (resp.statusCode == 401) {
+      await _handleUnauthorized(resp);
+    }
     return resp;
   }
 
@@ -312,7 +329,9 @@ class ApiService {
     final uri = _uri(path, queryParameters: queryParameters);
     final h = _authHeaders(headers);
     final resp = await http.put(uri, headers: h, body: body);
-    if (resp.statusCode == 401) await _handleUnauthorized(resp);
+    if (resp.statusCode == 401) {
+      await _handleUnauthorized(resp);
+    }
     return resp;
   }
 
@@ -322,7 +341,9 @@ class ApiService {
     final uri = _uri(path, queryParameters: queryParameters);
     final h = _authHeaders(headers);
     final resp = await http.delete(uri, headers: h);
-    if (resp.statusCode == 401) await _handleUnauthorized(resp);
+    if (resp.statusCode == 401) {
+      await _handleUnauthorized(resp);
+    }
     return resp;
   }
 
@@ -338,12 +359,16 @@ class ApiService {
     request.files.add(multipartFile);
     final streamed = await request.send();
     final response = await http.Response.fromStream(streamed);
-    if (response.statusCode == 401) await _handleUnauthorized(response);
+    if (response.statusCode == 401) {
+      await _handleUnauthorized(response);
+    }
     return response;
   }
 
   dynamic _decodeBody(http.Response response) {
-    if (response.body.isEmpty) return null;
+    if (response.body.isEmpty) {
+      return null;
+    }
     return jsonDecode(response.body);
   }
 
@@ -375,7 +400,9 @@ class ApiService {
   T? _parseSingle<T>(
       http.Response response, T Function(dynamic json) fromJson) {
     final decoded = _unwrapData(_decodeBody(response));
-    if (decoded == null) return null;
+    if (decoded == null) {
+      return null;
+    }
     if (decoded is Map<String, dynamic> || decoded is Map) {
       return fromJson(decoded);
     }
@@ -388,9 +415,13 @@ class ApiService {
     if (decoded is Map) {
       final map = Map<String, dynamic>.from(decoded);
       final message = map['message']?.toString();
-      if (message != null && message.isNotEmpty) return message;
+      if (message != null && message.isNotEmpty) {
+        return message;
+      }
     }
-    if (data is String && data.isNotEmpty) return data;
+    if (data is String && data.isNotEmpty) {
+      return data;
+    }
     return null;
   }
 
@@ -405,7 +436,9 @@ class ApiService {
 
     if (_activeUserId != null) {
       final exists = users.any((user) => user.id == _activeUserId);
-      if (exists) return _activeUserId;
+      if (exists) {
+        return _activeUserId;
+      }
     }
 
     final selected =
@@ -444,7 +477,9 @@ class ApiService {
 
   Future<User?> getCurrentUser() async {
     final id = await ensureActiveUserId();
-    if (id == null) return null;
+    if (id == null) {
+      return null;
+    }
     return getUser(id);
   }
 
@@ -474,7 +509,9 @@ class ApiService {
 
       if (response.statusCode >= 200 && response.statusCode < 300) {
         final created = _parseSingle(response, User.fromJson);
-        if (created != null) return created;
+        if (created != null) {
+          return created;
+        }
       }
 
       final message = _responseMessage(response) ?? 'Could not create user';
@@ -494,7 +531,9 @@ class ApiService {
 
     if (response.statusCode >= 200 && response.statusCode < 300) {
       final updated = _parseSingle(response, User.fromJson);
-      if (updated != null) return updated;
+      if (updated != null) {
+        return updated;
+      }
     }
     throw Exception(_responseMessage(response) ?? 'Could not update user');
   }
@@ -507,7 +546,9 @@ class ApiService {
   // Health Entry endpoints
   Future<List<HealthEntry>> getHealthEntries({int? userId}) async {
     final id = _effectiveUserId(userId: userId);
-    if (id == null) return const [];
+    if (id == null) {
+      return const [];
+    }
     try {
       final response = await _getRaw('/health-entries/users/$id');
       if (response.statusCode >= 200 && response.statusCode < 300) {
@@ -533,7 +574,9 @@ class ApiService {
 
     if (response.statusCode >= 200 && response.statusCode < 300) {
       final created = _parseSingle(response, HealthEntry.fromJson);
-      if (created != null) return created;
+      if (created != null) {
+        return created;
+      }
     }
     throw Exception(
         _responseMessage(response) ?? 'Could not save health entry');
@@ -543,7 +586,9 @@ class ApiService {
   Future<List<Medicine>> getMedicines(
       {int? userId, bool activeOnly = false}) async {
     final id = _effectiveUserId(userId: userId);
-    if (id == null) return const [];
+    if (id == null) {
+      return const [];
+    }
     try {
       final path =
           activeOnly ? '/medicines/users/$id/active' : '/medicines/users/$id';
@@ -563,7 +608,9 @@ class ApiService {
   Future<bool> createMedicine(Map<String, dynamic> payload,
       {int? userId}) async {
     final id = userId ?? await ensureActiveUserId();
-    if (id == null) return false;
+    if (id == null) {
+      return false;
+    }
 
     final response = await _postRaw(
       '/medicines/users/$id',
@@ -585,9 +632,13 @@ class ApiService {
 
   // Sport activity endpoints
   Future<List<Map<String, dynamic>>> getSportActivities({int? userId}) async {
-    if (_sportActivitiesEndpointMissing) return const [];
+    if (_sportActivitiesEndpointMissing) {
+      return const [];
+    }
     final id = userId ?? await ensureActiveUserId();
-    if (id == null) return const [];
+    if (id == null) {
+      return const [];
+    }
     try {
       final response = await _getRaw('/sport-activities/users/$id');
       if (response.statusCode == 404) {
@@ -611,9 +662,13 @@ class ApiService {
 
   Future<bool> createSportActivity(Map<String, dynamic> payload,
       {int? userId}) async {
-    if (_sportActivitiesEndpointMissing) return false;
+    if (_sportActivitiesEndpointMissing) {
+      return false;
+    }
     final id = userId ?? await ensureActiveUserId();
-    if (id == null) return false;
+    if (id == null) {
+      return false;
+    }
     final response = await _postRaw(
       '/sport-activities/users/$id',
       headers: {'Content-Type': 'application/json'},
@@ -635,7 +690,9 @@ class ApiService {
   Future<List<HealthAlertSummary>> getHealthAlerts(
       {int? userId, bool unreadOnly = false}) async {
     final id = _effectiveUserId(userId: userId);
-    if (id == null) return const [];
+    if (id == null) {
+      return const [];
+    }
     try {
       final path = unreadOnly
           ? '/health-alerts/users/$id/unread'
@@ -687,7 +744,9 @@ class ApiService {
 
   Future<String?> getHealthSummary({int? userId}) async {
     final id = _effectiveUserId(userId: userId);
-    if (id == null) return null;
+    if (id == null) {
+      return null;
+    }
     try {
       final response = await _getRaw('/export/summary/$id');
       if (response.statusCode >= 200 && response.statusCode < 300) {
@@ -703,7 +762,9 @@ class ApiService {
   // Health Shield endpoint
   Future<HealthShield?> getHealthShield({int? userId}) async {
     final id = userId ?? await ensureActiveUserId();
-    if (id == null) return null;
+    if (id == null) {
+      return null;
+    }
     try {
       var response = await _getRaw('/health-shield/$id');
       if (response.statusCode == 404 && userId == null) {
@@ -769,7 +830,9 @@ class ApiService {
         queryParameters: {'days': days.toString()});
     if (response.statusCode >= 200 && response.statusCode < 300) {
       final data = _unwrapData(_decodeBody(response));
-      if (data is Map) return Map<String, dynamic>.from(data);
+      if (data is Map) {
+        return Map<String, dynamic>.from(data);
+      }
       return {};
     }
     throw Exception(_responseMessage(response) ?? 'Could not fetch adherence');
@@ -779,7 +842,9 @@ class ApiService {
   Future<List<Map<String, dynamic>>> getVitalsHistory(String metric,
       {int days = 90, int? userId}) async {
     final id = _effectiveUserId(userId: userId);
-    if (id == null) return const [];
+    if (id == null) {
+      return const [];
+    }
     final response = await _getRaw('/health-entries/vitals-history',
         queryParameters: {
           'userId': id.toString(),
@@ -800,7 +865,9 @@ class ApiService {
   // Profile photo upload
   Future<void> uploadProfilePhoto(File imageFile) async {
     final id = _activeUserId;
-    if (id == null) throw StateError('No active user');
+    if (id == null) {
+      throw StateError('No active user');
+    }
     final response =
         await _multipartPost('/users/$id/profile-photo', file: imageFile);
     if (response.statusCode < 200 || response.statusCode >= 300) {
@@ -811,7 +878,9 @@ class ApiService {
 
   Future<User?> refreshCurrentUser() async {
     final id = _activeUserId;
-    if (id == null) return null;
+    if (id == null) {
+      return null;
+    }
     await setActiveUserId(null);
     await setActiveUserId(id);
     return getCurrentUser();

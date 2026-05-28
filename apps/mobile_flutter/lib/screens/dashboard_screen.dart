@@ -129,9 +129,14 @@ class _DashboardScreenState extends State<DashboardScreen>
   Future<void> _markDoseTaken(int medicineId) async {
     try {
       await _api.logMedicineDose(medicineId, DateTime.now(), 'TAKEN');
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
       await _loadAll();
     } catch (e) {
+      if (!mounted) {
+        return;
+      }
       ScaffoldMessenger.of(context)
           .showSnackBar(const SnackBar(content: Text('Network error')));
     }
@@ -141,8 +146,12 @@ class _DashboardScreenState extends State<DashboardScreen>
 
   String _greeting() {
     final hour = DateTime.now().hour;
-    if (hour < 12) return 'Good morning';
-    if (hour < 18) return 'Good afternoon';
+    if (hour < 12) {
+      return 'Good morning';
+    }
+    if (hour < 18) {
+      return 'Good afternoon';
+    }
     return 'Good evening';
   }
 
@@ -164,13 +173,17 @@ class _DashboardScreenState extends State<DashboardScreen>
   }
 
   int _todayHealthIndex() {
-    if (_state.entries.isEmpty) return 0;
+    if (_state.entries.isEmpty) {
+      return 0;
+    }
     final today = DateTime.now();
     final todays = _state.entries.where((e) =>
         e.entryDate.year == today.year &&
         e.entryDate.month == today.month &&
         e.entryDate.day == today.day);
-    if (todays.isEmpty) return _state.entries.first.effectiveWellbeingScore;
+    if (todays.isEmpty) {
+      return _state.entries.first.effectiveWellbeingScore;
+    }
     return todays.first.effectiveWellbeingScore;
   }
 
@@ -180,7 +193,9 @@ class _DashboardScreenState extends State<DashboardScreen>
         e.entryDate.year == today.year &&
         e.entryDate.month == today.month &&
         e.entryDate.day == today.day);
-    if (todays.isEmpty) return 0.0;
+    if (todays.isEmpty) {
+      return 0.0;
+    }
     return todays.first.effectiveSleepHours;
   }
 
@@ -287,7 +302,8 @@ class _DashboardScreenState extends State<DashboardScreen>
                                   const SizedBox(height: 4),
                                   Text('Your daily health at a glance',
                                       style: TextStyle(
-                                          color: Colors.white.withOpacity(0.9),
+                                          color: Colors.white
+                                              .withValues(alpha: 0.9),
                                           fontSize: 13)),
                                 ],
                               ),
@@ -357,7 +373,9 @@ class _DashboardScreenState extends State<DashboardScreen>
       );
 
   Widget _buildHeroRing(BuildContext context) {
-    if (_loading) return _shimmerBox(height: 220);
+    if (_loading) {
+      return _shimmerBox(height: 220);
+    }
 
     final index = _todayHealthIndex();
     final sleep = _todaySleepHours();
@@ -482,7 +500,7 @@ class _DashboardScreenState extends State<DashboardScreen>
       );
 
   Widget _buildQuickStats(BuildContext context) {
-    if (_loading)
+    if (_loading) {
       return SizedBox(
           height: 120,
           child: ListView.separated(
@@ -492,6 +510,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                   child: _shimmerBox(height: 100)),
               separatorBuilder: (_, __) => const SizedBox(),
               itemCount: 6));
+    }
 
     final te = _todayEntry();
     // Bug fix: calories key in sport-activity maps is 'caloriesBurned', not 'calories'
@@ -530,7 +549,7 @@ class _DashboardScreenState extends State<DashboardScreen>
         'icon': '😴',
         'name': 'Sleep',
         'value': _todaySleepHours() > 0
-            ? '${_todaySleepHours().toStringAsFixed(1)}'
+            ? _todaySleepHours().toStringAsFixed(1)
             : '—',
         'unit': 'h'
       },
@@ -539,7 +558,7 @@ class _DashboardScreenState extends State<DashboardScreen>
         'icon': '💧',
         'name': 'Water',
         'value': (te?.waterIntakeMl != null)
-            ? '${(te!.waterIntakeMl! / 1000).toStringAsFixed(1)}'
+            ? (te!.waterIntakeMl! / 1000).toStringAsFixed(1)
             : '—',
         'unit': 'L'
       },
@@ -671,15 +690,15 @@ class _DashboardScreenState extends State<DashboardScreen>
         List.generate(values.length, (i) => FlSpot(i.toDouble(), values[i]));
     return LineChart(
       LineChartData(
-          gridData: FlGridData(show: false),
-          titlesData: FlTitlesData(show: false),
+          gridData: const FlGridData(show: false),
+          titlesData: const FlTitlesData(show: false),
           borderData: FlBorderData(show: false),
           lineBarsData: [
             LineChartBarData(
                 spots: spots,
                 isCurved: true,
                 color: AppColors.teal,
-                dotData: FlDotData(show: false),
+                dotData: const FlDotData(show: false),
                 barWidth: 2),
           ]),
     );
@@ -716,7 +735,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                 leading: Container(
                     width: 10,
                     height: 10,
-                    decoration: BoxDecoration(
+                    decoration: const BoxDecoration(
                         color: AppColors.blue, shape: BoxShape.circle)),
                 title: Text(m.name,
                     style: const TextStyle(fontWeight: FontWeight.w600)),
@@ -797,7 +816,11 @@ class _DashboardScreenState extends State<DashboardScreen>
                               style: const TextStyle(fontSize: 22)),
                           const SizedBox(width: 8),
                           Text(
-                              '${e.entryDate.toLocal().toIso8601String().split('T').first}',
+                              e.entryDate
+                                  .toLocal()
+                                  .toIso8601String()
+                                  .split('T')
+                                  .first,
                               style:
                                   const TextStyle(fontWeight: FontWeight.w600))
                         ]),
@@ -870,24 +893,26 @@ class _DashboardScreenState extends State<DashboardScreen>
         isCurved: true,
         color: AppColors.teal,
         barWidth: 3,
-        dotData: FlDotData(show: false)));
-    if (_overlaySleep)
+        dotData: const FlDotData(show: false)));
+    if (_overlaySleep) {
       lines.add(LineChartBarData(
           spots: List.generate(
               sleep.length, (i) => FlSpot(i.toDouble(), sleep[i])),
           isCurved: true,
-          color: AppColors.navy.withOpacity(0.9),
+          color: AppColors.navy.withValues(alpha: 0.9),
           barWidth: 2,
-          dashArray: [4, 2],
-          dotData: FlDotData(show: false)));
-    if (_overlayStress)
+          dashArray: const [4, 2],
+          dotData: const FlDotData(show: false)));
+    }
+    if (_overlayStress) {
       lines.add(LineChartBarData(
           spots: List.generate(
               stress.length, (i) => FlSpot(i.toDouble(), stress[i])),
           isCurved: true,
-          color: AppColors.danger.withOpacity(0.9),
+          color: AppColors.danger.withValues(alpha: 0.9),
           barWidth: 2,
-          dotData: FlDotData(show: false)));
+          dotData: const FlDotData(show: false)));
+    }
 
     return Card(
       child: Padding(
@@ -925,7 +950,7 @@ class _DashboardScreenState extends State<DashboardScreen>
               child: LineChart(LineChartData(
                 minY: 0,
                 maxY: 100,
-                gridData: FlGridData(
+                gridData: const FlGridData(
                     show: true,
                     drawVerticalLine: false,
                     horizontalInterval: 25),
@@ -935,8 +960,9 @@ class _DashboardScreenState extends State<DashboardScreen>
                             showTitles: true,
                             getTitlesWidget: (v, meta) {
                               final idx = v.toInt();
-                              if (idx < 0 || idx >= days.length)
+                              if (idx < 0 || idx >= days.length) {
                                 return const SizedBox.shrink();
+                              }
                               final d = days[idx];
                               return SideTitleWidget(
                                   axisSide: meta.axisSide,
@@ -950,9 +976,8 @@ class _DashboardScreenState extends State<DashboardScreen>
                                     'Sun'
                                   ][d.weekday - 1]));
                             })),
-                    leftTitles: AxisTitles(
-                        sideTitles:
-                            SideTitles(showTitles: true, interval: 25))),
+                    leftTitles: const AxisTitles(
+                        sideTitles: SideTitles(showTitles: true, interval: 25))),
                 borderData: FlBorderData(show: false),
                 lineBarsData: lines,
               )),

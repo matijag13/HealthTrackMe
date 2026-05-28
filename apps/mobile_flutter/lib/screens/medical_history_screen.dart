@@ -42,7 +42,9 @@ class _MedicalHistoryScreenState extends State<MedicalHistoryScreen> {
 
   void _addChronic(String text) {
     final t = text.trim();
-    if (t.isEmpty) return;
+    if (t.isEmpty) {
+      return;
+    }
     setState(() {
       _chronic.add(t);
     });
@@ -77,7 +79,9 @@ class _MedicalHistoryScreenState extends State<MedicalHistoryScreen> {
 
     try {
       final saved = await _api.updateUser(widget.user.id, updated);
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
       ScaffoldMessenger.of(context)
           .showSnackBar(const SnackBar(content: Text('Medical history saved')));
       Navigator.of(context).pop(saved);
@@ -184,11 +188,12 @@ class _MedicalHistoryScreenState extends State<MedicalHistoryScreen> {
                                   onPressed: () => Navigator.pop(ctx, true),
                                   child: const Text('Add'))
                             ]));
-                if (ok == true)
+                if (ok == true) {
                   setState(() => _surgeries.add({
                         'name': nameCtrl.text.trim(),
                         'year': int.tryParse(yearCtrl.text) ?? ''
                       }));
+                }
               },
               child: const Text('Add surgery')),
           const SizedBox(height: 16),
@@ -233,11 +238,12 @@ class _MedicalHistoryScreenState extends State<MedicalHistoryScreen> {
                                   onPressed: () => Navigator.pop(ctx, true),
                                   child: const Text('Add'))
                             ]));
-                if (ok == true)
+                if (ok == true) {
                   setState(() => _family.add({
                         'condition': cond.text.trim(),
                         'relation': rel.text.trim()
                       }));
+                }
               },
               child: const Text('Add family history')),
           const SizedBox(height: 16),
@@ -283,9 +289,10 @@ class _MedicalHistoryScreenState extends State<MedicalHistoryScreen> {
                                   onPressed: () => Navigator.pop(ctx, true),
                                   child: const Text('Add'))
                             ]));
-                if (ok == true)
+                if (ok == true) {
                   setState(() => _vaccinations.add(
                       {'name': name.text.trim(), 'date': date.text.trim()}));
+                }
               },
               child: const Text('Add vaccination')),
           const SizedBox(height: 16),
