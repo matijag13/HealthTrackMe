@@ -37,10 +37,16 @@ class SecurityConfig {
         return object : WebMvcConfigurer {
             override fun addCorsMappings(registry: CorsRegistry) {
                 registry.addMapping("/**")
-                    .allowedOriginPatterns("*")
-                    .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
+                    .allowedOrigins(
+                        "http://localhost:9090",
+                        "http://localhost:3000",
+                        "http://127.0.0.1:9090",
+                        "http://127.0.0.1:3000"
+                    )
+                    .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH")
                     .allowedHeaders("*")
-                    .allowCredentials(false)
+                    .exposedHeaders("*")
+                    .allowCredentials(true)
                     .maxAge(3600)
             }
         }
