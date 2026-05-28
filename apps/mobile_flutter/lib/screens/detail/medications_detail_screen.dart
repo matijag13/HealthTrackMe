@@ -5,7 +5,8 @@ class MedicationsDetailScreen extends StatefulWidget {
   const MedicationsDetailScreen({super.key});
 
   @override
-  State<MedicationsDetailScreen> createState() => _MedicationsDetailScreenState();
+  State<MedicationsDetailScreen> createState() =>
+      _MedicationsDetailScreenState();
 }
 
 class _MedicationsDetailScreenState extends State<MedicationsDetailScreen> {
@@ -14,7 +15,8 @@ class _MedicationsDetailScreenState extends State<MedicationsDetailScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      backgroundColor: isDark ? AppColors.darkBackground : AppColors.lightBackground,
+      backgroundColor:
+          isDark ? AppColors.darkBackground : AppColors.lightBackground,
       appBar: AppBar(
         backgroundColor: isDark ? AppColors.darkCard : AppColors.lightCard,
         elevation: 0,
@@ -36,14 +38,11 @@ class _MedicationsDetailScreenState extends State<MedicationsDetailScreen> {
           children: [
             _buildAdherenceCard(context),
             const SizedBox(height: 20),
-
             _buildTodaysMedsCard(context),
             const SizedBox(height: 20),
-
             _buildActiveMedicationsCard(context),
             const SizedBox(height: 20),
-
-            _buildAdheren ceHistoryCard(context),
+            _buildAdherenceHistoryCard(context),
             const SizedBox(height: 40),
           ],
         ),
@@ -144,8 +143,6 @@ class _MedicationsDetailScreenState extends State<MedicationsDetailScreen> {
   }
 
   Widget _buildTodaysMedsCard(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -195,7 +192,8 @@ class _MedicationsDetailScreenState extends State<MedicationsDetailScreen> {
     bool taken,
   ) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final statusColor = taken ? AppColors.primaryGreen : AppColors.primaryOrange;
+    final statusColor =
+        taken ? AppColors.primaryGreen : AppColors.primaryOrange;
 
     return Container(
       decoration: BoxDecoration(
@@ -282,17 +280,21 @@ class _MedicationsDetailScreenState extends State<MedicationsDetailScreen> {
                 ),
           ),
           const SizedBox(height: 16),
-          _buildMedInfo(context, 'Metformin', 'Type 2 Diabetes', '500 mg, 2x daily'),
+          _buildMedInfo(
+              context, 'Metformin', 'Type 2 Diabetes', '500 mg, 2x daily'),
           const SizedBox(height: 14),
-          _buildMedInfo(context, 'Lisinopril', 'High Blood Pressure', '10 mg, 1x daily'),
+          _buildMedInfo(
+              context, 'Lisinopril', 'High Blood Pressure', '10 mg, 1x daily'),
           const SizedBox(height: 14),
-          _buildMedInfo(context, 'Atorvastatin', 'High Cholesterol', '20 mg, 1x daily'),
+          _buildMedInfo(
+              context, 'Atorvastatin', 'High Cholesterol', '20 mg, 1x daily'),
         ],
       ),
     );
   }
 
-  Widget _buildMedInfo(BuildContext context, String name, String indication, String dosage) {
+  Widget _buildMedInfo(
+      BuildContext context, String name, String indication, String dosage) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -321,7 +323,7 @@ class _MedicationsDetailScreenState extends State<MedicationsDetailScreen> {
     );
   }
 
-  Widget _buildAdheren ceHistoryCard(BuildContext context) {
+  Widget _buildAdherenceHistoryCard(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Container(
@@ -355,7 +357,8 @@ class _MedicationsDetailScreenState extends State<MedicationsDetailScreen> {
               final taken = index % 3 != 2; // 2 out of 3 days taken
               return Container(
                 decoration: BoxDecoration(
-                  color: taken ? AppColors.primaryGreen : AppColors.primaryOrange,
+                  color:
+                      taken ? AppColors.primaryGreen : AppColors.primaryOrange,
                   borderRadius: BorderRadius.circular(6),
                 ),
                 alignment: Alignment.center,

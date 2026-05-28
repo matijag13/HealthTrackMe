@@ -4,7 +4,6 @@ import '../models/detective_insight.dart';
 import '../services/api_service.dart';
 import '../services/detective_service.dart';
 import '../widgets/detective_insight_detail.dart';
-import 'package:intl/intl.dart';
 
 class DetectiveScreen extends StatefulWidget {
   const DetectiveScreen({super.key});
@@ -13,7 +12,8 @@ class DetectiveScreen extends StatefulWidget {
   State<DetectiveScreen> createState() => _DetectiveScreenState();
 }
 
-class _DetectiveScreenState extends State<DetectiveScreen> with SingleTickerProviderStateMixin {
+class _DetectiveScreenState extends State<DetectiveScreen>
+    with SingleTickerProviderStateMixin {
   final DetectiveService _detectiveService = DetectiveService();
   final ApiService _api = ApiService.instance;
 
@@ -42,8 +42,14 @@ class _DetectiveScreenState extends State<DetectiveScreen> with SingleTickerProv
     setState(() => _loading = true);
 
     try {
-      await _api.ensureActiveUserId();
-      final userId = _api.activeUserId;
+      final userId = await _api.ensureActiveUserId();
+      if (userId == null) {
+        setState(() {
+          _error = 'No active user selected';
+          _loading = false;
+        });
+        return;
+      }
 
       // Get latest insight
       final insight = await _detectiveService.getLatestInsight(
@@ -72,8 +78,14 @@ class _DetectiveScreenState extends State<DetectiveScreen> with SingleTickerProv
     setState(() => _regenerating = true);
 
     try {
-      await _api.ensureActiveUserId();
-      final userId = _api.activeUserId;
+      final userId = await _api.ensureActiveUserId();
+      if (userId == null) {
+        setState(() => _regenerating = false);
+        if (mounted) {
+          DetectiveService.showError(context, 'No active user selected');
+        }
+        return;
+      }
 
       final daysBack = _selectedTimeRange == 'WEEK'
           ? 7
@@ -121,16 +133,16 @@ class _DetectiveScreenState extends State<DetectiveScreen> with SingleTickerProv
     }
 
     return Scaffold(
-      backgroundColor: isDark ? AppColors.darkBackground : AppColors.lightBackground,
+      backgroundColor:
+          isDark ? AppColors.darkBackground : AppColors.lightBackground,
       appBar: AppBar(
         backgroundColor: isDark ? AppColors.darkCard : AppColors.lightCard,
         elevation: 0,
         title: const Text('Health Detective'),
         centerTitle: false,
       ),
-      body: _error != null
-          ? _buildErrorState(isDark)
-          : _buildMainContent(isDark),
+      body:
+          _error != null ? _buildErrorState(isDark) : _buildMainContent(isDark),
     );
   }
 
@@ -156,7 +168,9 @@ class _DetectiveScreenState extends State<DetectiveScreen> with SingleTickerProv
               _error ?? 'Unknown error occurred',
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary,
+                    color: isDark
+                        ? AppColors.darkTextSecondary
+                        : AppColors.textSecondary,
                   ),
             ),
           ),
@@ -215,7 +229,8 @@ class _DetectiveScreenState extends State<DetectiveScreen> with SingleTickerProv
                         ),
                       )
                     : const Icon(Icons.refresh),
-                label: Text(_regenerating ? 'Analyzing...' : 'Regenerate Insight'),
+                label:
+                    Text(_regenerating ? 'Analyzing...' : 'Regenerate Insight'),
               ),
             ),
 

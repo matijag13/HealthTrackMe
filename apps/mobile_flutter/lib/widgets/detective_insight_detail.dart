@@ -37,7 +37,8 @@ class DetectiveInsightDetail extends StatelessWidget {
               children: [
                 // Badge
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
                     color: AppColors.primaryBlue.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(20),
@@ -224,56 +225,52 @@ class DetectiveInsightDetail extends StatelessWidget {
     // Parse recommendations from finding
     final recommendations = _extractRecommendations(insight.finding);
 
-    return recommendations
-        .asMap()
-        .entries
-        .map((entry) {
-          final index = entry.key + 1;
-          final rec = entry.value;
+    return recommendations.asMap().entries.map((entry) {
+      final index = entry.key + 1;
+      final rec = entry.value;
 
-          return Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  width: 28,
-                  height: 28,
-                  decoration: BoxDecoration(
-                    color: AppColors.primaryBlue,
-                    shape: BoxShape.circle,
-                  ),
-                  child: Center(
-                    child: Text(
-                      '$index',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 12,
-                      ),
-                    ),
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 12),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 28,
+              height: 28,
+              decoration: BoxDecoration(
+                color: AppColors.primaryBlue,
+                shape: BoxShape.circle,
+              ),
+              child: Center(
+                child: Text(
+                  '$index',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 12,
                   ),
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.only(top: 2),
-                    child: Text(
-                      rec,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: isDark
-                                ? AppColors.darkTextPrimary
-                                : AppColors.textPrimary,
-                            height: 1.5,
-                          ),
-                    ),
-                  ),
-                ),
-              ],
+              ),
             ),
-          );
-        })
-        .toList();
+            const SizedBox(width: 12),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.only(top: 2),
+                child: Text(
+                  rec,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: isDark
+                            ? AppColors.darkTextPrimary
+                            : AppColors.textPrimary,
+                        height: 1.5,
+                      ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }).toList();
   }
 
   List<String> _extractRecommendations(String text) {
@@ -287,20 +284,6 @@ class DetectiveInsightDetail extends StatelessWidget {
   }
 
   void _shareInsight(BuildContext context) {
-    final shareText = '''
-🔍 Health Insight from HealthTrackMe
-
-${insight.badge}
-
-${insight.title}
-
-${insight.description}
-
-📊 ${insight.finding}
-
-Generated: ${insight.generatedTimeAgo}
-''';
-
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: const Text('Insight copied to clipboard'),

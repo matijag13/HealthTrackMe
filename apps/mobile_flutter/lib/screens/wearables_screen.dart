@@ -19,7 +19,6 @@ class _WearablesScreenState extends State<WearablesScreen> {
   List<SyncEvent> _syncHistory = [];
   bool _loading = true;
   bool _syncing = false;
-  String? _error;
 
   @override
   void initState() {
@@ -31,23 +30,22 @@ class _WearablesScreenState extends State<WearablesScreen> {
     setState(() => _loading = true);
 
     try {
-      await _api.ensureActiveUserId();
-      final userId = _api.activeUserId;
+      final userId = await _api.ensureActiveUserId();
+      if (userId == null) {
+        setState(() => _loading = false);
+        return;
+      }
 
-      final devices =
-          await _wearableService.getConnectedDevices(userId);
-      final history =
-          await _wearableService.getSyncHistory(userId);
+      final devices = await _wearableService.getConnectedDevices(userId);
+      final history = await _wearableService.getSyncHistory(userId);
 
       setState(() {
         _devices = devices;
         _syncHistory = history;
-        _error = null;
         _loading = false;
       });
     } catch (e) {
       setState(() {
-        _error = 'Failed to load wearable devices: $e';
         _loading = false;
       });
     }
@@ -73,8 +71,17 @@ class _WearablesScreenState extends State<WearablesScreen> {
     setState(() => _syncing = true);
 
     try {
-      await _api.ensureActiveUserId();
-      final userId = _api.activeUserId;
+      final userId = await _api.ensureActiveUserId();
+      if (userId == null) {
+        if (mounted) {
+          WearableService.showSyncStatus(
+            context,
+            'No active user selected',
+            false,
+          );
+        }
+        return;
+      }
 
       // Sync data from past 7 days
       final startDate = DateTime.now().subtract(const Duration(days: 7));
@@ -136,8 +143,7 @@ class _WearablesScreenState extends State<WearablesScreen> {
     );
 
     if (confirm == true) {
-      final success =
-          await _wearableService.disconnectDevice(device.id);
+      final success = await _wearableService.disconnectDevice(device.id);
 
       if (mounted) {
         WearableService.showSyncStatus(
@@ -170,7 +176,8 @@ class _WearablesScreenState extends State<WearablesScreen> {
     }
 
     return Scaffold(
-      backgroundColor: isDark ? AppColors.darkBackground : AppColors.lightBackground,
+      backgroundColor:
+          isDark ? AppColors.darkBackground : AppColors.lightBackground,
       appBar: AppBar(
         backgroundColor: isDark ? AppColors.darkCard : AppColors.lightCard,
         elevation: 0,
@@ -243,11 +250,13 @@ class _WearablesScreenState extends State<WearablesScreen> {
                           const SizedBox(width: 4),
                           Text(
                             'Add',
-                            style:
-                                Theme.of(context).textTheme.labelSmall?.copyWith(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.w600,
-                                    ),
+                            style: Theme.of(context)
+                                .textTheme
+                                .labelSmall
+                                ?.copyWith(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w600,
+                                ),
                           ),
                         ],
                       ),
@@ -399,11 +408,10 @@ class _WearablesScreenState extends State<WearablesScreen> {
                     ),
                     child: Text(
                       '${device.syncStatus.emoji} ${device.syncStatus.label}',
-                      style:
-                          Theme.of(context).textTheme.labelSmall?.copyWith(
-                                color: _getSyncStatusColor(device.syncStatus),
-                                fontWeight: FontWeight.w600,
-                              ),
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                            color: _getSyncStatusColor(device.syncStatus),
+                            fontWeight: FontWeight.w600,
+                          ),
                     ),
                   ),
                 ],
@@ -419,20 +427,18 @@ class _WearablesScreenState extends State<WearablesScreen> {
                     children: [
                       Text(
                         'Last Sync',
-                        style:
-                            Theme.of(context).textTheme.labelSmall?.copyWith(
-                                  color: isDark
-                                      ? AppColors.darkTextSecondary
-                                      : AppColors.textSecondary,
-                                  fontSize: 10,
-                                ),
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                              color: isDark
+                                  ? AppColors.darkTextSecondary
+                                  : AppColors.textSecondary,
+                              fontSize: 10,
+                            ),
                       ),
                       Text(
                         device.lastSyncLabel,
-                        style:
-                            Theme.of(context).textTheme.labelSmall?.copyWith(
-                                  fontWeight: FontWeight.w600,
-                                ),
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                              fontWeight: FontWeight.w600,
+                            ),
                       ),
                     ],
                   ),
@@ -441,20 +447,18 @@ class _WearablesScreenState extends State<WearablesScreen> {
                     children: [
                       Text(
                         'Connected',
-                        style:
-                            Theme.of(context).textTheme.labelSmall?.copyWith(
-                                  color: isDark
-                                      ? AppColors.darkTextSecondary
-                                      : AppColors.textSecondary,
-                                  fontSize: 10,
-                                ),
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                              color: isDark
+                                  ? AppColors.darkTextSecondary
+                                  : AppColors.textSecondary,
+                              fontSize: 10,
+                            ),
                       ),
                       Text(
                         device.connectedDuration,
-                        style:
-                            Theme.of(context).textTheme.labelSmall?.copyWith(
-                                  fontWeight: FontWeight.w600,
-                                ),
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                              fontWeight: FontWeight.w600,
+                            ),
                       ),
                     ],
                   ),
@@ -501,20 +505,18 @@ class _WearablesScreenState extends State<WearablesScreen> {
                   children: [
                     Text(
                       event.deviceName,
-                      style:
-                          Theme.of(context).textTheme.labelSmall?.copyWith(
-                                fontWeight: FontWeight.w600,
-                              ),
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
                     ),
                     Text(
                       event.status,
-                      style:
-                          Theme.of(context).textTheme.labelSmall?.copyWith(
-                                color: isDark
-                                    ? AppColors.darkTextSecondary
-                                    : AppColors.textSecondary,
-                                fontSize: 10,
-                              ),
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                            color: isDark
+                                ? AppColors.darkTextSecondary
+                                : AppColors.textSecondary,
+                            fontSize: 10,
+                          ),
                     ),
                   ],
                 ),
@@ -616,8 +618,17 @@ class _WearablesScreenState extends State<WearablesScreen> {
 
   Future<void> _addNewDevice(WearableDeviceType type) async {
     try {
-      await _api.ensureActiveUserId();
-      final userId = _api.activeUserId;
+      final userId = await _api.ensureActiveUserId();
+      if (userId == null) {
+        if (mounted) {
+          WearableService.showSyncStatus(
+            context,
+            'No active user selected',
+            false,
+          );
+        }
+        return;
+      }
 
       final device = await _wearableService.addDevice(
         userId,

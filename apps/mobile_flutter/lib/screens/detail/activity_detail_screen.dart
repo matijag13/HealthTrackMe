@@ -16,7 +16,8 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      backgroundColor: isDark ? AppColors.darkBackground : AppColors.lightBackground,
+      backgroundColor:
+          isDark ? AppColors.darkBackground : AppColors.lightBackground,
       appBar: AppBar(
         backgroundColor: isDark ? AppColors.darkCard : AppColors.lightCard,
         elevation: 0,
@@ -66,8 +67,6 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
   }
 
   Widget _buildActivitySummary(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
     return GridView.count(
       crossAxisCount: 3,
       crossAxisSpacing: 12,
@@ -141,7 +140,9 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
           Text(
             label,
             style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary,
+                  color: isDark
+                      ? AppColors.darkTextSecondary
+                      : AppColors.textSecondary,
                   fontSize: 10,
                 ),
           ),
@@ -203,7 +204,9 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
             style: Theme.of(context).textTheme.labelMedium?.copyWith(
                   color: isSelected
                       ? Colors.white
-                      : (isDark ? AppColors.darkTextPrimary : AppColors.textPrimary),
+                      : (isDark
+                          ? AppColors.darkTextPrimary
+                          : AppColors.textPrimary),
                   fontWeight: FontWeight.w600,
                 ),
           ),
@@ -257,7 +260,8 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
     );
   }
 
-  Widget _buildDayProgressBar(BuildContext context, String day, int steps, int goal) {
+  Widget _buildDayProgressBar(
+      BuildContext context, String day, int steps, int goal) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final progress = (steps / goal).clamp(0.0, 1.0);
 
@@ -268,7 +272,9 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
           child: Text(
             day,
             style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary,
+                  color: isDark
+                      ? AppColors.darkTextSecondary
+                      : AppColors.textSecondary,
                 ),
           ),
         ),
@@ -279,7 +285,8 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
               value: progress,
               minHeight: 6,
               backgroundColor: isDark ? AppColors.darkBorder : AppColors.border,
-              valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primaryGreen),
+              valueColor:
+                  const AlwaysStoppedAnimation<Color>(AppColors.primaryGreen),
             ),
           ),
         ),
@@ -322,11 +329,14 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
                 ),
           ),
           const SizedBox(height: 16),
-          _buildActivityType(context, '🏃 Running', '12.5 km', 3, AppColors.primaryGreen),
+          _buildActivityType(
+              context, '🏃 Running', '12.5 km', 3, AppColors.primaryGreen),
           const SizedBox(height: 12),
-          _buildActivityType(context, '🚴 Cycling', '8.2 km', 2, AppColors.primaryBlue),
+          _buildActivityType(
+              context, '🚴 Cycling', '8.2 km', 2, AppColors.primaryBlue),
           const SizedBox(height: 12),
-          _buildActivityType(context, '🏊 Swimming', '1.2 km', 1, AppColors.primaryOrange),
+          _buildActivityType(
+              context, '🏊 Swimming', '1.2 km', 1, AppColors.primaryOrange),
         ],
       ),
     );
@@ -500,7 +510,9 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
             Text(
               '${(progress * 100).toStringAsFixed(0)}%',
               style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                    color: isComplete ? AppColors.primaryGreen : AppColors.primaryBlue,
+                    color: isComplete
+                        ? AppColors.primaryGreen
+                        : AppColors.primaryBlue,
                     fontWeight: FontWeight.w600,
                   ),
             ),
@@ -522,7 +534,9 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
         Text(
           '$current / $goal',
           style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary,
+                color: isDark
+                    ? AppColors.darkTextSecondary
+                    : AppColors.textSecondary,
               ),
         ),
       ],

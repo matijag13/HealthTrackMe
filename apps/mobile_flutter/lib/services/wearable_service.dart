@@ -1,6 +1,8 @@
-import 'dart:io';
+import 'package:flutter/foundation.dart'
+    show defaultTargetPlatform, kIsWeb, TargetPlatform;
 import 'package:flutter/material.dart';
 import 'package:health/health.dart';
+import 'package:http/http.dart' as http;
 import 'package:permission_handler/permission_handler.dart';
 import '../models/wearable_device.dart';
 import 'api_service.dart';
@@ -18,6 +20,29 @@ class WearableService {
   final Health health = Health();
   final ApiService _api = ApiService.instance;
 
+  bool get _isAndroid =>
+      !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
+
+  bool get _isIOS => !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
+
+  Uri _uri(String path, {Map<String, String>? queryParameters}) {
+    final cleanPath = path.startsWith('/') ? path : '/$path';
+    return Uri.parse('${_api.baseUrl}$cleanPath')
+        .replace(queryParameters: queryParameters);
+  }
+
+  Future<Map<String, String>> _headers({Map<String, String>? extra}) async {
+    final headers = <String, String>{
+      'Accept': 'application/json',
+      if (extra != null) ...extra,
+    };
+    final token = await _api.getAuthToken();
+    if (token != null && token.isNotEmpty) {
+      headers['Authorization'] = 'Bearer $token';
+    }
+    return headers;
+  }
+
   List<HealthDataType> get _requestedDataTypes {
     return [
       HealthDataType.STEPS,
@@ -29,16 +54,14 @@ class WearableService {
     ];
   }
 
-  List<HealthDataAccess> get _permissions {
-    return _requestedDataTypes
-        .map((type) => HealthDataAccess.READ)
-        .toList();
-  }
-
   /// Request necessary permissions for health data access
   Future<bool> requestPermissions() async {
     try {
-      if (Platform.isAndroid) {
+      if (kIsWeb) {
+        return false;
+      }
+
+      if (_isAndroid) {
         // Android specific permissions
         final status = await Permission.activityRecognition.request();
         if (status.isDenied) {
@@ -48,8 +71,7 @@ class WearableService {
       }
 
       // Request health permissions through Health package
-      final authorized =
-          await health.requestAuthorization(_requestedDataTypes);
+      final authorized = await health.requestAuthorization(_requestedDataTypes);
 
       if (authorized) {
         print('✅ Health permissions granted');
@@ -67,8 +89,12 @@ class WearableService {
   /// Check if app has permission to read health data
   Future<bool> hasPermissions() async {
     try {
+      if (kIsWeb) {
+        return false;
+      }
+
       final authorized = await health.hasPermissions(_requestedDataTypes);
-      return authorized;
+      return authorized ?? false;
     } catch (e) {
       print('❌ Error checking permissions: $e');
       return false;
@@ -82,9 +108,16 @@ class WearableService {
     DateTime? endDate,
   }) async {
     try {
+      if (kIsWeb) {
+        return WearableSyncData(
+          date: DateTime.now(),
+        );
+      }
+
       endDate ??= DateTime.now();
 
-      print('🔄 Syncing health data from ${startDate.toLocal()} to ${endDate.toLocal()}');
+      print(
+          '🔄 Syncing health data from ${startDate.toLocal()} to ${endDate.toLocal()}');
 
       // Fetch data from Health package
       final steps = await _getSteps(startDate, endDate);
@@ -97,18 +130,15 @@ class WearableService {
         steps: steps,
         activeMinutes: null, // Can be calculated from other data
         calories: calories,
-        heartRateAvg:
-            heartRate != null ? heartRate['avg'] as double? : null,
-        heartRateMax:
-            heartRate != null ? heartRate['max'] as int? : null,
-        heartRateMin:
-            heartRate != null ? heartRate['min'] as int? : null,
+        heartRateAvg: heartRate != null ? heartRate['avg'] as double? : null,
+        heartRateMax: heartRate != null ? heartRate['max'] as int? : null,
+        heartRateMin: heartRate != null ? heartRate['min'] as int? : null,
         sleepHours: sleep != null ? sleep['hours'] as double? : null,
         sleepQuality: sleep != null ? sleep['quality'] as String? : null,
       );
 
       // Upload to backend
-      await _uploadSyncData(userId, syncData);
+      await _uploadSyncData(syncData);
 
       print('✅ Health data synced successfully');
       return syncData;
@@ -243,13 +273,12 @@ class WearableService {
   }
 
   /// Upload synced data to backend
-  Future<void> _uploadSyncData(int userId, WearableSyncData data) async {
+  Future<void> _uploadSyncData(WearableSyncData data) async {
     try {
       await _api.ensureActiveUserId();
 
-      final endpoint = Platform.isIOS
-          ? '/wearable/sync/apple-health'
-          : '/wearable/sync/google-fit';
+      final endpoint =
+          _isIOS ? '/wearable/sync/apple-health' : '/wearable/sync/google-fit';
 
       // Create health entry from synced data
       final payload = {
@@ -260,15 +289,16 @@ class WearableService {
         'waterIntakeMl': null, // Not available from wearables
         'caloriesConsumed': data.calories,
         'wellbeingScore': 5, // Default middle score
-        'notes': 'Synced from ${Platform.isIOS ? 'Apple Health' : 'Google Fit'}',
+        'notes': 'Synced from ${_isIOS ? 'Apple Health' : 'Google Fit'}',
       };
 
-      final response = await _api.post(
-        endpoint,
-        body: payload,
+      final response = await http.post(
+        _uri(endpoint),
+        headers: await _headers(extra: {'Content-Type': 'application/json'}),
+        body: jsonEncode(payload),
       );
 
-      final result = jsonDecode(response) as Map<String, dynamic>;
+      final result = jsonDecode(response.body) as Map<String, dynamic>;
       if (result['success'] == true) {
         print('✅ Data uploaded to backend');
       } else {
@@ -283,17 +313,25 @@ class WearableService {
   /// Get list of connected wearable devices
   Future<List<WearableDevice>> getConnectedDevices(int userId) async {
     try {
+      if (kIsWeb) {
+        return [];
+      }
+
       await _api.ensureActiveUserId();
 
-      final response =
-          await _api.get('/wearable/devices?userId=$userId');
+      final response = await http.get(
+        _uri('/wearable/devices', queryParameters: {
+          'userId': userId.toString(),
+        }),
+        headers: await _headers(),
+      );
 
-      final data = jsonDecode(response) as Map<String, dynamic>;
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
 
       if (data['success'] == true && data['data'] != null) {
         final devices = (data['data'] as List)
-            .map((item) =>
-                WearableDevice.fromJson(item as Map<String, dynamic>))
+            .map(
+                (item) => WearableDevice.fromJson(item as Map<String, dynamic>))
             .toList();
         return devices;
       }
@@ -312,6 +350,10 @@ class WearableService {
     WearableDeviceType type,
   ) async {
     try {
+      if (kIsWeb) {
+        throw UnsupportedError('Wearable devices are not supported on web');
+      }
+
       await _api.ensureActiveUserId();
 
       final payload = {
@@ -320,16 +362,17 @@ class WearableService {
         'userId': userId,
       };
 
-      final response = await _api.post(
-        '/wearable/devices',
-        body: payload,
+      final response = await http.post(
+        _uri('/wearable/devices'),
+        headers: await _headers(extra: {'Content-Type': 'application/json'}),
+        body: jsonEncode(payload),
       );
 
-      final data = jsonDecode(response) as Map<String, dynamic>;
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
 
       if (data['success'] == true && data['data'] != null) {
-        final device = WearableDevice.fromJson(
-            data['data'] as Map<String, dynamic>);
+        final device =
+            WearableDevice.fromJson(data['data'] as Map<String, dynamic>);
         print('✅ Device added: ${device.name}');
         return device;
       }
@@ -344,11 +387,18 @@ class WearableService {
   /// Disconnect device
   Future<bool> disconnectDevice(int deviceId) async {
     try {
+      if (kIsWeb) {
+        return false;
+      }
+
       await _api.ensureActiveUserId();
 
-      final response = await _api.delete('/wearable/devices/$deviceId');
+      final response = await http.delete(
+        _uri('/wearable/devices/$deviceId'),
+        headers: await _headers(),
+      );
 
-      final data = jsonDecode(response) as Map<String, dynamic>;
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
 
       if (data['success'] == true) {
         print('✅ Device disconnected');
@@ -365,12 +415,21 @@ class WearableService {
   /// Get sync history
   Future<List<SyncEvent>> getSyncHistory(int userId) async {
     try {
+      if (kIsWeb) {
+        return [];
+      }
+
       await _api.ensureActiveUserId();
 
-      final response =
-          await _api.get('/wearable/sync-history?userId=$userId&limit=20');
+      final response = await http.get(
+        _uri('/wearable/sync-history', queryParameters: {
+          'userId': userId.toString(),
+          'limit': '20',
+        }),
+        headers: await _headers(),
+      );
 
-      final data = jsonDecode(response) as Map<String, dynamic>;
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
 
       if (data['success'] == true && data['data'] != null) {
         final events = (data['data'] as List)
@@ -404,9 +463,7 @@ class WearableService {
             Expanded(child: Text(message)),
           ],
         ),
-        backgroundColor: success
-            ? Colors.green.shade600
-            : Colors.red.shade600,
+        backgroundColor: success ? Colors.green.shade600 : Colors.red.shade600,
         duration: const Duration(seconds: 2),
         behavior: SnackBarBehavior.floating,
       ),
@@ -416,8 +473,15 @@ class WearableService {
   /// Check if health data is available
   Future<bool> isHealthDataAvailable() async {
     try {
-      final available = await health.isHealthDataAvailable();
-      return available;
+      if (kIsWeb) {
+        return false;
+      }
+
+      if (!_isAndroid && !_isIOS) {
+        return false;
+      }
+
+      return true;
     } catch (e) {
       print('⚠️ Error checking health data availability: $e');
       return false;

@@ -16,7 +16,8 @@ class _SleepDetailScreenState extends State<SleepDetailScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      backgroundColor: isDark ? AppColors.darkBackground : AppColors.lightBackground,
+      backgroundColor:
+          isDark ? AppColors.darkBackground : AppColors.lightBackground,
       appBar: AppBar(
         backgroundColor: isDark ? AppColors.darkCard : AppColors.lightCard,
         elevation: 0,
@@ -66,8 +67,6 @@ class _SleepDetailScreenState extends State<SleepDetailScreen> {
   }
 
   Widget _buildSummaryRow(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
     return Row(
       children: [
         Expanded(
@@ -128,7 +127,9 @@ class _SleepDetailScreenState extends State<SleepDetailScreen> {
           Text(
             label,
             style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary,
+                  color: isDark
+                      ? AppColors.darkTextSecondary
+                      : AppColors.textSecondary,
                   letterSpacing: 0.5,
                 ),
           ),
@@ -190,7 +191,9 @@ class _SleepDetailScreenState extends State<SleepDetailScreen> {
             style: Theme.of(context).textTheme.labelMedium?.copyWith(
                   color: isSelected
                       ? Colors.white
-                      : (isDark ? AppColors.darkTextPrimary : AppColors.textPrimary),
+                      : (isDark
+                          ? AppColors.darkTextPrimary
+                          : AppColors.textPrimary),
                   fontWeight: FontWeight.w600,
                 ),
           ),
@@ -256,7 +259,9 @@ class _SleepDetailScreenState extends State<SleepDetailScreen> {
           child: Text(
             day,
             style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary,
+                  color: isDark
+                      ? AppColors.darkTextSecondary
+                      : AppColors.textSecondary,
                 ),
           ),
         ),
@@ -267,7 +272,8 @@ class _SleepDetailScreenState extends State<SleepDetailScreen> {
               value: score,
               minHeight: 6,
               backgroundColor: isDark ? AppColors.darkBorder : AppColors.border,
-              valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primaryGreen),
+              valueColor:
+                  const AlwaysStoppedAnimation<Color>(AppColors.primaryGreen),
             ),
           ),
         ),
@@ -310,11 +316,14 @@ class _SleepDetailScreenState extends State<SleepDetailScreen> {
                 ),
           ),
           const SizedBox(height: 16),
-          _buildStageRow(context, 'Light Sleep', '3h 24m', 45, AppColors.primaryBlue),
+          _buildStageRow(
+              context, 'Light Sleep', '3h 24m', 45, AppColors.primaryBlue),
           const SizedBox(height: 12),
-          _buildStageRow(context, 'Deep Sleep', '2h 45m', 36, AppColors.primaryGreen),
+          _buildStageRow(
+              context, 'Deep Sleep', '2h 45m', 36, AppColors.primaryGreen),
           const SizedBox(height: 12),
-          _buildStageRow(context, 'REM Sleep', '1h 25m', 19, AppColors.primaryOrange),
+          _buildStageRow(
+              context, 'REM Sleep', '1h 25m', 19, AppColors.primaryOrange),
         ],
       ),
     );
@@ -411,7 +420,9 @@ class _SleepDetailScreenState extends State<SleepDetailScreen> {
           Text(
             'Your consistent sleep schedule has improved HRV by 15% this week. Deep sleep correlates strongly with higher HRV readings.',
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary,
+                  color: isDark
+                      ? AppColors.darkTextSecondary
+                      : AppColors.textSecondary,
                   height: 1.6,
                 ),
           ),
@@ -469,7 +480,8 @@ class _SleepDetailScreenState extends State<SleepDetailScreen> {
     );
   }
 
-  Widget _buildInsightItem(BuildContext context, String title, String description) {
+  Widget _buildInsightItem(
+      BuildContext context, String title, String description) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [

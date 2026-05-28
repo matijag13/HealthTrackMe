@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../models/models.dart';
 import 'api_service.dart';
 
 class QuickLogService {
@@ -9,24 +8,14 @@ class QuickLogService {
     try {
       await _api.ensureActiveUserId();
 
-      final entry = HealthEntry(
-        entryDate: DateTime.now(),
-        heartRate: null,
-        bloodPressure: null,
-        bloodSugar: null,
-        weight: null,
-        sleepHours: null,
-        notes: 'Mood: $mood',
-      );
-
       // In production, you'd have an API endpoint for logging
       // For now, this is a placeholder for the API call
       // await _api.createHealthEntry(entry);
 
-      print('✅ Mood logged: $mood');
+      debugPrint('✅ Mood logged: $mood');
       return true;
     } catch (e) {
-      print('❌ Error logging mood: $e');
+      debugPrint('❌ Error logging mood: $e');
       return false;
     }
   }
@@ -35,21 +24,11 @@ class QuickLogService {
     try {
       await _api.ensureActiveUserId();
 
-      final entry = HealthEntry(
-        entryDate: DateTime.now(),
-        heartRate: null,
-        bloodPressure: null,
-        bloodSugar: null,
-        weight: null,
-        sleepHours: null,
-        notes: 'Water intake: ${milliliters}ml',
-      );
-
       // In production: await _api.createHealthEntry(entry);
-      print('✅ Water logged: ${milliliters}ml');
+      debugPrint('✅ Water logged: ${milliliters}ml');
       return true;
     } catch (e) {
-      print('❌ Error logging water: $e');
+      debugPrint('❌ Error logging water: $e');
       return false;
     }
   }
@@ -58,24 +37,14 @@ class QuickLogService {
     try {
       await _api.ensureActiveUserId();
 
-      final entry = HealthEntry(
-        entryDate: DateTime.now(),
-        heartRate: null,
-        bloodPressure: null,
-        bloodSugar: null,
-        weight: null,
-        sleepHours: null,
-        notes: 'Medication taken: $medicationName',
-      );
-
       // In production:
       // Could also update medicine adherence tracking
       // await _api.markMedicationTaken(medicationName, DateTime.now());
 
-      print('✅ Medication logged: $medicationName');
+      debugPrint('✅ Medication logged: $medicationName');
       return true;
     } catch (e) {
-      print('❌ Error logging medication: $e');
+      debugPrint('❌ Error logging medication: $e');
       return false;
     }
   }
@@ -84,21 +53,11 @@ class QuickLogService {
     try {
       await _api.ensureActiveUserId();
 
-      final entry = HealthEntry(
-        entryDate: DateTime.now(),
-        heartRate: null,
-        bloodPressure: null,
-        bloodSugar: null,
-        weight: null,
-        sleepHours: null,
-        notes: 'Symptoms: ${symptoms.join(", ")}',
-      );
-
       // In production: await _api.createHealthEntry(entry);
-      print('✅ Symptoms logged: ${symptoms.join(", ")}');
+      debugPrint('✅ Symptoms logged: ${symptoms.join(", ")}');
       return true;
     } catch (e) {
-      print('❌ Error logging symptoms: $e');
+      debugPrint('❌ Error logging symptoms: $e');
       return false;
     }
   }
@@ -107,22 +66,11 @@ class QuickLogService {
     try {
       await _api.ensureActiveUserId();
 
-      final sleepHours = hours + (minutes / 60);
-      final entry = HealthEntry(
-        entryDate: DateTime.now(),
-        heartRate: null,
-        bloodPressure: null,
-        bloodSugar: null,
-        weight: null,
-        sleepHours: sleepHours,
-        notes: 'Sleep logged: ${hours}h ${minutes}m',
-      );
-
       // In production: await _api.createHealthEntry(entry);
-      print('✅ Sleep logged: ${hours}h ${minutes}m');
+      debugPrint('✅ Sleep logged: ${hours}h ${minutes}m');
       return true;
     } catch (e) {
-      print('❌ Error logging sleep: $e');
+      debugPrint('❌ Error logging sleep: $e');
       return false;
     }
   }

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter/services.dart';
 import 'package:vibration/vibration.dart';
 
@@ -24,7 +25,7 @@ class HapticsService {
     try {
       await HapticFeedback.lightImpact();
     } catch (e) {
-      print('⚠️ Haptic feedback error: $e');
+      debugPrint('⚠️ Haptic feedback error: $e');
     }
   }
 
@@ -35,7 +36,7 @@ class HapticsService {
     try {
       await HapticFeedback.mediumImpact();
     } catch (e) {
-      print('⚠️ Haptic feedback error: $e');
+      debugPrint('⚠️ Haptic feedback error: $e');
     }
   }
 
@@ -46,7 +47,7 @@ class HapticsService {
     try {
       await HapticFeedback.heavyImpact();
     } catch (e) {
-      print('⚠️ Haptic feedback error: $e');
+      debugPrint('⚠️ Haptic feedback error: $e');
     }
   }
 
@@ -57,7 +58,7 @@ class HapticsService {
     try {
       await HapticFeedback.selectionClick();
     } catch (e) {
-      print('⚠️ Haptic feedback error: $e');
+      debugPrint('⚠️ Haptic feedback error: $e');
     }
   }
 
@@ -70,7 +71,7 @@ class HapticsService {
       await Future.delayed(const Duration(milliseconds: 100));
       await Vibration.vibrate(duration: 100);
     } catch (e) {
-      print('⚠️ Haptic feedback error: $e');
+      debugPrint('⚠️ Haptic feedback error: $e');
     }
   }
 
@@ -81,7 +82,7 @@ class HapticsService {
     try {
       await Vibration.vibrate(pattern: [0, 100, 100, 100]);
     } catch (e) {
-      print('⚠️ Haptic feedback error: $e');
+      debugPrint('⚠️ Haptic feedback error: $e');
     }
   }
 
@@ -92,7 +93,7 @@ class HapticsService {
     try {
       await Vibration.vibrate(pattern: [0, 150, 100, 150]);
     } catch (e) {
-      print('⚠️ Haptic feedback error: $e');
+      debugPrint('⚠️ Haptic feedback error: $e');
     }
   }
 
@@ -103,7 +104,7 @@ class HapticsService {
     try {
       await Vibration.vibrate(pattern: [0, 50, 50, 100]);
     } catch (e) {
-      print('⚠️ Haptic feedback error: $e');
+      debugPrint('⚠️ Haptic feedback error: $e');
     }
   }
 
@@ -114,7 +115,7 @@ class HapticsService {
     try {
       await Vibration.vibrate(pattern: [0, 80, 50, 80]);
     } catch (e) {
-      print('⚠️ Haptic feedback error: $e');
+      debugPrint('⚠️ Haptic feedback error: $e');
     }
   }
 
@@ -130,17 +131,17 @@ class HapticsService {
     try {
       await Vibration.vibrate(pattern: [0, 60, 40, 60, 40, 60]);
     } catch (e) {
-      print('⚠️ Haptic feedback error: $e');
+      debugPrint('⚠️ Haptic feedback error: $e');
     }
   }
 
   /// Check if device supports haptics
   static Future<bool> hasVibrator() async {
     try {
-      final hasVibrator = await Vibration.hasVibrator() ?? false;
+      final hasVibrator = await Vibration.hasVibrator();
       return hasVibrator;
     } catch (e) {
-      print('⚠️ Error checking vibrator: $e');
+      debugPrint('⚠️ Error checking vibrator: $e');
       return false;
     }
   }

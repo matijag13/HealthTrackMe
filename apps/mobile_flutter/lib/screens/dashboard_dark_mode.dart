@@ -19,7 +19,8 @@ class DarkModeDashboardScreen extends StatefulWidget {
   const DarkModeDashboardScreen({super.key});
 
   @override
-  State<DarkModeDashboardScreen> createState() => _DarkModeDashboardScreenState();
+  State<DarkModeDashboardScreen> createState() =>
+      _DarkModeDashboardScreenState();
 }
 
 class _DarkModeDashboardScreenState extends State<DarkModeDashboardScreen> {
@@ -75,7 +76,8 @@ class _DarkModeDashboardScreenState extends State<DarkModeDashboardScreen> {
           builder: (context) => const MedicationLogDialog(),
         );
         if (result != null && mounted) {
-          final success = await _quickLogService.logMedication(result['medication']);
+          final success =
+              await _quickLogService.logMedication(result['medication']);
           if (success) {
             QuickLogService.showLogSuccess(context, '💊 Medication logged!');
           } else {
@@ -145,10 +147,12 @@ class _DarkModeDashboardScreenState extends State<DarkModeDashboardScreen> {
 
   int _getStepsToday() {
     final today = DateTime.now();
-    final todayEntries = _entries.where((e) =>
-        e.entryDate.year == today.year &&
-        e.entryDate.month == today.month &&
-        e.entryDate.day == today.day).toList();
+    final todayEntries = _entries
+        .where((e) =>
+            e.entryDate.year == today.year &&
+            e.entryDate.month == today.month &&
+            e.entryDate.day == today.day)
+        .toList();
 
     int steps = 0;
     for (final entry in todayEntries) {
@@ -163,13 +167,13 @@ class _DarkModeDashboardScreenState extends State<DarkModeDashboardScreen> {
       }
     }
 
-    // Also check sport activities
-    final today2 = DateTime.now();
     for (final activity in _sportActivities) {
       try {
         final start = DateTime.parse(activity['start']);
-        if (start.year == today2.year && start.month == today2.month && start.day == today2.day) {
-          steps += activity['steps'] ?? 0;
+        if (start.year == today.year &&
+            start.month == today.month &&
+            start.day == today.day) {
+          steps += (activity['steps'] as num?)?.toInt() ?? 0;
         }
       } catch (_) {}
     }
@@ -179,10 +183,12 @@ class _DarkModeDashboardScreenState extends State<DarkModeDashboardScreen> {
 
   double _getSleepToday() {
     final today = DateTime.now();
-    final todayEntries = _entries.where((e) =>
-        e.entryDate.year == today.year &&
-        e.entryDate.month == today.month &&
-        e.entryDate.day == today.day).toList();
+    final todayEntries = _entries
+        .where((e) =>
+            e.entryDate.year == today.year &&
+            e.entryDate.month == today.month &&
+            e.entryDate.day == today.day)
+        .toList();
 
     double sleepHours = 0;
     for (final entry in todayEntries) {
@@ -190,15 +196,18 @@ class _DarkModeDashboardScreenState extends State<DarkModeDashboardScreen> {
         sleepHours = entry.sleepHours!;
       }
     }
+
     return sleepHours;
   }
 
   int _getHeartRateToday() {
     final today = DateTime.now();
-    final todayEntries = _entries.where((e) =>
-        e.entryDate.year == today.year &&
-        e.entryDate.month == today.month &&
-        e.entryDate.day == today.day).toList();
+    final todayEntries = _entries
+        .where((e) =>
+            e.entryDate.year == today.year &&
+            e.entryDate.month == today.month &&
+            e.entryDate.day == today.day)
+        .toList();
 
     if (todayEntries.isNotEmpty && todayEntries.last.heartRate != null) {
       return todayEntries.last.heartRate!.toInt();
@@ -208,10 +217,12 @@ class _DarkModeDashboardScreenState extends State<DarkModeDashboardScreen> {
 
   int _getMedicationTodayCount() {
     final today = DateTime.now();
-    final todayEntries = _entries.where((e) =>
-        e.entryDate.year == today.year &&
-        e.entryDate.month == today.month &&
-        e.entryDate.day == today.day).toList();
+    final todayEntries = _entries
+        .where((e) =>
+            e.entryDate.year == today.year &&
+            e.entryDate.month == today.month &&
+            e.entryDate.day == today.day)
+        .toList();
 
     return todayEntries.length;
   }
@@ -238,7 +249,8 @@ class _DarkModeDashboardScreenState extends State<DarkModeDashboardScreen> {
     final dateStr = DateFormat('EEEE, MMM d').format(now);
 
     return Scaffold(
-      backgroundColor: isDark ? AppColors.darkBackground : AppColors.lightBackground,
+      backgroundColor:
+          isDark ? AppColors.darkBackground : AppColors.lightBackground,
       appBar: AppBar(
         backgroundColor: isDark ? AppColors.darkCard : AppColors.lightCard,
         elevation: 0,
@@ -255,7 +267,9 @@ class _DarkModeDashboardScreenState extends State<DarkModeDashboardScreen> {
             Text(
               'Good morning, keep your momentum',
               style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary,
+                    color: isDark
+                        ? AppColors.darkTextSecondary
+                        : AppColors.textSecondary,
                   ),
             ),
           ],
@@ -275,7 +289,9 @@ class _DarkModeDashboardScreenState extends State<DarkModeDashboardScreen> {
                   Text(
                     dateStr,
                     style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary,
+                          color: isDark
+                              ? AppColors.darkTextSecondary
+                              : AppColors.textSecondary,
                         ),
                   ),
                 ],
@@ -376,7 +392,8 @@ class _DarkModeDashboardScreenState extends State<DarkModeDashboardScreen> {
                   ),
                   onPressed: () {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Detective feature coming soon!')),
+                      const SnackBar(
+                          content: Text('Detective feature coming soon!')),
                     );
                   },
                   child: const Text('Ask Detective More Questions'),
@@ -452,54 +469,66 @@ class _DarkModeDashboardScreenState extends State<DarkModeDashboardScreen> {
     Color color,
   ) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final borderColor = isDark ? AppColors.darkBorder : AppColors.border;
 
     return Container(
-      decoration: BoxDecoration(
-        color: isDark ? AppColors.darkCard : AppColors.lightCard,
-        border: Border(
-          left: BorderSide(
-            color: color,
-            width: 3,
-          ),
-          top: BorderSide(
-            color: isDark ? AppColors.darkBorder : AppColors.border,
-            width: 0.5,
-          ),
-          right: BorderSide(
-            color: isDark ? AppColors.darkBorder : AppColors.border,
-            width: 0.5,
-          ),
-          bottom: BorderSide(
-            color: isDark ? AppColors.darkBorder : AppColors.border,
-            width: 0.5,
-          ),
-        ),
-        borderRadius: const BorderRadius.only(
-          topRight: Radius.circular(12),
-          bottomRight: Radius.circular(12),
-        ),
-      ),
-      padding: const EdgeInsets.all(12),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label,
-            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary,
-                  fontSize: 11,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: Stack(
+          children: [
+            Container(
+              decoration: BoxDecoration(
+                color: isDark ? AppColors.darkCard : AppColors.lightCard,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: borderColor,
+                  width: 0.5,
                 ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            value,
-            style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                  color: isDark ? AppColors.darkTextPrimary : AppColors.textPrimary,
-                  fontWeight: FontWeight.w700,
+              ),
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label,
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          color: isDark
+                              ? AppColors.darkTextSecondary
+                              : AppColors.textSecondary,
+                          fontSize: 11,
+                        ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    value,
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                          color: isDark
+                              ? AppColors.darkTextPrimary
+                              : AppColors.textPrimary,
+                          fontWeight: FontWeight.w700,
+                        ),
+                  ),
+                ],
+              ),
+            ),
+            Positioned.fill(
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Container(
+                  width: 3,
+                  decoration: BoxDecoration(
+                    color: color,
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(12),
+                      bottomLeft: Radius.circular(12),
+                    ),
+                  ),
                 ),
-          ),
-        ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

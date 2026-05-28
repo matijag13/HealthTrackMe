@@ -3,6 +3,7 @@ import '../screens/medicines_screen.dart';
 import '../screens/profile_screen.dart';
 import '../screens/auth_screen.dart';
 import '../screens/dashboard_screen.dart';
+import '../screens/dashboard_dark_mode.dart';
 import '../screens/log_screen.dart';
 import '../screens/main_app.dart';
 import '../screens/reports_screen.dart';
@@ -42,8 +43,14 @@ GoRouter createAppRouter() {
         name: 'onboarding',
         builder: (context, state) => const OnboardingScreen(),
       ),
+      GoRoute(
+        path: '/dark-dashboard',
+        name: 'darkDashboard',
+        builder: (context, state) => const DarkModeDashboardScreen(),
+      ),
       StatefulShellRoute.indexedStack(
-        builder: (context, state, navigationShell) => MainApp(navigationShell: navigationShell),
+        builder: (context, state, navigationShell) =>
+            MainApp(navigationShell: navigationShell),
         branches: [
           StatefulShellBranch(
             routes: [
@@ -110,7 +117,8 @@ GoRouter createAppRouter() {
                     path: 'detail/:id',
                     name: 'medsDetail',
                     builder: (context, state) {
-                      final id = int.tryParse(state.pathParameters['id'] ?? '') ?? 0;
+                      final id =
+                          int.tryParse(state.pathParameters['id'] ?? '') ?? 0;
                       return MedicineDetailPage(medicineId: id);
                     },
                   ),
@@ -138,7 +146,8 @@ GoRouter createAppRouter() {
                   GoRoute(
                     path: 'medical-history',
                     name: 'profileMedicalHistory',
-                    builder: (context, state) => const ProfileMedicalHistoryPage(),
+                    builder: (context, state) =>
+                        const ProfileMedicalHistoryPage(),
                   ),
                   GoRoute(
                     path: 'export',
@@ -162,6 +171,3 @@ GoRouter createAppRouter() {
     ],
   );
 }
-
-
-

@@ -1,10 +1,29 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import '../models/detective_insight.dart';
 import 'api_service.dart';
 
 class DetectiveService {
   final ApiService _api = ApiService.instance;
+
+  Uri _uri(String path, {Map<String, String>? queryParameters}) {
+    final cleanPath = path.startsWith('/') ? path : '/$path';
+    return Uri.parse('${_api.baseUrl}$cleanPath')
+        .replace(queryParameters: queryParameters);
+  }
+
+  Future<Map<String, String>> _headers({Map<String, String>? extra}) async {
+    final headers = <String, String>{
+      'Accept': 'application/json',
+      if (extra != null) ...extra,
+    };
+    final token = await _api.getAuthToken();
+    if (token != null && token.isNotEmpty) {
+      headers['Authorization'] = 'Bearer $token';
+    }
+    return headers;
+  }
 
   /// Generate a new health insight (analyzes health data)
   Future<DetectiveInsight> generateInsight({
@@ -14,15 +33,15 @@ class DetectiveService {
     try {
       await _api.ensureActiveUserId();
 
-      final response = await _api.get(
-        '/detective/analyze',
-        queryParameters: {
-          'userId': userId,
-          'days': daysBack,
-        },
+      final response = await http.get(
+        _uri('/detective/analyze', queryParameters: {
+          'userId': userId.toString(),
+          'days': daysBack.toString(),
+        }),
+        headers: await _headers(),
       );
 
-      final data = jsonDecode(response) as Map<String, dynamic>;
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
 
       if (data['success'] == true && data['data'] != null) {
         return DetectiveInsight.fromJson(data['data'] as Map<String, dynamic>);
@@ -30,7 +49,7 @@ class DetectiveService {
         throw Exception(data['message'] ?? 'Failed to generate insight');
       }
     } catch (e) {
-      print('❌ Error generating insight: $e');
+      debugPrint('❌ Error generating insight: $e');
       rethrow;
     }
   }
@@ -43,15 +62,15 @@ class DetectiveService {
     try {
       await _api.ensureActiveUserId();
 
-      final response = await _api.get(
-        '/detective/latest',
-        queryParameters: {
-          'userId': userId,
+      final response = await http.get(
+        _uri('/detective/latest', queryParameters: {
+          'userId': userId.toString(),
           'timeRange': timeRange,
-        },
+        }),
+        headers: await _headers(),
       );
 
-      final data = jsonDecode(response) as Map<String, dynamic>;
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
 
       if (data['success'] == true && data['data'] != null) {
         return DetectiveInsight.fromJson(data['data'] as Map<String, dynamic>);
@@ -59,7 +78,7 @@ class DetectiveService {
 
       return null;
     } catch (e) {
-      print('❌ Error getting latest insight: $e');
+      debugPrint('❌ Error getting latest insight: $e');
       return null;
     }
   }
@@ -72,26 +91,27 @@ class DetectiveService {
     try {
       await _api.ensureActiveUserId();
 
-      final response = await _api.get(
-        '/detective/history',
-        queryParameters: {
-          'userId': userId,
-          'limit': limit,
-        },
+      final response = await http.get(
+        _uri('/detective/history', queryParameters: {
+          'userId': userId.toString(),
+          'limit': limit.toString(),
+        }),
+        headers: await _headers(),
       );
 
-      final data = jsonDecode(response) as Map<String, dynamic>;
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
 
       if (data['success'] == true && data['data'] != null) {
         final insights = (data['data'] as List)
-            .map((item) => DetectiveInsight.fromJson(item as Map<String, dynamic>))
+            .map((item) =>
+                DetectiveInsight.fromJson(item as Map<String, dynamic>))
             .toList();
         return insights;
       }
 
       return [];
     } catch (e) {
-      print('❌ Error getting insight history: $e');
+      debugPrint('❌ Error getting insight history: $e');
       return [];
     }
   }
@@ -104,13 +124,15 @@ class DetectiveService {
     try {
       await _api.ensureActiveUserId();
 
-      final response = await _api.post(
-        '/detective/ask',
-        queryParameters: {'userId': userId},
-        body: {'question': question},
+      final response = await http.post(
+        _uri('/detective/ask', queryParameters: {
+          'userId': userId.toString(),
+        }),
+        headers: await _headers(extra: {'Content-Type': 'application/json'}),
+        body: jsonEncode({'question': question}),
       );
 
-      final data = jsonDecode(response) as Map<String, dynamic>;
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
 
       if (data['success'] == true) {
         return data['data']?['answer'] ?? 'No response available';
@@ -118,7 +140,7 @@ class DetectiveService {
         throw Exception(data['message'] ?? 'Failed to get response');
       }
     } catch (e) {
-      print('❌ Error asking question: $e');
+      debugPrint('❌ Error asking question: $e');
       rethrow;
     }
   }
