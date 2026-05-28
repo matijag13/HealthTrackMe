@@ -9,13 +9,13 @@ class DetectiveInsightCard extends StatelessWidget {
   final VoidCallback? onTap;
 
   const DetectiveInsightCard({
-    Key? key,
+    super.key,
     this.badge,
     required this.title,
     required this.description,
     this.finding,
     this.onTap,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -90,7 +90,9 @@ class DetectiveInsightCard extends StatelessWidget {
             Text(
               title,
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    color: isDark ? AppColors.darkTextPrimary : AppColors.textPrimary,
+                    color: isDark
+                        ? AppColors.darkTextPrimary
+                        : AppColors.textPrimary,
                     fontWeight: FontWeight.w600,
                   ),
             ),
@@ -100,7 +102,9 @@ class DetectiveInsightCard extends StatelessWidget {
             Text(
               description,
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary,
+                    color: isDark
+                        ? AppColors.darkTextSecondary
+                        : AppColors.textSecondary,
                     height: 1.6,
                   ),
             ),
@@ -124,7 +128,9 @@ class DetectiveInsightCard extends StatelessWidget {
                 child: Text(
                   finding!,
                   style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                        color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary,
+                        color: isDark
+                            ? AppColors.darkTextSecondary
+                            : AppColors.textSecondary,
                         height: 1.5,
                       ),
                 ),

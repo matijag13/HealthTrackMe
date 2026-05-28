@@ -10,6 +10,7 @@ class LoginScreen extends StatefulWidget {
   @override
   State<LoginScreen> createState() => _LoginScreenState();
 }
+
 class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
@@ -23,22 +24,31 @@ class _LoginScreenState extends State<LoginScreen> {
     _passwordController.dispose();
     super.dispose();
   }
+
   String? _validateEmail(String? value) {
     final email = value?.trim() ?? '';
-    if (email.isEmpty) return 'Email is required.';
+    if (email.isEmpty) {
+      return 'Email is required.';
+    }
     final regex = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
-    if (!regex.hasMatch(email)) return 'Enter a valid email.';
+    if (!regex.hasMatch(email)) {
+      return 'Enter a valid email.';
+    }
     return null;
   }
+
   Future<void> _login() async {
-    if (!_formKey.currentState!.validate()) return;
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
     setState(() => _isLoading = true);
     try {
       final email = _emailController.text.trim();
       final users = await _api.getUsers();
       final user = users.firstWhere(
         (u) => u.email == email,
-        orElse: () => throw Exception('Account not found. Please register first.'),
+        orElse: () =>
+            throw Exception('Account not found. Please register first.'),
       );
       await _api.setActiveUserId(null);
       await _api.setActiveUserId(user.id);
@@ -54,22 +64,25 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
       );
     } finally {
-      if (mounted) setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: Container(
         decoration: BoxDecoration(
-          gradient: LinearGradient(
+          gradient: const LinearGradient(
             colors: [Color(0xFF0D2137), AppColors.navy, Color(0xFF0F4C75)],
           ),
         ),
         child: SafeArea(
           child: Center(
             child: SingleChildScrollView(
-              padding: EdgeInsets.all(24),
+              padding: const EdgeInsets.all(24),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -80,40 +93,94 @@ class _LoginScreenState extends State<LoginScreen> {
                       textAlign: TextAlign.center,
                       text: TextSpan(
                         text: 'Health',
-                        style: TextStyle(fontSize: 32, fontWeight: FontWeight.w700, color: Colors.white),
+                        style: const TextStyle(
+                            fontSize: 32,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white),
                         children: [
-                          TextSpan(text: 'Track', style: TextStyle(color: AppColors.teal)),
-                          TextSpan(text: 'Me'),
+                          TextSpan(
+                              text: 'Track',
+                              style: TextStyle(color: AppColors.teal)),
+                          const TextSpan(text: 'Me'),
                         ],
                       ),
                     ),
                   ),
-                  SizedBox(height: 12),
-                  Text('Your personal health platform', textAlign: TextAlign.center, style: TextStyle(color: Colors.white70)),
-                  SizedBox(height: 48),
+                  const SizedBox(height: 12),
+                  const Text('Your personal health platform',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: Colors.white70)),
+                  const SizedBox(height: 48),
                   Container(
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(20),
-                      boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 32)],
+                      boxShadow: [
+                        BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.1),
+                            blurRadius: 32)
+                      ],
                     ),
-                    padding: EdgeInsets.all(28),
+                    padding: const EdgeInsets.all(28),
                     child: Form(
                       key: _formKey,
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('Sign In', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700, color: AppColors.navy)),
-                          SizedBox(height: 4),
-                          Text('Enter your credentials', style: TextStyle(color: AppColors.muted)),
-                          SizedBox(height: 24),
-                          TextFormField(controller: _emailController, validator: _validateEmail, keyboardType: TextInputType.emailAddress, decoration: InputDecoration(labelText: 'Email', border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)))),
-                          SizedBox(height: 16),
-                          TextFormField(controller: _passwordController, obscureText: _obscurePassword, validator: (v) => (v == null || v.isEmpty) ? 'Password is required.' : null, decoration: InputDecoration(labelText: 'Password', suffixIcon: IconButton(icon: Icon(_obscurePassword ? Icons.visibility_off : Icons.visibility), onPressed: () => setState(() => _obscurePassword = !_obscurePassword)), border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)))),
-                          SizedBox(height: 24),
-                          SizedBox(width: double.infinity, child: ElevatedButton(onPressed: _isLoading ? null : _login, child: _isLoading ? LoadingSkeleton.buttonSmall(context) : const Text('Sign In'))),
-                          SizedBox(height: 16),
-                          Row(mainAxisAlignment: MainAxisAlignment.center, children: [Text('Don\'t have an account?'), TextButton(onPressed: widget.onSwitchToRegister, child: Text('Register'))]),
+                          const Text('Sign In',
+                              style: TextStyle(
+                                  fontSize: 24,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.navy)),
+                          const SizedBox(height: 4),
+                          const Text('Enter your credentials',
+                              style: TextStyle(color: AppColors.muted)),
+                          const SizedBox(height: 24),
+                          TextFormField(
+                              controller: _emailController,
+                              validator: _validateEmail,
+                              keyboardType: TextInputType.emailAddress,
+                              decoration: InputDecoration(
+                                  labelText: 'Email',
+                                  border: OutlineInputBorder(
+                                      borderRadius:
+                                          BorderRadius.circular(12)))),
+                          const SizedBox(height: 16),
+                          TextFormField(
+                              controller: _passwordController,
+                              obscureText: _obscurePassword,
+                              validator: (v) => (v == null || v.isEmpty)
+                                  ? 'Password is required.'
+                                  : null,
+                              decoration: InputDecoration(
+                                  labelText: 'Password',
+                                  suffixIcon: IconButton(
+                                      icon: Icon(_obscurePassword
+                                          ? Icons.visibility_off
+                                          : Icons.visibility),
+                                      onPressed: () => setState(() =>
+                                          _obscurePassword =
+                                              !_obscurePassword)),
+                                  border: OutlineInputBorder(
+                                      borderRadius:
+                                          BorderRadius.circular(12)))),
+                          const SizedBox(height: 24),
+                          SizedBox(
+                              width: double.infinity,
+                              child: ElevatedButton(
+                                  onPressed: _isLoading ? null : _login,
+                                  child: _isLoading
+                                      ? LoadingSkeleton.buttonSmall(context)
+                                      : const Text('Sign In'))),
+                          const SizedBox(height: 16),
+                          Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Text('Don\'t have an account?'),
+                                TextButton(
+                                    onPressed: widget.onSwitchToRegister,
+                                    child: const Text('Register'))
+                              ]),
                         ],
                       ),
                     ),

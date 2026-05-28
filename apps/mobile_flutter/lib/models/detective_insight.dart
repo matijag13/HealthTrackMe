@@ -114,24 +114,40 @@ class HealthCorrelation {
   /// Get correlation strength label
   String get strengthLabel {
     final absCorr = correlation.abs();
-    if (absCorr >= 0.7) return 'Very Strong';
-    if (absCorr >= 0.5) return 'Strong';
-    if (absCorr >= 0.3) return 'Moderate';
+    if (absCorr >= 0.7) {
+      return 'Very Strong';
+    }
+    if (absCorr >= 0.5) {
+      return 'Strong';
+    }
+    if (absCorr >= 0.3) {
+      return 'Moderate';
+    }
     return 'Weak';
   }
 
   /// Get correlation direction
   String get direction {
-    if (correlation > 0) return 'Positive';
-    if (correlation < 0) return 'Negative';
+    if (correlation > 0) {
+      return 'Positive';
+    }
+    if (correlation < 0) {
+      return 'Negative';
+    }
     return 'Neutral';
   }
 
   /// Get emoji representation
   String get emoji {
-    if (correlation > 0.5) return '📈';
-    if (correlation < -0.5) return '📉';
-    if (correlation.abs() > 0.3) return '⬌';
+    if (correlation > 0.5) {
+      return '📈';
+    }
+    if (correlation < -0.5) {
+      return '📉';
+    }
+    if (correlation.abs() > 0.3) {
+      return '⬌';
+    }
     return '➡️';
   }
 }

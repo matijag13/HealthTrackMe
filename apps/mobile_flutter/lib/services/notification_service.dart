@@ -1,7 +1,6 @@
 import 'dart:io';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/data/latest_all.dart' as tz_data;
 import 'package:timezone/timezone.dart' as tz;
@@ -30,8 +29,7 @@ class NotificationService {
     // after tz_data.initializeTimeZones() is called. tz.local will reflect the
     // device's local timezone (e.g., Europe/London if the phone is set to that timezone).
 
-    const androidInit =
-        AndroidInitializationSettings('@mipmap/ic_launcher');
+    const androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
 
     final iosInit = DarwinInitializationSettings(
       requestAlertPermission: true,
@@ -57,14 +55,13 @@ class NotificationService {
     }
 
     if (Platform.isAndroid) {
-      final androidImpl =
-          _plugin.resolvePlatformSpecificImplementation<
-              AndroidFlutterLocalNotificationsPlugin>();
+      final androidImpl = _plugin.resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin>();
 
       await androidImpl?.requestNotificationsPermission();
       await androidImpl?.requestExactAlarmsPermission();
     }
- }
+  }
 
   // =========================
   // MEDICINE REMINDER
@@ -111,8 +108,7 @@ class NotificationService {
         androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
         uiLocalNotificationDateInterpretation:
             UILocalNotificationDateInterpretation.absoluteTime,
-        matchDateTimeComponents:
-            _repeatToDateTimeComponents(repeat),
+        matchDateTimeComponents: _repeatToDateTimeComponents(repeat),
         payload: 'medicine_$id',
       );
     } catch (e) {

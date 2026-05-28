@@ -19,10 +19,10 @@ class DashboardBottomNav extends StatelessWidget {
   final ValueChanged<DashboardTab> onTabChanged;
 
   const DashboardBottomNav({
-    Key? key,
+    super.key,
     required this.currentTab,
     required this.onTabChanged,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -67,7 +67,8 @@ class DashboardBottomNav extends StatelessWidget {
   ) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final activeColor = AppColors.primaryBlue;
-    final inactiveColor = isDark ? AppColors.darkTextSecondary : AppColors.textSecondary;
+    final inactiveColor =
+        isDark ? AppColors.darkTextSecondary : AppColors.textSecondary;
 
     return GestureDetector(
       onTap: onTap,
@@ -98,7 +99,7 @@ class DashboardBottomNav extends StatelessWidget {
                   shape: BoxShape.circle,
                 ),
               ),
-            ),
+            )
         ],
       ),
     );
