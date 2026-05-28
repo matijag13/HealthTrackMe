@@ -36,4 +36,3 @@ class UserProfileService {
     await _prefs.remove(_keyHeight);
   }
 }
-

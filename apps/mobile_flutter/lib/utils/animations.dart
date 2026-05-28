@@ -255,8 +255,7 @@ class _StaggeredListAnimationState extends State<StaggeredListAnimation>
     );
 
     _animations = _controllers
-        .map((controller) =>
-            Tween<double>(begin: 0, end: 1).animate(
+        .map((controller) => Tween<double>(begin: 0, end: 1).animate(
               CurvedAnimation(parent: controller, curve: widget.curve),
             ))
         .toList();

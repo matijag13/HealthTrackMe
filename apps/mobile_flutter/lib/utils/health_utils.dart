@@ -22,4 +22,3 @@ Map<String, dynamic> extractPayload(String? raw) {
     return {};
   }
 }
-

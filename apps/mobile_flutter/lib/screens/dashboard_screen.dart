@@ -977,7 +977,8 @@ class _DashboardScreenState extends State<DashboardScreen>
                                   ][d.weekday - 1]));
                             })),
                     leftTitles: const AxisTitles(
-                        sideTitles: SideTitles(showTitles: true, interval: 25))),
+                        sideTitles:
+                            SideTitles(showTitles: true, interval: 25))),
                 borderData: FlBorderData(show: false),
                 lineBarsData: lines,
               )),
