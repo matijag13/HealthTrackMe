@@ -4,6 +4,12 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class AppColors {
+  // Primary accent colors (muted palette)
+  static const Color primaryBlue = Color(0xFF5B8DEF);
+  static const Color primaryGreen = Color(0xFF5FB878);
+  static const Color primaryOrange = Color(0xFFD4956A);
+
+  // Legacy primary for compatibility
   static const Color primary = Color(0xFF0A84FF);
   static const Color blue = primary;
   static const Color teal = Color(0xFF32D74B);
@@ -12,11 +18,17 @@ class AppColors {
   static const Color danger = Color(0xFFFF453A);
   static const Color info = Color(0xFF0A84FF);
   static const Color navy = Color(0xFF0B1F33);
-  static const Color heartRate = Color(0xFFFF6B6B);
-  static const Color sleep = Color(0xFF6C63FF);
-  static const Color steps = Color(0xFF00C896);
-  static const Color weight = Color(0xFFFF9500);
-  static const Color calories = Color(0xFFFF3B30);
+
+  // Health metric colors (muted versions)
+  static const Color heartRate = Color(0xFFC27C5C);
+  static const Color sleep = Color(0xFF5FB878);
+  static const Color steps = Color(0xFF5FB878);
+  static const Color weight = Color(0xFFD4956A);
+  static const Color calories = Color(0xFFC27C5C);
+  static const Color hrv = Color(0xFF5FB878);
+  static const Color hydration = Color(0xFF5B8DEF);
+  static const Color mood = Color(0xFF5FB878);
+
   static const Color softBlue = Color(0xFFEAF4FB);
   static const Color muted = Color(0xFF64748B);
 
@@ -26,11 +38,16 @@ class AppColors {
   static const Color background = lightBackground;
   static const Color card = lightCard;
 
-  static const Color darkBackground = Color(0xFF0D1117);
-  static const Color darkCard = Color(0xFF161B22);
-  static const Color darkSurface = Color(0xFF1C2128);
+  // Dark mode colors - updated for new design
+  static const Color darkBackground = Color(0xFF0f0f0f);
+  static const Color darkCard = Color(0xFF1a1a1a);
+  static const Color darkSurface = Color(0xFF1f1f1f);
+  static const Color darkBorder = Color(0xFF2a2a2a);
 
   static const Color textPrimary = Color(0xFF0F172A);
+  static const Color darkTextPrimary = Color(0xFFF5F5F5);
+  static const Color darkTextSecondary = Color(0xFF999999);
+
   static const Color textSecondary = Color(0xFF64748B);
   static const Color border = Color(0xFFD7DDE6);
   static const Color amber = Color(0xFFFFB020);
@@ -140,8 +157,8 @@ class AppTheme {
 
   static ThemeData get dark {
     final base = FlexColorScheme.dark(
-      primary: AppColors.primary,
-      secondary: AppColors.teal,
+      primary: AppColors.primaryBlue,
+      secondary: AppColors.primaryGreen,
       surface: AppColors.darkSurface,
       background: AppColors.darkBackground,
       appBarStyle: FlexAppBarStyle.background,
@@ -157,28 +174,35 @@ class AppTheme {
       ),
     ).toTheme;
 
-    final textTheme = GoogleFonts.plusJakartaSansTextTheme(base.textTheme);
+    final textTheme = GoogleFonts.plusJakartaSansTextTheme(base.textTheme).apply(
+      bodyColor: AppColors.darkTextPrimary,
+      displayColor: AppColors.darkTextPrimary,
+    );
     final displayTheme = GoogleFonts.soraTextTheme(textTheme);
 
     return base.copyWith(
       scaffoldBackgroundColor: AppColors.darkBackground,
       textTheme: textTheme.copyWith(
-        displayLarge: displayTheme.displayLarge,
-        displayMedium: displayTheme.displayMedium,
-        displaySmall: displayTheme.displaySmall,
-        headlineLarge: displayTheme.headlineLarge,
-        headlineMedium: displayTheme.headlineMedium,
-        headlineSmall: displayTheme.headlineSmall,
+        displayLarge: displayTheme.displayLarge?.copyWith(color: AppColors.darkTextPrimary),
+        displayMedium: displayTheme.displayMedium?.copyWith(color: AppColors.darkTextPrimary),
+        displaySmall: displayTheme.displaySmall?.copyWith(color: AppColors.darkTextPrimary),
+        headlineLarge: displayTheme.headlineLarge?.copyWith(color: AppColors.darkTextPrimary),
+        headlineMedium: displayTheme.headlineMedium?.copyWith(color: AppColors.darkTextPrimary),
+        headlineSmall: displayTheme.headlineSmall?.copyWith(color: AppColors.darkTextPrimary),
+        bodyLarge: textTheme.bodyLarge?.copyWith(color: AppColors.darkTextPrimary),
+        bodyMedium: textTheme.bodyMedium?.copyWith(color: AppColors.darkTextPrimary),
+        bodySmall: textTheme.bodySmall?.copyWith(color: AppColors.darkTextSecondary),
+        labelLarge: textTheme.labelLarge?.copyWith(color: AppColors.darkTextPrimary),
       ),
       appBarTheme: base.appBarTheme.copyWith(
         backgroundColor: AppColors.darkCard,
-        foregroundColor: Colors.white,
+        foregroundColor: AppColors.darkTextPrimary,
         centerTitle: false,
         elevation: 0,
         titleTextStyle: GoogleFonts.sora(
           fontSize: 20,
           fontWeight: FontWeight.w700,
-          color: Colors.white,
+          color: AppColors.darkTextPrimary,
         ),
       ),
       cardTheme: base.cardTheme.copyWith(
@@ -186,13 +210,13 @@ class AppTheme {
         margin: EdgeInsets.zero,
         elevation: 0,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-          side: const BorderSide(color: Color(0xFF2A313C), width: 1),
+          borderRadius: BorderRadius.circular(12),
+          side: const BorderSide(color: AppColors.darkBorder, width: 0.5),
         ),
       ),
       chipTheme: base.chipTheme.copyWith(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-        side: const BorderSide(color: Color(0xFF2A313C)),
+        side: const BorderSide(color: AppColors.darkBorder),
       ),
       inputDecorationTheme: base.inputDecorationTheme.copyWith(
         filled: true,
@@ -200,37 +224,37 @@ class AppTheme {
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
-          borderSide: const BorderSide(color: Color(0xFF2A313C)),
+          borderSide: const BorderSide(color: AppColors.darkBorder),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
-          borderSide: const BorderSide(color: Color(0xFF2A313C)),
+          borderSide: const BorderSide(color: AppColors.darkBorder),
         ),
         focusedBorder: const OutlineInputBorder(
           borderRadius: BorderRadius.all(Radius.circular(16)),
-          borderSide: BorderSide(color: AppColors.primary, width: 1.5),
+          borderSide: BorderSide(color: AppColors.primaryBlue, width: 1.5),
         ),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: AppColors.primary,
+          backgroundColor: AppColors.primaryBlue,
           foregroundColor: Colors.white,
           elevation: 0,
           padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
-          foregroundColor: AppColors.primary,
-          side: const BorderSide(color: AppColors.primary, width: 1.2),
+          foregroundColor: AppColors.primaryBlue,
+          side: const BorderSide(color: AppColors.primaryBlue, width: 1.2),
           padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         ),
       ),
       navigationBarTheme: NavigationBarThemeData(
         backgroundColor: AppColors.darkCard,
-        indicatorColor: AppColors.primary.withValues(alpha: 0.20),
+        indicatorColor: AppColors.primaryBlue.withValues(alpha: 0.20),
         elevation: 0,
       ),
       snackBarTheme: const SnackBarThemeData(behavior: SnackBarBehavior.floating),

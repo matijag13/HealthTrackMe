@@ -755,15 +755,15 @@ class _HealthScreenTabbedState extends State<HealthScreenTabbed>
 
   int _longestStepStreak(List<HealthEntry> entries) {
     // simple: longest consecutive days with steps>0 in sport activities
-    final daysWithSteps = <String>{};
+    final daysWithSteps = <DateTime>{};
     for (final a in _sportActivities) {
       final t = DateTime.tryParse(a['start']?.toString() ?? '') ??
           DateTime.fromMillisecondsSinceEpoch(0);
       if ((a['steps'] as int?) != null && (a['steps'] as int) > 0)
-        daysWithSteps.add('${t.year}-${t.month}-${t.day}');
+        daysWithSteps.add(DateTime(t.year, t.month, t.day));
     }
     if (daysWithSteps.isEmpty) return 0;
-    final dates = daysWithSteps.map((s) => DateTime.parse(s)).toList()..sort();
+    final dates = daysWithSteps.toList()..sort();
     var best = 1, cur = 1;
     for (var i = 1; i < dates.length; i++) {
       if (dates[i].difference(dates[i - 1]).inDays == 1)

@@ -6,6 +6,11 @@ import '../models/models.dart';
 
 export '../config/theme.dart';
 export 'design_system.dart';
+export 'health_metric_card.dart';
+export 'detective_insight_card.dart';
+export 'detective_insight_detail.dart';
+export 'dashboard_bottom_nav.dart';
+export 'quick_log_fab.dart';
 
 // Wellness Ring Widget - Progress indicator with circular design
 class WellnessRing extends StatelessWidget {
