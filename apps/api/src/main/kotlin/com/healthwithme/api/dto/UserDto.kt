@@ -39,6 +39,11 @@ data class CreateUserRequest(
     val allergies: String?
 )
 
+data class LoginRequest(
+    val email: String,
+    val password: String
+)
+
 data class UpdateUserRequest(
     val email: String?,
     val firstName: String?,

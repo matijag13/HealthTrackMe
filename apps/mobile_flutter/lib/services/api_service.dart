@@ -463,6 +463,31 @@ class ApiService {
     }
   }
 
+  Future<User> login({
+    required String email,
+    required String password,
+  }) async {
+    final response = await _postRaw('/auth/login',
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'email': email,
+          'password': password,
+        }));
+
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      final user = _parseSingle(response, User.fromJson);
+      if (user != null) {
+        return user;
+      }
+    }
+
+    if (response.statusCode == 401) {
+      throw Exception('Invalid email or password.');
+    }
+
+    throw Exception(_responseMessage(response) ?? 'Could not sign in');
+  }
+
   Future<User?> getUser(int id) async {
     try {
       final response = await _getRaw('/users/$id');

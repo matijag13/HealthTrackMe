@@ -51,6 +51,18 @@ class UserService(
         return toUserDto(user)
     }
 
+    fun login(email: String, password: String): UserDto {
+        val normalizedEmail = email.trim()
+        val user = userRepository.findByEmail(normalizedEmail)
+            .orElseThrow { IllegalArgumentException("Invalid email or password") }
+
+        if (!user.isActive || !passwordEncoder.matches(password, user.passwordHash)) {
+            throw IllegalArgumentException("Invalid email or password")
+        }
+
+        return toUserDto(user)
+    }
+
     fun updateUser(id: Long, request: UpdateUserRequest): UserDto {
         val user = userRepository.findById(id)
             .orElseThrow { IllegalArgumentException("User not found") }
