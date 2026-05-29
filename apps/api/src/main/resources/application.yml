@@ -5,10 +5,10 @@ spring:
     password: ${DATABASE_PASSWORD:healthtrackme}
     driver-class-name: org.postgresql.Driver
     hikari:
-      maximum-pool-size: 5
-      minimum-idle: 1
-      connection-timeout: 10000
-      idle-timeout: 300000
+      maximum-pool-size: 10
+      minimum-idle: 2
+      connection-timeout: 20000
+      idle-timeout: 600000
   jpa:
     hibernate:
       ddl-auto: none
@@ -27,7 +27,7 @@ spring:
     baseline-on-migrate: true
 
 server:
-  port: 8080
+  port: ${PORT:8080}
   tomcat:
     threads:
       max: 10
