@@ -36,7 +36,7 @@ class SettingsTile extends StatelessWidget {
                 width: 48,
                 height: 48,
                 decoration: BoxDecoration(
-                  color: iconColor.withOpacity(0.12),
+                  color: iconColor.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Center(
@@ -73,7 +73,7 @@ class SettingsTile extends StatelessWidget {
               ),
               const SizedBox(width: 8),
               trailing ??
-                  Icon(
+                  const Icon(
                     Icons.chevron_right_rounded,
                     color: Colors.grey,
                     size: 24,
@@ -188,7 +188,7 @@ class AppElevatedButton extends StatelessWidget {
           gradient: LinearGradient(
             colors: [
               color,
-              color.withOpacity(0.8),
+              color.withValues(alpha: 0.8),
             ],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
@@ -285,7 +285,7 @@ class StatCard extends StatelessWidget {
                     width: 40,
                     height: 40,
                     decoration: BoxDecoration(
-                      color: color.withOpacity(0.12),
+                      color: color.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Icon(icon, color: color, size: 20),
@@ -299,29 +299,33 @@ class StatCard extends StatelessWidget {
                         ),
                   ),
                   const SizedBox(height: 8),
-                   RichText(
-                     maxLines: 1,
-                     overflow: TextOverflow.ellipsis,
-                     text: TextSpan(
-                       children: [
-                         TextSpan(
-                           text: value,
-                           style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                                 fontSize: 24,
-                                 fontWeight: FontWeight.w700,
-                                 color: Theme.of(context).colorScheme.onSurface,
-                               ),
-                         ),
-                         TextSpan(
-                           text: ' $unit',
-                           style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                 fontSize: 12,
-                                 color: Theme.of(context).hintColor,
-                               ),
-                         ),
-                       ],
-                     ),
-                   ),
+                  RichText(
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    text: TextSpan(
+                      children: [
+                        TextSpan(
+                          text: value,
+                          style: Theme.of(context)
+                              .textTheme
+                              .headlineSmall
+                              ?.copyWith(
+                                fontSize: 24,
+                                fontWeight: FontWeight.w700,
+                                color: Theme.of(context).colorScheme.onSurface,
+                              ),
+                        ),
+                        TextSpan(
+                          text: ' $unit',
+                          style:
+                              Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    fontSize: 12,
+                                    color: Theme.of(context).hintColor,
+                                  ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -331,6 +335,7 @@ class StatCard extends StatelessWidget {
     );
   }
 }
+
 class LoadingSkeleton {
   static Widget profile(BuildContext context) {
     return Column(
@@ -365,6 +370,7 @@ class LoadingSkeleton {
       ),
     );
   }
+
   static Widget buttonSmall(BuildContext context) {
     return const SizedBox(
       height: 20,
@@ -376,6 +382,7 @@ class LoadingSkeleton {
     );
   }
 }
+
 class EmptyState extends StatelessWidget {
   final String title;
   final String subtitle;
@@ -413,5 +420,3 @@ class EmptyState extends StatelessWidget {
     );
   }
 }
-
-

@@ -123,7 +123,7 @@ class _DetectiveScreenState extends State<DetectiveScreen>
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     if (_loading) {
-      return Scaffold(
+      return const Scaffold(
         body: Center(
           child: CircularProgressIndicator(
             color: AppColors.primaryBlue,
@@ -347,7 +347,7 @@ class _DetectiveScreenState extends State<DetectiveScreen>
               ),
               child: Row(
                 children: [
-                  Icon(
+                  const Icon(
                     Icons.lightbulb_outline,
                     size: 16,
                     color: AppColors.primaryGreen,

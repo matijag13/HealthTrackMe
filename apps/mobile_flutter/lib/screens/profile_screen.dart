@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../config/theme.dart';
 import '../models/models.dart';
 import '../services/api_service.dart';
 import '../widgets/widgets.dart';
@@ -45,10 +44,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
       final picker = ImagePicker();
       final picked =
           await picker.pickImage(source: ImageSource.gallery, imageQuality: 80);
-      if (picked == null) return;
+      if (picked == null) {
+        return;
+      }
       final bytes = await picked.readAsBytes();
       final b64 = base64Encode(bytes);
-      if (_user == null) return;
+      if (_user == null) {
+        return;
+      }
       final updated = User(
         id: _user!.id,
         email: _user!.email,
@@ -63,7 +66,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
       );
       final saved = await _api.updateUser(_user!.id, updated);
       setState(() => _user = saved);
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
       ScaffoldMessenger.of(context)
           .showSnackBar(const SnackBar(content: Text('Profile photo updated')));
     } catch (e) {
@@ -147,7 +152,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Future<void> _exportData() async {
     final id = _api.activeUserId ?? await _api.ensureActiveUserId();
-    if (id == null) return;
+    if (!mounted) return;
+    if (id == null) {
+      return;
+    }
     final uri = Uri.parse('${_api.baseUrl}/export/pdf/$id');
     // For simplicity open in browser (in web builds) or show message. Complex share not implemented here.
     ScaffoldMessenger.of(context)
@@ -165,14 +173,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
       body: FutureBuilder<User?>(
         future: _userFuture,
         builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting)
+          if (snapshot.connectionState == ConnectionState.waiting) {
             return Center(
                 child: Padding(
                     padding: const EdgeInsets.all(16),
                     child: LoadingSkeleton.profile(context)));
+          }
           final user = snapshot.data ?? _user;
-          if (user == null)
+          if (user == null) {
             return const Center(child: Text('No user data available.'));
+          }
 
           return RefreshIndicator(
             onRefresh: _refresh,
@@ -240,6 +250,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             onTap: () async {
                               final prefs =
                                   await SharedPreferences.getInstance();
+                              if (!context.mounted) {
+                                return;
+                              }
                               final chosen = await showDialog<String?>(
                                   context: context,
                                   builder: (ctx) => SimpleDialog(
@@ -254,9 +267,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                                 onPressed: () => Navigator.pop(
                                                     ctx, 'Sunday'))
                                           ]));
-                              if (chosen != null)
+                              if (chosen != null) {
                                 await prefs.setString(
                                     'pref_start_of_week', chosen);
+                              }
                             },
                             iconBackgroundColor: AppColors.amber),
                       ]),
@@ -289,7 +303,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               setState(() {});
                             },
                             iconBackgroundColor: AppColors.green,
-                            trailing: Icon(Icons.chevron_right_rounded,
+                            trailing: const Icon(Icons.chevron_right_rounded,
                                 color: Colors.grey)),
                         SettingsTile(
                             icon: const Icon(Icons.bar_chart),
@@ -306,7 +320,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               setState(() {});
                             },
                             iconBackgroundColor: AppColors.orange,
-                            trailing: Icon(Icons.chevron_right_rounded,
+                            trailing: const Icon(Icons.chevron_right_rounded,
                                 color: Colors.grey)),
                       ]),
                     ),
@@ -320,12 +334,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               color: Theme.of(context).dividerColor,
                               width: 0.5)),
                       color: Theme.of(context).colorScheme.surface,
-                      child: Column(children: [
+                      child: const Column(children: [
                         SettingsTile(
-                            icon: const Icon(Icons.shield),
+                            icon: Icon(Icons.shield),
                             title: 'Health shield',
                             subtitle: 'Current level and progress',
-                            trailing: const SizedBox.shrink()),
+                            trailing: SizedBox.shrink()),
                       ]),
                     ),
                     const SizedBox(height: 20),
@@ -369,6 +383,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                           ]));
                               if (confirm == true && _user != null) {
                                 final ok = await _api.deleteUser(_user!.id);
+                                if (!context.mounted) {
+                                  return;
+                                }
                                 if (ok) {
                                   ScaffoldMessenger.of(context).showSnackBar(
                                       const SnackBar(
@@ -416,7 +433,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                       child: Column(
                                           mainAxisSize: MainAxisSize.min,
                                           children: [
-                                            Text('Change password (TODO)'),
+                                            const Text(
+                                                'Change password (TODO)'),
                                             const SizedBox(height: 12),
                                             ElevatedButton(
                                                 onPressed: () =>
@@ -448,7 +466,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                           ]));
                               if (confirm == true) {
                                 await _api.resetActiveUserId();
-                                if (!mounted) return;
+                                if (!context.mounted) {
+                                  return;
+                                }
                                 Navigator.of(context).pushReplacementNamed('/');
                               }
                             },
@@ -472,7 +492,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           subtitle: 'View and reset API settings',
                           onTap: () async {
                             final debugInfo = await _api.getDebugInfo();
-                            if (!mounted) return;
+                            if (!context.mounted) {
+                              return;
+                            }
                             showDialog(
                               context: context,
                               builder: (ctx) => AlertDialog(
@@ -512,7 +534,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   TextButton(
                                     onPressed: () async {
                                       await _api.resetApiConfiguration();
-                                      if (!mounted) return;
+                                      if (!ctx.mounted || !context.mounted) {
+                                        return;
+                                      }
                                       Navigator.pop(ctx);
                                       ScaffoldMessenger.of(context)
                                           .showSnackBar(const SnackBar(
@@ -623,9 +647,10 @@ class _DiaryReminderTileState extends State<_DiaryReminderTile> {
     final raw = prefs.getString('pref_diary_time');
     if (raw != null) {
       final parts = raw.split(':');
-      if (parts.length == 2)
+      if (parts.length == 2) {
         _time =
             TimeOfDay(hour: int.parse(parts[0]), minute: int.parse(parts[1]));
+      }
     }
     setState(() => _enabled = enabled);
   }
@@ -654,7 +679,9 @@ class _DiaryReminderTileState extends State<_DiaryReminderTile> {
           final prefs = await SharedPreferences.getInstance();
           await prefs.setBool('pref_diary_enabled', v);
           setState(() => _enabled = v);
-          if (v) await _pickTime();
+          if (v) {
+            await _pickTime();
+          }
         },
       ),
       onTap: () async => await _pickTime(),

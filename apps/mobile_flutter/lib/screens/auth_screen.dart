@@ -15,9 +15,9 @@ class _AuthScreenState extends State<AuthScreen> {
   @override
   Widget build(BuildContext context) {
     return _showLogin
-        ? LoginScreen(onSwitchToRegister: () => setState(() => _showLogin = false))
-        : RegisterScreen(onSwitchToLogin: () => setState(() => _showLogin = true));
+        ? LoginScreen(
+            onSwitchToRegister: () => setState(() => _showLogin = false))
+        : RegisterScreen(
+            onSwitchToLogin: () => setState(() => _showLogin = true));
   }
 }
-
-

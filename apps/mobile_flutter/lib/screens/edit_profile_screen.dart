@@ -3,6 +3,7 @@ import '../models/models.dart';
 import '../services/api_service.dart';
 import '../config/theme.dart';
 import '../widgets/design_system.dart';
+
 class EditProfileScreen extends StatefulWidget {
   final User user;
   final VoidCallback onSaved;
@@ -36,8 +37,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     _firstNameController = TextEditingController(text: widget.user.firstName);
     _lastNameController = TextEditingController(text: widget.user.lastName);
     _dobController = TextEditingController(text: widget.user.dateOfBirth);
-    _medicalController = TextEditingController(text: widget.user.medicalConditions ?? '');
-    _allergiesController = TextEditingController(text: widget.user.allergies ?? '');
+    _medicalController =
+        TextEditingController(text: widget.user.medicalConditions ?? '');
+    _allergiesController =
+        TextEditingController(text: widget.user.allergies ?? '');
     _userType = widget.user.userType;
   }
 
@@ -64,8 +67,12 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         lastName: _lastNameController.text.trim(),
         dateOfBirth: _dobController.text.trim(),
         userType: _userType,
-        medicalConditions: _medicalController.text.trim().isEmpty ? null : _medicalController.text.trim(),
-        allergies: _allergiesController.text.trim().isEmpty ? null : _allergiesController.text.trim(),
+        medicalConditions: _medicalController.text.trim().isEmpty
+            ? null
+            : _medicalController.text.trim(),
+        allergies: _allergiesController.text.trim().isEmpty
+            ? null
+            : _allergiesController.text.trim(),
         isActive: widget.user.isActive,
       );
 
@@ -99,7 +106,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       final current = DateTime.tryParse(_dobController.text);
       final picked = await showDatePicker(
         context: context,
-        initialDate: current ?? DateTime.now().subtract(const Duration(days: 365 * 30)),
+        initialDate:
+            current ?? DateTime.now().subtract(const Duration(days: 365 * 30)),
         firstDate: DateTime(1940),
         lastDate: DateTime.now(),
       );
@@ -108,6 +116,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         _dobController.text = picked.toIso8601String().split('T').first;
       }
     } catch (e) {
+      if (!mounted) {
+        return;
+      }
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error selecting date: $e')),
       );
@@ -260,7 +271,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
               // User type field
               DropdownButtonFormField<String>(
-                value: _userType,
+                initialValue: _userType,
                 decoration: InputDecoration(
                   labelText: 'User type',
                   prefixIcon: const Icon(Icons.category),
@@ -272,7 +283,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   DropdownMenuItem(value: 'PATIENT', child: Text('Patient')),
                   DropdownMenuItem(value: 'ATHLETE', child: Text('Athlete')),
                   DropdownMenuItem(value: 'ELDERLY', child: Text('Elderly')),
-                  DropdownMenuItem(value: 'HEALTHCARE_WORKER', child: Text('Healthcare worker')),
+                  DropdownMenuItem(
+                      value: 'HEALTHCARE_WORKER',
+                      child: Text('Healthcare worker')),
                 ],
                 onChanged: (value) {
                   if (value != null) {
@@ -308,12 +321,12 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               ),
               const SizedBox(height: 12),
 
-               // Allergies field
-               TextFormField(
-                 controller: _allergiesController,
-                 decoration: InputDecoration(
-                   labelText: 'Allergies',
-                   hintText: 'e.g. Penicillin, Peanuts...',
+              // Allergies field
+              TextFormField(
+                controller: _allergiesController,
+                decoration: InputDecoration(
+                  labelText: 'Allergies',
+                  hintText: 'e.g. Penicillin, Peanuts...',
                   prefixIcon: const Icon(Icons.warning),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
@@ -328,7 +341,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 children: [
                   Expanded(
                     child: OutlinedButton(
-                      onPressed: _isSaving ? null : () => Navigator.of(context).pop(),
+                      onPressed:
+                          _isSaving ? null : () => Navigator.of(context).pop(),
                       child: const Text('Cancel'),
                     ),
                   ),
@@ -336,7 +350,12 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   Expanded(
                     child: ElevatedButton(
                       onPressed: _isSaving ? null : _save,
-                      child: _isSaving ? SizedBox(height: 20, width: 20, child: LoadingSkeleton.buttonSmall(context)) : const Text('Save'),
+                      child: _isSaving
+                          ? SizedBox(
+                              height: 20,
+                              width: 20,
+                              child: LoadingSkeleton.buttonSmall(context))
+                          : const Text('Save'),
                     ),
                   ),
                 ],

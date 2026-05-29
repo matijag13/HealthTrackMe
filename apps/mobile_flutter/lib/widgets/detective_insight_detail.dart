@@ -237,7 +237,7 @@ class DetectiveInsightDetail extends StatelessWidget {
             Container(
               width: 28,
               height: 28,
-              decoration: BoxDecoration(
+              decoration: const BoxDecoration(
                 color: AppColors.primaryBlue,
                 shape: BoxShape.circle,
               ),

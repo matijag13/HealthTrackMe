@@ -200,7 +200,7 @@ class _HealthScreenTabbedState extends State<HealthScreenTabbed>
         return Card(
           child: ListTile(
             leading: CircleAvatar(
-                backgroundColor: color.withOpacity(0.12),
+                backgroundColor: color.withValues(alpha: 0.12),
                 child: Icon(v['icon'] as IconData, color: color)),
             title: Text(v['label'] as String),
             subtitle:
@@ -363,17 +363,24 @@ class _HealthScreenTabbedState extends State<HealthScreenTabbed>
   Future<void> _deleteActivity(Map<String, dynamic> act) async {
     try {
       final id = act['id'];
-      if (id == null) return;
+      if (id == null) {
+        return;
+      }
       final activityId = id is int ? id : int.tryParse(id.toString());
-      if (activityId == null) return;
+      if (activityId == null) {
+        return;
+      }
       final deleted = await _api.deleteSportActivity(activityId);
+      if (!mounted) return;
       if (deleted) {
         await _loadAll();
+        if (!mounted) return;
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Could not delete activity')));
       }
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context)
           .showSnackBar(const SnackBar(content: Text('Network error')));
     }
@@ -382,9 +389,10 @@ class _HealthScreenTabbedState extends State<HealthScreenTabbed>
   // Sleep tab implementation
   Widget _sleepTab(BuildContext context) {
     final sleepEntries = _entries.where((e) => e.sleepHours != null).toList();
-    if (sleepEntries.isEmpty)
-      return Center(
+    if (sleepEntries.isEmpty) {
+      return const Center(
           child: Text('No sleep readings yet — log sleep in the daily diary'));
+    }
     final last14 = sleepEntries.take(14).toList().reversed.toList();
     return ListView(
         padding: const EdgeInsets.all(12),
@@ -417,8 +425,10 @@ class _HealthScreenTabbedState extends State<HealthScreenTabbed>
             Expanded(
                 child: StatItem(
                     icon: '🌙',
-                    value:
-                        '${last14.map((e) => e.sleepHours ?? 0).reduce((a, b) => a > b ? a : b).toStringAsFixed(1)}',
+                    value: last14
+                        .map((e) => e.sleepHours ?? 0)
+                        .reduce((a, b) => a > b ? a : b)
+                        .toStringAsFixed(1),
                     label: 'Best night',
                     valueColor: AppColors.success))
           ]),
@@ -518,9 +528,9 @@ class _HealthScreenTabbedState extends State<HealthScreenTabbed>
                       SizedBox(
                           height: 180,
                           child: LineChart(LineChartData(
-                            gridData:
-                                FlGridData(show: true, drawVerticalLine: false),
-                            titlesData: FlTitlesData(
+                            gridData: const FlGridData(
+                                show: true, drawVerticalLine: false),
+                            titlesData: const FlTitlesData(
                               leftTitles: AxisTitles(
                                   sideTitles: SideTitles(
                                       showTitles: true, interval: 5)),
@@ -613,17 +623,29 @@ class _HealthScreenTabbedState extends State<HealthScreenTabbed>
     final values = <double>[];
     for (final e in _entries) {
       double? v;
-      if (key == 'energy') v = (e.energyLevel ?? 0).toDouble();
-      if (key == 'sleep') v = (e.sleepHours ?? 0).toDouble();
-      if (key == 'stress') v = (e.stressLevel ?? 0).toDouble();
-      if (key == 'wellbeing') v = (e.effectiveWellbeingScore).toDouble();
+      if (key == 'energy') {
+        v = (e.energyLevel ?? 0).toDouble();
+      }
+      if (key == 'sleep') {
+        v = (e.sleepHours ?? 0).toDouble();
+      }
+      if (key == 'stress') {
+        v = (e.stressLevel ?? 0).toDouble();
+      }
+      if (key == 'wellbeing') {
+        v = (e.effectiveWellbeingScore).toDouble();
+      }
       if (key == 'steps') {
         // steps are tracked in sport activities; aggregate per day
         // we'll return 0 here for per-entry series and let VitalDetailPage handle steps differently
         v = 0.0;
       }
-      if (v != null) values.add(v);
-      if (values.length >= count) break;
+      if (v != null) {
+        values.add(v);
+      }
+      if (values.length >= count) {
+        break;
+      }
     }
     return values.reversed.toList().cast<double>();
   }
@@ -635,7 +657,7 @@ class _HealthScreenTabbedState extends State<HealthScreenTabbed>
       case 'energy':
         return e.energyLevel;
       case 'sleep':
-        return e.sleepHours != null ? e.sleepHours!.toStringAsFixed(1) : null;
+        return e.sleepHours?.toStringAsFixed(1);
       case 'stress':
         return e.stressLevel;
       case 'wellbeing':
@@ -650,17 +672,25 @@ class _HealthScreenTabbedState extends State<HealthScreenTabbed>
   }
 
   Color _colorForValue(num? min, num? max, dynamic value) {
-    if (value == null) return AppColors.muted;
-    if (min == null || max == null) return AppColors.navy;
+    if (value == null) {
+      return AppColors.muted;
+    }
+    if (min == null || max == null) {
+      return AppColors.navy;
+    }
     try {
       final v = (value is String)
           ? double.tryParse(value) ?? 0.0
           : (value as num).toDouble();
-      if (v < min || v > max) return AppColors.danger;
+      if (v < min || v > max) {
+        return AppColors.danger;
+      }
       // borderline if within 10% of bounds
       final range = (max - min).abs();
       if ((v - min) / (range == 0 ? 1 : range) < 0.1 ||
-          (max - v) / (range == 0 ? 1 : range) < 0.1) return AppColors.warning;
+          (max - v) / (range == 0 ? 1 : range) < 0.1) {
+        return AppColors.warning;
+      }
       return AppColors.success;
     } catch (_) {
       return AppColors.muted;
@@ -668,7 +698,9 @@ class _HealthScreenTabbedState extends State<HealthScreenTabbed>
   }
 
   String _daysAgoLabelForKey(String key) {
-    if (_entries.isEmpty) return '';
+    if (_entries.isEmpty) {
+      return '';
+    }
     // find last entry with that key
     for (final e in _entries) {
       final has = (key == 'energy' && e.energyLevel != null) ||
@@ -684,19 +716,21 @@ class _HealthScreenTabbedState extends State<HealthScreenTabbed>
   }
 
   Widget _miniSparkline(List<double> values, Color color) {
-    if (values.isEmpty) return const SizedBox();
+    if (values.isEmpty) {
+      return const SizedBox();
+    }
     final spots =
         List.generate(values.length, (i) => FlSpot(i.toDouble(), values[i]));
     return LineChart(LineChartData(
-        gridData: FlGridData(show: false),
-        titlesData: FlTitlesData(show: false),
+        gridData: const FlGridData(show: false),
+        titlesData: const FlTitlesData(show: false),
         borderData: FlBorderData(show: false),
         lineBarsData: [
           LineChartBarData(
               spots: spots,
               isCurved: true,
               color: color,
-              dotData: FlDotData(show: false),
+              dotData: const FlDotData(show: false),
               barWidth: 2)
         ]));
   }
@@ -721,7 +755,9 @@ class _HealthScreenTabbedState extends State<HealthScreenTabbed>
           final d = jsonDecode(e.notes!) as Map<String, dynamic>;
           final act = d['activity'] as Map?;
           final s = int.tryParse(act?['steps']?.toString() ?? '') ?? 0;
-          if (s <= 0) continue;
+          if (s <= 0) {
+            continue;
+          }
           // check whether a sport activity with same steps already exists for the same day to avoid double-counting
           final existsInSport = _sportActivities.any((a) {
             final t = DateTime.tryParse(a['start']?.toString() ?? '') ??
@@ -731,7 +767,9 @@ class _HealthScreenTabbedState extends State<HealthScreenTabbed>
                 t.day == day.day &&
                 ((a['steps'] as int?) ?? 0) == s;
           });
-          if (!existsInSport) sum += s;
+          if (!existsInSport) {
+            sum += s;
+          }
         } catch (_) {
           // ignore parsing errors
         }
@@ -742,7 +780,9 @@ class _HealthScreenTabbedState extends State<HealthScreenTabbed>
 
   int get _stepsFromEntries {
     return _entries.fold(0, (sum, e) {
-      if (e.notes == null || !e.notes!.startsWith('{')) return sum;
+      if (e.notes == null || !e.notes!.startsWith('{')) {
+        return sum;
+      }
       try {
         final d = jsonDecode(e.notes!) as Map<String, dynamic>;
         final act = d['activity'] as Map?;
@@ -759,18 +799,24 @@ class _HealthScreenTabbedState extends State<HealthScreenTabbed>
     for (final a in _sportActivities) {
       final t = DateTime.tryParse(a['start']?.toString() ?? '') ??
           DateTime.fromMillisecondsSinceEpoch(0);
-      if ((a['steps'] as int?) != null && (a['steps'] as int) > 0)
+      if ((a['steps'] as int?) != null && (a['steps'] as int) > 0) {
         daysWithSteps.add(DateTime(t.year, t.month, t.day));
+      }
     }
-    if (daysWithSteps.isEmpty) return 0;
+    if (daysWithSteps.isEmpty) {
+      return 0;
+    }
     final dates = daysWithSteps.toList()..sort();
     var best = 1, cur = 1;
     for (var i = 1; i < dates.length; i++) {
-      if (dates[i].difference(dates[i - 1]).inDays == 1)
+      if (dates[i].difference(dates[i - 1]).inDays == 1) {
         cur++;
-      else
+      } else {
         cur = 1;
-      if (cur > best) best = cur;
+      }
+      if (cur > best) {
+        best = cur;
+      }
     }
     return best;
   }
@@ -787,7 +833,7 @@ class _HealthScreenTabbedState extends State<HealthScreenTabbed>
           BarChartRodData(toY: thisWeek[i].toDouble(), color: AppColors.teal),
           BarChartRodData(
               toY: prevWeek[i].toDouble(),
-              color: AppColors.muted.withOpacity(0.35)),
+              color: AppColors.muted.withValues(alpha: 0.35)),
         ],
       ),
     );
@@ -814,9 +860,10 @@ class _HealthScreenTabbedState extends State<HealthScreenTabbed>
               },
             ),
           ),
-          leftTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          leftTitles:
+              const AxisTitles(sideTitles: SideTitles(showTitles: false)),
         ),
-        gridData: FlGridData(show: false),
+        gridData: const FlGridData(show: false),
         borderData: FlBorderData(show: false),
         maxY: maxY,
       ),
@@ -837,8 +884,8 @@ class _HealthScreenTabbedState extends State<HealthScreenTabbed>
             ]));
     return BarChart(BarChartData(
         barGroups: spots,
-        titlesData: FlTitlesData(show: false),
-        gridData: FlGridData(show: false),
+        titlesData: const FlTitlesData(show: false),
+        gridData: const FlGridData(show: false),
         borderData: FlBorderData(show: false),
         alignment: BarChartAlignment.spaceAround));
   }
@@ -882,6 +929,7 @@ class _HealthScreenTabbedState extends State<HealthScreenTabbed>
     final uri = Uri.parse('${_api.baseUrl}/export/csv');
     try {
       final resp = await http.get(uri);
+      if (!mounted) return;
       if (resp.statusCode >= 200 && resp.statusCode < 300) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
             content: Text(
@@ -891,6 +939,7 @@ class _HealthScreenTabbedState extends State<HealthScreenTabbed>
             .showSnackBar(const SnackBar(content: Text('Export failed.')));
       }
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Network error while exporting.')));
     }
@@ -900,6 +949,7 @@ class _HealthScreenTabbedState extends State<HealthScreenTabbed>
     final uri = Uri.parse('${_api.baseUrl}/export/pdf');
     try {
       final resp = await http.get(uri);
+      if (!mounted) return;
       if (resp.statusCode >= 200 && resp.statusCode < 300) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
             content: Text(
@@ -909,6 +959,7 @@ class _HealthScreenTabbedState extends State<HealthScreenTabbed>
             .showSnackBar(const SnackBar(content: Text('Export failed.')));
       }
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Network error while exporting.')));
     }
@@ -935,10 +986,11 @@ class VitalDetailPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final data = _mapValuesForKey();
-    if (data.isEmpty)
+    if (data.isEmpty) {
       return Scaffold(
           appBar: AppBar(title: Text(label)),
           body: const Center(child: Text('No data yet')));
+    }
     final spots =
         List.generate(data.length, (i) => FlSpot(i.toDouble(), data[i]));
     final chartMax =
@@ -955,8 +1007,8 @@ class VitalDetailPage extends StatelessWidget {
                 LineChartData(
                   minY: 0,
                   maxY: chartMax,
-                  gridData: FlGridData(show: true),
-                  titlesData: FlTitlesData(
+                  gridData: const FlGridData(show: true),
+                  titlesData: const FlTitlesData(
                     show: true,
                     bottomTitles:
                         AxisTitles(sideTitles: SideTitles(showTitles: false)),
@@ -968,7 +1020,7 @@ class VitalDetailPage extends StatelessWidget {
                         isCurved: true,
                         color: AppColors.navy,
                         barWidth: 3,
-                        dotData: FlDotData(show: false)),
+                        dotData: const FlDotData(show: false)),
                   ],
                 ),
               ),

@@ -54,9 +54,11 @@ class HealthTrackMeApp extends StatelessWidget {
           SystemUiOverlayStyle(
             statusBarColor: Colors.transparent,
             statusBarBrightness: isDark ? Brightness.dark : Brightness.light,
-            statusBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
+            statusBarIconBrightness:
+                isDark ? Brightness.light : Brightness.dark,
             systemNavigationBarColor: Colors.transparent,
-            systemNavigationBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
+            systemNavigationBarIconBrightness:
+                isDark ? Brightness.light : Brightness.dark,
           ),
         );
 

@@ -10,14 +10,14 @@ class HealthMetricCard extends StatelessWidget {
   final VoidCallback? onTap;
 
   const HealthMetricCard({
-    Key? key,
+    super.key,
     required this.label,
     required this.value,
     this.unit,
     this.trend,
     this.accentColor = AppColors.primaryBlue,
     this.onTap,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

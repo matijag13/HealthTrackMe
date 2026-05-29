@@ -151,13 +151,13 @@ class _MedicinesScreenState extends State<MedicinesScreen>
             _statPill(
               icon: Icons.medication_rounded,
               label: '$active active',
-              bg: Colors.white.withOpacity(0.2),
+              bg: Colors.white.withValues(alpha: 0.2),
             ),
             const SizedBox(width: 10),
             _statPill(
               icon: Icons.check_circle_rounded,
               label: '$taken taken today',
-              bg: Colors.white.withOpacity(0.2),
+              bg: Colors.white.withValues(alpha: 0.2),
             ),
           ]),
         ],
@@ -252,8 +252,8 @@ class _MedicinesScreenState extends State<MedicinesScreen>
           height: 40,
           decoration: BoxDecoration(
             color: taken
-                ? Colors.green.withOpacity(0.12)
-                : const Color(0xFF0A84FF).withOpacity(0.1),
+                ? Colors.green.withValues(alpha: 0.12)
+                : const Color(0xFF0A84FF).withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(12),
           ),
           child: Icon(
@@ -370,8 +370,8 @@ class _MedicinesScreenState extends State<MedicinesScreen>
                 height: 44,
                 decoration: BoxDecoration(
                   color: m.isActive
-                      ? const Color(0xFF0A84FF).withOpacity(0.1)
-                      : const Color(0xFF64748B).withOpacity(0.08),
+                      ? const Color(0xFF0A84FF).withValues(alpha: 0.1)
+                      : const Color(0xFF64748B).withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(14),
                 ),
                 child: Icon(
@@ -414,8 +414,8 @@ class _MedicinesScreenState extends State<MedicinesScreen>
                       const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                   decoration: BoxDecoration(
                     color: urgent
-                        ? const Color(0xFFFF453A).withOpacity(0.1)
-                        : const Color(0xFF64748B).withOpacity(0.08),
+                        ? const Color(0xFFFF453A).withValues(alpha: 0.1)
+                        : const Color(0xFF64748B).withValues(alpha: 0.08),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(

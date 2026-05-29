@@ -139,13 +139,17 @@ class WearableDevice {
     final now = DateTime.now();
     final diff = now.difference(connectedAt);
 
-    if (diff.inDays == 0) return 'Connected today';
-    if (diff.inDays == 1) return 'Connected yesterday';
+    if (diff.inDays == 0) {
+      return 'Connected today';
+    }
+    if (diff.inDays == 1) {
+      return 'Connected yesterday';
+    }
     return 'Connected ${diff.inDays}d ago';
   }
 
-  bool get needsSync => lastSyncAt == null ||
-      DateTime.now().difference(lastSyncAt!).inHours >= 1;
+  bool get needsSync =>
+      lastSyncAt == null || DateTime.now().difference(lastSyncAt!).inHours >= 1;
 
   factory WearableDevice.fromJson(Map<String, dynamic> json) {
     return WearableDevice(
@@ -157,7 +161,8 @@ class WearableDevice {
       connectedAt: DateTime.tryParse(json['connectedAt'] as String? ?? '') ??
           DateTime.now(),
       lastSyncAt: DateTime.tryParse(json['lastSyncTime'] as String? ?? ''),
-      syncStatus: _parseSyncStatus(json['syncStatus'] as String? ?? 'notConnected'),
+      syncStatus:
+          _parseSyncStatus(json['syncStatus'] as String? ?? 'notConnected'),
       isActive: json['isActive'] as bool? ?? true,
       metadata: json['metadata'] as Map<String, dynamic>?,
     );
@@ -290,7 +295,8 @@ class SyncEvent {
     return SyncEvent(
       id: json['id'] as int? ?? 0,
       deviceName: json['deviceName'] as String? ?? 'Unknown',
-      deviceType: WearableDevice._parseDeviceType(json['deviceType'] as String? ?? 'other'),
+      deviceType: WearableDevice._parseDeviceType(
+          json['deviceType'] as String? ?? 'other'),
       syncTime: DateTime.tryParse(json['syncTime'] as String? ?? '') ??
           DateTime.now(),
       success: json['success'] as bool? ?? false,

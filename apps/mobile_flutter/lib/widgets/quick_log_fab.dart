@@ -31,7 +31,8 @@ class QuickLogFAB extends StatefulWidget {
   State<QuickLogFAB> createState() => _QuickLogFABState();
 }
 
-class _QuickLogFABState extends State<QuickLogFAB> with SingleTickerProviderStateMixin {
+class _QuickLogFABState extends State<QuickLogFAB>
+    with SingleTickerProviderStateMixin {
   late AnimationController _animationController;
   bool _isExpanded = false;
 
@@ -115,8 +116,7 @@ class _QuickLogFABState extends State<QuickLogFAB> with SingleTickerProviderStat
           ),
 
         // Menu items
-        if (_isExpanded)
-          ..._buildMenuItems(context),
+        if (_isExpanded) ..._buildMenuItems(context),
 
         // Main FAB
         Positioned(
@@ -150,7 +150,7 @@ class _QuickLogFABState extends State<QuickLogFAB> with SingleTickerProviderStat
 
     return List.generate(itemCount, (index) {
       final angle = (angleSlice * index) * (3.14159 / 180);
-      final radius = 120.0;
+      const radius = 120.0;
       final dx = radius * Math.cos(angle);
       final dy = radius * Math.sin(angle);
 
@@ -161,7 +161,8 @@ class _QuickLogFABState extends State<QuickLogFAB> with SingleTickerProviderStat
           scale: Tween<double>(begin: 0, end: 1).animate(
             CurvedAnimation(
               parent: _animationController,
-              curve: Interval(index * 0.1, 0.8 + index * 0.1, curve: Curves.easeOut),
+              curve: Interval(index * 0.1, 0.8 + index * 0.1,
+                  curve: Curves.easeOut),
             ),
           ),
           child: _buildMenuItem(context, options[index]),

@@ -65,7 +65,7 @@ class WearableService {
         // Android specific permissions
         final status = await Permission.activityRecognition.request();
         if (status.isDenied) {
-          print('❌ Activity recognition permission denied');
+          debugPrint('❌ Activity recognition permission denied');
           return false;
         }
       }
@@ -74,14 +74,14 @@ class WearableService {
       final authorized = await health.requestAuthorization(_requestedDataTypes);
 
       if (authorized) {
-        print('✅ Health permissions granted');
+        debugPrint('✅ Health permissions granted');
       } else {
-        print('❌ Health permissions denied');
+        debugPrint('❌ Health permissions denied');
       }
 
       return authorized;
     } catch (e) {
-      print('❌ Error requesting permissions: $e');
+      debugPrint('❌ Error requesting permissions: $e');
       return false;
     }
   }
@@ -96,7 +96,7 @@ class WearableService {
       final authorized = await health.hasPermissions(_requestedDataTypes);
       return authorized ?? false;
     } catch (e) {
-      print('❌ Error checking permissions: $e');
+      debugPrint('❌ Error checking permissions: $e');
       return false;
     }
   }
@@ -116,7 +116,7 @@ class WearableService {
 
       endDate ??= DateTime.now();
 
-      print(
+      debugPrint(
           '🔄 Syncing health data from ${startDate.toLocal()} to ${endDate.toLocal()}');
 
       // Fetch data from Health package
@@ -140,10 +140,10 @@ class WearableService {
       // Upload to backend
       await _uploadSyncData(syncData);
 
-      print('✅ Health data synced successfully');
+      debugPrint('✅ Health data synced successfully');
       return syncData;
     } catch (e) {
-      print('❌ Error syncing health data: $e');
+      debugPrint('❌ Error syncing health data: $e');
       rethrow;
     }
   }
@@ -151,7 +151,7 @@ class WearableService {
   /// Get steps from health data
   Future<int?> _getSteps(DateTime startDate, DateTime endDate) async {
     try {
-      final types = [HealthDataType.STEPS];
+      const types = [HealthDataType.STEPS];
       final data = await health.getHealthDataFromTypes(
         types: types,
         startTime: startDate,
@@ -167,7 +167,7 @@ class WearableService {
 
       return totalSteps > 0 ? totalSteps : null;
     } catch (e) {
-      print('⚠️ Error fetching steps: $e');
+      debugPrint('⚠️ Error fetching steps: $e');
       return null;
     }
   }
@@ -178,7 +178,7 @@ class WearableService {
     DateTime endDate,
   ) async {
     try {
-      final types = [HealthDataType.HEART_RATE];
+      const types = [HealthDataType.HEART_RATE];
       final data = await health.getHealthDataFromTypes(
         types: types,
         startTime: startDate,
@@ -204,7 +204,7 @@ class WearableService {
         'min': min,
       };
     } catch (e) {
-      print('⚠️ Error fetching heart rate: $e');
+      debugPrint('⚠️ Error fetching heart rate: $e');
       return null;
     }
   }
@@ -215,7 +215,7 @@ class WearableService {
     DateTime endDate,
   ) async {
     try {
-      final types = [HealthDataType.SLEEP_IN_BED];
+      const types = [HealthDataType.SLEEP_IN_BED];
       final data = await health.getHealthDataFromTypes(
         types: types,
         startTime: startDate,
@@ -234,16 +234,22 @@ class WearableService {
       final hours = totalMinutes / 60;
 
       String quality = 'FAIR';
-      if (hours >= 7.5) quality = 'EXCELLENT';
-      if (hours >= 7) quality = 'GOOD';
-      if (hours < 5) quality = 'POOR';
+      if (hours >= 7.5) {
+        quality = 'EXCELLENT';
+      }
+      if (hours >= 7) {
+        quality = 'GOOD';
+      }
+      if (hours < 5) {
+        quality = 'POOR';
+      }
 
       return {
         'hours': hours,
         'quality': quality,
       };
     } catch (e) {
-      print('⚠️ Error fetching sleep: $e');
+      debugPrint('⚠️ Error fetching sleep: $e');
       return null;
     }
   }
@@ -251,7 +257,7 @@ class WearableService {
   /// Get calories burned
   Future<int?> _getCalories(DateTime startDate, DateTime endDate) async {
     try {
-      final types = [HealthDataType.ACTIVE_ENERGY_BURNED];
+      const types = [HealthDataType.ACTIVE_ENERGY_BURNED];
       final data = await health.getHealthDataFromTypes(
         types: types,
         startTime: startDate,
@@ -267,7 +273,7 @@ class WearableService {
 
       return totalCalories > 0 ? totalCalories : null;
     } catch (e) {
-      print('⚠️ Error fetching calories: $e');
+      debugPrint('⚠️ Error fetching calories: $e');
       return null;
     }
   }
@@ -300,12 +306,12 @@ class WearableService {
 
       final result = jsonDecode(response.body) as Map<String, dynamic>;
       if (result['success'] == true) {
-        print('✅ Data uploaded to backend');
+        debugPrint('✅ Data uploaded to backend');
       } else {
-        print('⚠️ Backend returned error: ${result['message']}');
+        debugPrint('⚠️ Backend returned error: ${result['message']}');
       }
     } catch (e) {
-      print('⚠️ Error uploading sync data: $e');
+      debugPrint('⚠️ Error uploading sync data: $e');
       rethrow;
     }
   }
@@ -338,7 +344,7 @@ class WearableService {
 
       return [];
     } catch (e) {
-      print('❌ Error fetching devices: $e');
+      debugPrint('❌ Error fetching devices: $e');
       return [];
     }
   }
@@ -373,13 +379,13 @@ class WearableService {
       if (data['success'] == true && data['data'] != null) {
         final device =
             WearableDevice.fromJson(data['data'] as Map<String, dynamic>);
-        print('✅ Device added: ${device.name}');
+        debugPrint('✅ Device added: ${device.name}');
         return device;
       }
 
       throw Exception('Failed to add device');
     } catch (e) {
-      print('❌ Error adding device: $e');
+      debugPrint('❌ Error adding device: $e');
       rethrow;
     }
   }
@@ -401,13 +407,13 @@ class WearableService {
       final data = jsonDecode(response.body) as Map<String, dynamic>;
 
       if (data['success'] == true) {
-        print('✅ Device disconnected');
+        debugPrint('✅ Device disconnected');
         return true;
       }
 
       return false;
     } catch (e) {
-      print('❌ Error disconnecting device: $e');
+      debugPrint('❌ Error disconnecting device: $e');
       return false;
     }
   }
@@ -440,7 +446,7 @@ class WearableService {
 
       return [];
     } catch (e) {
-      print('❌ Error fetching sync history: $e');
+      debugPrint('❌ Error fetching sync history: $e');
       return [];
     }
   }
@@ -483,7 +489,7 @@ class WearableService {
 
       return true;
     } catch (e) {
-      print('⚠️ Error checking health data availability: $e');
+      debugPrint('⚠️ Error checking health data availability: $e');
       return false;
     }
   }

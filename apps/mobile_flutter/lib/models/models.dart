@@ -7,7 +7,10 @@ Map<String, dynamic> _asMap(dynamic value) {
 List<String> _parseStringList(dynamic value) {
   if (value == null) return const [];
   if (value is List) {
-    return value.map((item) => item.toString()).where((item) => item.trim().isNotEmpty).toList();
+    return value
+        .map((item) => item.toString())
+        .where((item) => item.trim().isNotEmpty)
+        .toList();
   }
   if (value is String) {
     return value
@@ -132,7 +135,8 @@ class HealthEntry {
   Map<String, dynamic> toJson() {
     // Backend expects wellbeingScore 0-10, not 0-100
     final scoreValue = wellbeingScore ?? effectiveWellbeingScore;
-    final scaledScore = (scoreValue > 10) ? (scoreValue / 10).round() : scoreValue;
+    final scaledScore =
+        (scoreValue > 10) ? (scoreValue / 10).round() : scoreValue;
     return {
       'entryDate': _dateOnly(entryDate),
       'wellbeingScore': scaledScore.clamp(0, 10),
@@ -167,7 +171,8 @@ class HealthEntry {
     final stress = _tryParseInt(map['stressLevel']);
     return HealthEntry(
       id: _tryParseInt(map['id']) ?? 0,
-      entryDate: _tryParseDate(map['entryDate'] ?? map['date']) ?? DateTime.now(),
+      entryDate:
+          _tryParseDate(map['entryDate'] ?? map['date']) ?? DateTime.now(),
       wellbeingScore: _tryParseInt(map['wellbeingScore']),
       symptoms: _parseStringList(map['symptoms']),
       mood: map['mood']?.toString(),
@@ -178,16 +183,22 @@ class HealthEntry {
       heartRate: _tryParseInt(map['heartRate']),
       systolicBp: _tryParseInt(map['systolicBp'] ?? map['systolic_bp']),
       diastolicBp: _tryParseInt(map['diastolicBp'] ?? map['diastolic_bp']),
-      bloodGlucose: _tryParseDouble(map['bloodGlucose'] ?? map['blood_glucose']),
-      bodyTemperature: _tryParseDouble(map['bodyTemperature'] ?? map['body_temperature']),
+      bloodGlucose:
+          _tryParseDouble(map['bloodGlucose'] ?? map['blood_glucose']),
+      bodyTemperature:
+          _tryParseDouble(map['bodyTemperature'] ?? map['body_temperature']),
       spO2: _tryParseInt(map['spO2'] ?? map['spo2']),
-      waterIntakeMl: _tryParseInt(map['waterIntakeMl'] ?? map['water_intake_ml']),
-      caloriesConsumed: _tryParseInt(map['caloriesConsumed'] ?? map['calories_consumed']),
-      alcoholUnits: _tryParseDouble(map['alcoholUnits'] ?? map['alcohol_units']),
+      waterIntakeMl:
+          _tryParseInt(map['waterIntakeMl'] ?? map['water_intake_ml']),
+      caloriesConsumed:
+          _tryParseInt(map['caloriesConsumed'] ?? map['calories_consumed']),
+      alcoholUnits:
+          _tryParseDouble(map['alcoholUnits'] ?? map['alcohol_units']),
       painLevel: _tryParseInt(map['painLevel'] ?? map['pain_level']),
       bedtime: _asString(map['bedtime'] ?? map['bed_time']),
       wakeTime: _asString(map['wakeTime'] ?? map['wake_time']),
-      sleepQualityStars: _tryParseInt(map['sleepQualityStars'] ?? map['sleep_quality_stars']),
+      sleepQualityStars:
+          _tryParseInt(map['sleepQualityStars'] ?? map['sleep_quality_stars']),
       tags: _parseStringList(map['tags']),
       stressLevel: stress,
       notes: map['notes']?.toString(),
@@ -323,9 +334,12 @@ class User {
   final String? emergencyContactPhone;
   final List<String>? chronicConditions; // e.g. ['Diabetes', 'Hypertension']
   final List<String>? allergiesList; // parsed allergies as list
-  final List<Map<String, dynamic>>? pastSurgeries; // [{"name":"Appendix","year":2018}]
-  final List<Map<String, dynamic>>? familyHistory; // [{"condition":"Heart disease","relation":"Father"}]
-  final List<Map<String, dynamic>>? vaccinations; // [{"name":"MMR","date":"2020-01-01"}]
+  final List<Map<String, dynamic>>?
+      pastSurgeries; // [{"name":"Appendix","year":2018}]
+  final List<Map<String, dynamic>>?
+      familyHistory; // [{"condition":"Heart disease","relation":"Father"}]
+  final List<Map<String, dynamic>>?
+      vaccinations; // [{"name":"MMR","date":"2020-01-01"}]
   final String? bloodType;
   final bool? organDonor;
   final String? doctorName;
@@ -366,11 +380,18 @@ class User {
     this.profilePhotoBase64,
   });
 
-  String get fullName => [firstName, lastName].where((part) => part.trim().isNotEmpty).join(' ').trim();
+  String get fullName => [firstName, lastName]
+      .where((part) => part.trim().isNotEmpty)
+      .join(' ')
+      .trim();
 
   String get initials {
-    final parts = fullName.isNotEmpty ? fullName.split(RegExp(r'\s+')) : [email];
-    final letters = parts.take(2).map((part) => part.trim().isEmpty ? '' : part.trim()[0]).join();
+    final parts =
+        fullName.isNotEmpty ? fullName.split(RegExp(r'\s+')) : [email];
+    final letters = parts
+        .take(2)
+        .map((part) => part.trim().isEmpty ? '' : part.trim()[0])
+        .join();
     return letters.isEmpty ? 'U' : letters.toUpperCase();
   }
 
@@ -403,8 +424,12 @@ class User {
     if (weightKg != null) map['weightKg'] = weightKg;
     if (heightUnit != null) map['heightUnit'] = heightUnit;
     if (gender != null) map['gender'] = gender;
-    if (emergencyContactName != null) map['emergencyContactName'] = emergencyContactName;
-    if (emergencyContactPhone != null) map['emergencyContactPhone'] = emergencyContactPhone;
+    if (emergencyContactName != null) {
+      map['emergencyContactName'] = emergencyContactName;
+    }
+    if (emergencyContactPhone != null) {
+      map['emergencyContactPhone'] = emergencyContactPhone;
+    }
     if (chronicConditions != null) map['chronicConditions'] = chronicConditions;
     if (allergiesList != null) map['allergiesList'] = allergiesList;
     if (pastSurgeries != null) map['pastSurgeries'] = pastSurgeries;
@@ -416,8 +441,12 @@ class User {
     if (doctorClinic != null) map['doctorClinic'] = doctorClinic;
     if (doctorPhone != null) map['doctorPhone'] = doctorPhone;
     if (insuranceProvider != null) map['insuranceProvider'] = insuranceProvider;
-    if (insurancePolicyNumber != null) map['insurancePolicyNumber'] = insurancePolicyNumber;
-    if (profilePhotoBase64 != null) map['profilePhotoBase64'] = profilePhotoBase64;
+    if (insurancePolicyNumber != null) {
+      map['insurancePolicyNumber'] = insurancePolicyNumber;
+    }
+    if (profilePhotoBase64 != null) {
+      map['profilePhotoBase64'] = profilePhotoBase64;
+    }
 
     return map;
   }
@@ -514,7 +543,8 @@ class HealthReport {
     return HealthReport(
       id: _asString(map['id'], fallback: 'report'),
       month: _tryParseDate(map['month']) ?? DateTime.now(),
-      averageWellbeingScore: _tryParseDouble(map['averageWellbeingScore']) ?? 0.0,
+      averageWellbeingScore:
+          _tryParseDouble(map['averageWellbeingScore']) ?? 0.0,
       averageSleepHours: _tryParseDouble(map['averageSleepHours']) ?? 0.0,
       entriesCount: _tryParseInt(map['entriesCount']) ?? 0,
       activeMedicinesCount: _tryParseInt(map['activeMedicinesCount']) ?? 0,
@@ -527,15 +557,26 @@ class HealthReport {
     required List<HealthEntry> entries,
     required List<Medicine> medicines,
   }) {
-    final inMonth = entries.where((entry) => entry.entryDate.year == month.year && entry.entryDate.month == month.month).toList();
+    final inMonth = entries
+        .where((entry) =>
+            entry.entryDate.year == month.year &&
+            entry.entryDate.month == month.month)
+        .toList();
     final avgWellbeing = inMonth.isEmpty
         ? 0.0
-        : inMonth.map((entry) => entry.effectiveWellbeingScore).reduce((a, b) => a + b) / inMonth.length;
+        : inMonth
+                .map((entry) => entry.effectiveWellbeingScore)
+                .reduce((a, b) => a + b) /
+            inMonth.length;
 
-    final sleepEntries = inMonth.where((entry) => entry.sleepHours != null).toList();
+    final sleepEntries =
+        inMonth.where((entry) => entry.sleepHours != null).toList();
     final avgSleep = sleepEntries.isEmpty
         ? 0.0
-        : sleepEntries.map((entry) => entry.sleepHours!).reduce((a, b) => a + b) / sleepEntries.length;
+        : sleepEntries
+                .map((entry) => entry.sleepHours!)
+                .reduce((a, b) => a + b) /
+            sleepEntries.length;
 
     final symptomFrequency = <String, int>{};
     for (final entry in inMonth) {
@@ -550,7 +591,8 @@ class HealthReport {
       averageWellbeingScore: avgWellbeing,
       averageSleepHours: avgSleep,
       entriesCount: inMonth.length,
-      activeMedicinesCount: medicines.where((medicine) => medicine.isActive).length,
+      activeMedicinesCount:
+          medicines.where((medicine) => medicine.isActive).length,
       symptomFrequency: symptomFrequency,
     );
   }
@@ -628,7 +670,8 @@ class HealthShield {
       level: _tryParseInt(map['level']) ?? 1,
       levelName: _asString(map['levelName'], fallback: 'Basic Shield'),
       totalConsistencyPoints: _tryParseInt(map['totalConsistencyPoints']) ?? 0,
-      currentLevelStartPoints: _tryParseInt(map['currentLevelStartPoints']) ?? 0,
+      currentLevelStartPoints:
+          _tryParseInt(map['currentLevelStartPoints']) ?? 0,
       nextLevelPoints: _tryParseInt(map['nextLevelPoints']) ?? 0,
       pointsToNextLevel: _tryParseInt(map['pointsToNextLevel']) ?? 0,
       progressPercent: _tryParseInt(map['progressPercent']) ?? 0,
@@ -636,7 +679,9 @@ class HealthShield {
       penaltyPoints: _tryParseInt(map['penaltyPoints']) ?? 0,
       completedHabitsCount: _tryParseInt(map['completedHabitsCount']) ?? 0,
       consecutiveFailedDays: _tryParseInt(map['consecutiveFailedDays']) ?? 0,
-      dailyBreakdown: breakdownJson != null ? HealthShieldDailyBreakdown.fromJson(breakdownJson) : null,
+      dailyBreakdown: breakdownJson != null
+          ? HealthShieldDailyBreakdown.fromJson(breakdownJson)
+          : null,
     );
   }
 }

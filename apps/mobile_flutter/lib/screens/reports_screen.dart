@@ -11,7 +11,8 @@ class ReportsScreen extends StatefulWidget {
   State<ReportsScreen> createState() => _ReportsScreenState();
 }
 
-class _ReportsScreenState extends State<ReportsScreen> with AutomaticKeepAliveClientMixin {
+class _ReportsScreenState extends State<ReportsScreen>
+    with AutomaticKeepAliveClientMixin {
   final ApiService _api = ApiService.instance;
   late Future<HealthReport> _future;
   HealthReport? _cachedReport;
@@ -57,11 +58,13 @@ class _ReportsScreenState extends State<ReportsScreen> with AutomaticKeepAliveCl
     if (!mounted) return;
     final messenger = ScaffoldMessenger.of(context);
     if (summary == null || summary.isEmpty) {
-      messenger.showSnackBar(const SnackBar(content: Text('No summary available right now.')));
+      messenger.showSnackBar(
+          const SnackBar(content: Text('No summary available right now.')));
       return;
     }
     await Clipboard.setData(ClipboardData(text: summary));
-    messenger.showSnackBar(const SnackBar(content: Text('✅ Summary copied to clipboard')));
+    messenger.showSnackBar(
+        const SnackBar(content: Text('✅ Summary copied to clipboard')));
   }
 
   String _monthLabel(DateTime month) {
@@ -101,9 +104,13 @@ class _ReportsScreenState extends State<ReportsScreen> with AutomaticKeepAliveCl
               overflow: TextOverflow.ellipsis,
               text: const TextSpan(
                 text: 'Health',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Colors.white),
+                style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white),
                 children: [
-                  TextSpan(text: 'Track', style: TextStyle(color: AppColors.teal)),
+                  TextSpan(
+                      text: 'Track', style: TextStyle(color: AppColors.teal)),
                   TextSpan(text: 'Me'),
                 ],
               ),
@@ -111,7 +118,8 @@ class _ReportsScreenState extends State<ReportsScreen> with AutomaticKeepAliveCl
             const Spacer(),
             Text(
               _monthLabel(DateTime.now()),
-              style: TextStyle(fontSize: 12, color: Colors.white.withValues(alpha: 0.7)),
+              style: TextStyle(
+                  fontSize: 12, color: Colors.white.withValues(alpha: 0.7)),
             ),
           ],
         ),
@@ -124,20 +132,30 @@ class _ReportsScreenState extends State<ReportsScreen> with AutomaticKeepAliveCl
         child: FutureBuilder<HealthReport>(
           future: _future,
           builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting && _cachedReport == null) {
-              return Center(child: Padding(padding: const EdgeInsets.all(16), child: LoadingSkeleton.dashboard(context)));
+            if (snapshot.connectionState == ConnectionState.waiting &&
+                _cachedReport == null) {
+              return Center(
+                  child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: LoadingSkeleton.dashboard(context)));
             }
             if (snapshot.hasError && _cachedReport == null) {
               return ListView(
                 physics: const AlwaysScrollableScrollPhysics(),
                 children: [
                   const SizedBox(height: 120),
-                  Center(child: Text('Error loading report: ${snapshot.error}')),
+                  Center(
+                      child: Text('Error loading report: ${snapshot.error}')),
                 ],
               );
             }
 
-            final data = snapshot.data ?? _cachedReport ?? HealthReport.fromEntries(month: DateTime.now(), entries: const [], medicines: const []);
+            final data = snapshot.data ??
+                _cachedReport ??
+                HealthReport.fromEntries(
+                    month: DateTime.now(),
+                    entries: const [],
+                    medicines: const []);
             final String scoreBadge;
             final Color scoreBadgeColor;
             final Color scoreBadgeTextColor;
@@ -177,9 +195,16 @@ class _ReportsScreenState extends State<ReportsScreen> with AutomaticKeepAliveCl
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text('📄 Doctor\'s Report', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Colors.white)),
+                      const Text('📄 Doctor\'s Report',
+                          style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.white)),
                       const SizedBox(height: 2),
-                      Text('Monthly summary · ${_monthLabel(data.month)}', style: TextStyle(fontSize: 11, color: Colors.white.withValues(alpha: 0.8))),
+                      Text('Monthly summary · ${_monthLabel(data.month)}',
+                          style: TextStyle(
+                              fontSize: 11,
+                              color: Colors.white.withValues(alpha: 0.8))),
                       const SizedBox(height: 10),
                       SizedBox(
                         height: 34,
@@ -188,11 +213,13 @@ class _ReportsScreenState extends State<ReportsScreen> with AutomaticKeepAliveCl
                           icon: const Icon(Icons.copy, size: 16),
                           label: const Text('Copy Summary'),
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.white.withValues(alpha: 0.2),
+                            backgroundColor:
+                                Colors.white.withValues(alpha: 0.2),
                             foregroundColor: Colors.white,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(8),
-                              side: BorderSide(color: Colors.white.withValues(alpha: 0.4)),
+                              side: BorderSide(
+                                  color: Colors.white.withValues(alpha: 0.4)),
                             ),
                           ),
                         ),
@@ -207,12 +234,14 @@ class _ReportsScreenState extends State<ReportsScreen> with AutomaticKeepAliveCl
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('TRENDS THIS MONTH', style: Theme.of(context).textTheme.labelSmall),
+                        Text('TRENDS THIS MONTH',
+                            style: Theme.of(context).textTheme.labelSmall),
                         const SizedBox(height: 12),
                         TrendItem(
                           icon: '✨',
                           name: 'Avg. Wellbeing',
-                          value: '${data.averageWellbeingScore.toStringAsFixed(0)} / 100',
+                          value:
+                              '${data.averageWellbeingScore.toStringAsFixed(0)} / 100',
                           badge: scoreBadge,
                           badgeColor: scoreBadgeColor,
                           badgeTextColor: scoreBadgeTextColor,
@@ -221,10 +250,18 @@ class _ReportsScreenState extends State<ReportsScreen> with AutomaticKeepAliveCl
                         TrendItem(
                           icon: '😴',
                           name: 'Sleep',
-                          value: data.averageSleepHours > 0 ? 'Avg. ${_formatSleep(data.averageSleepHours)}' : 'No data',
-                          badge: data.averageSleepHours >= 7 ? '✓ Normal' : '↘ Check',
-                          badgeColor: data.averageSleepHours >= 7 ? const Color(0xFFE8F8F0) : const Color(0xFFFFF3E0),
-                          badgeTextColor: data.averageSleepHours >= 7 ? AppColors.success : const Color(0xFFE67E22),
+                          value: data.averageSleepHours > 0
+                              ? 'Avg. ${_formatSleep(data.averageSleepHours)}'
+                              : 'No data',
+                          badge: data.averageSleepHours >= 7
+                              ? '✓ Normal'
+                              : '↘ Check',
+                          badgeColor: data.averageSleepHours >= 7
+                              ? const Color(0xFFE8F8F0)
+                              : const Color(0xFFFFF3E0),
+                          badgeTextColor: data.averageSleepHours >= 7
+                              ? AppColors.success
+                              : const Color(0xFFE67E22),
                         ),
                         const Divider(height: 1, color: AppColors.border),
                         TrendItem(
@@ -240,7 +277,9 @@ class _ReportsScreenState extends State<ReportsScreen> with AutomaticKeepAliveCl
                           icon: '💊',
                           name: 'Active Medicines',
                           value: '${data.activeMedicinesCount} medicines',
-                          badge: data.activeMedicinesCount > 0 ? '✓ In use' : 'No medicines',
+                          badge: data.activeMedicinesCount > 0
+                              ? '✓ In use'
+                              : 'No medicines',
                           badgeColor: const Color(0xFFE8F8F0),
                           badgeTextColor: AppColors.success,
                         ),
@@ -255,21 +294,29 @@ class _ReportsScreenState extends State<ReportsScreen> with AutomaticKeepAliveCl
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('COMMON SYMPTOMS', style: Theme.of(context).textTheme.labelSmall),
+                        Text('COMMON SYMPTOMS',
+                            style: Theme.of(context).textTheme.labelSmall),
                         const SizedBox(height: 12),
                         if (data.symptomFrequency.isEmpty)
                           const Text('No symptoms to display.')
                         else
                           ...data.symptomFrequency.entries.map((entry) {
-                            final maxCount = data.symptomFrequency.values.reduce((a, b) => a > b ? a : b);
-                            final percentage = maxCount == 0 ? 0 : (entry.value / maxCount * 100).toInt();
+                            final maxCount = data.symptomFrequency.values
+                                .reduce((a, b) => a > b ? a : b);
+                            final percentage = maxCount == 0
+                                ? 0
+                                : (entry.value / maxCount * 100).toInt();
                             return Padding(
                               padding: const EdgeInsets.only(bottom: 8),
                               child: Row(
                                 children: [
                                   SizedBox(
                                     width: 100,
-                                    child: Text(entry.key, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: AppColors.navy)),
+                                    child: Text(entry.key,
+                                        style: const TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w500,
+                                            color: AppColors.navy)),
                                   ),
                                   Expanded(
                                     child: Stack(
@@ -278,15 +325,21 @@ class _ReportsScreenState extends State<ReportsScreen> with AutomaticKeepAliveCl
                                           height: 8,
                                           decoration: BoxDecoration(
                                             color: AppColors.border,
-                                            borderRadius: BorderRadius.circular(4),
+                                            borderRadius:
+                                                BorderRadius.circular(4),
                                           ),
                                         ),
                                         Container(
-                                          width: (percentage / 100) * (MediaQuery.of(context).size.width - 160),
+                                          width: (percentage / 100) *
+                                              (MediaQuery.of(context)
+                                                      .size
+                                                      .width -
+                                                  160),
                                           height: 8,
                                           decoration: BoxDecoration(
                                             color: AppColors.blue,
-                                            borderRadius: BorderRadius.circular(4),
+                                            borderRadius:
+                                                BorderRadius.circular(4),
                                           ),
                                         ),
                                       ],
@@ -295,7 +348,11 @@ class _ReportsScreenState extends State<ReportsScreen> with AutomaticKeepAliveCl
                                   const SizedBox(width: 8),
                                   SizedBox(
                                     width: 28,
-                                    child: Text('${entry.value}x', textAlign: TextAlign.right, style: const TextStyle(fontSize: 11, color: AppColors.muted)),
+                                    child: Text('${entry.value}x',
+                                        textAlign: TextAlign.right,
+                                        style: const TextStyle(
+                                            fontSize: 11,
+                                            color: AppColors.muted)),
                                   ),
                                 ],
                               ),
@@ -309,16 +366,22 @@ class _ReportsScreenState extends State<ReportsScreen> with AutomaticKeepAliveCl
                 Container(
                   decoration: BoxDecoration(
                     color: AppColors.softBlue,
-                    border: Border.all(color: const Color(0xFFBDD9F2), width: 1.5),
+                    border:
+                        Border.all(color: const Color(0xFFBDD9F2), width: 1.5),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   padding: const EdgeInsets.all(14),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text('📤 Share with Doctor', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.navy)),
+                      const Text('📤 Share with Doctor',
+                          style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.navy)),
                       const SizedBox(height: 6),
-                      const Text('You can copy this summary and share it via email or other channels.'),
+                      const Text(
+                          'You can copy this summary and share it via email or other channels.'),
                       const SizedBox(height: 10),
                       Row(
                         children: [
@@ -327,7 +390,8 @@ class _ReportsScreenState extends State<ReportsScreen> with AutomaticKeepAliveCl
                               onPressed: _copySummary,
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: AppColors.blue,
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(8)),
                               ),
                               child: const Text('Copy'),
                             ),
@@ -341,7 +405,8 @@ class _ReportsScreenState extends State<ReportsScreen> with AutomaticKeepAliveCl
                                 foregroundColor: AppColors.blue,
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(8),
-                                  side: const BorderSide(color: AppColors.blue, width: 1.5),
+                                  side: const BorderSide(
+                                      color: AppColors.blue, width: 1.5),
                                 ),
                               ),
                               child: const Text('Refresh'),

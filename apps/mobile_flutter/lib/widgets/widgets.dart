@@ -20,12 +20,12 @@ class WellnessRing extends StatelessWidget {
   final String subtitle;
 
   const WellnessRing({
-    Key? key,
+    super.key,
     required this.current,
     required this.total,
     required this.title,
     required this.subtitle,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -33,14 +33,14 @@ class WellnessRing extends StatelessWidget {
 
     return Container(
       decoration: BoxDecoration(
-        gradient: LinearGradient(
+        gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [AppColors.navy, Color(0xFF2a5298)],
         ),
         borderRadius: BorderRadius.circular(12),
       ),
-      padding: EdgeInsets.all(16),
+      padding: const EdgeInsets.all(16),
       child: Row(
         children: [
           // Circular progress ring
@@ -58,7 +58,8 @@ class WellnessRing extends StatelessWidget {
                     value: progress,
                     strokeWidth: 7,
                     backgroundColor: Colors.white.withValues(alpha: 0.15),
-                    valueColor: AlwaysStoppedAnimation<Color>(AppColors.teal),
+                    valueColor:
+                        const AlwaysStoppedAnimation<Color>(AppColors.teal),
                   ),
                 ),
                 // Center text
@@ -67,7 +68,7 @@ class WellnessRing extends StatelessWidget {
                   children: [
                     Text(
                       '$current',
-                      style: TextStyle(
+                      style: const TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.w700,
                         color: Colors.white,
@@ -85,7 +86,7 @@ class WellnessRing extends StatelessWidget {
               ],
             ),
           ),
-          SizedBox(width: 14),
+          const SizedBox(width: 14),
           // Text info
           Expanded(
             child: Column(
@@ -93,13 +94,13 @@ class WellnessRing extends StatelessWidget {
               children: [
                 Text(
                   title,
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
                     color: Colors.white,
                   ),
                 ),
-                SizedBox(height: 4),
+                const SizedBox(height: 4),
                 Text(
                   subtitle,
                   style: TextStyle(
@@ -126,22 +127,22 @@ class StatItem extends StatelessWidget {
   final Color valueColor;
 
   const StatItem({
-    Key? key,
+    super.key,
     required this.icon,
     required this.value,
     required this.label,
     this.valueColor = AppColors.navy,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
     return Card(
       child: Padding(
-        padding: EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
         child: Column(
           children: [
-            Text(icon, style: TextStyle(fontSize: 16)),
-            SizedBox(height: 4),
+            Text(icon, style: const TextStyle(fontSize: 16)),
+            const SizedBox(height: 4),
             Text(
               value,
               style: TextStyle(
@@ -150,10 +151,10 @@ class StatItem extends StatelessWidget {
                 color: valueColor,
               ),
             ),
-            SizedBox(height: 2),
+            const SizedBox(height: 2),
             Text(
               label,
-              style: TextStyle(
+              style: const TextStyle(
                 fontSize: 9,
                 color: AppColors.muted,
               ),
@@ -175,14 +176,14 @@ class AlertCard extends StatelessWidget {
   final Color? textColor;
 
   const AlertCard({
-    Key? key,
+    super.key,
     required this.icon,
     required this.title,
     required this.message,
     this.backgroundColor = const Color(0xFFFFF8E8),
     this.borderColor = AppColors.warning,
     this.textColor = const Color(0xFF7A5000),
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -192,12 +193,12 @@ class AlertCard extends StatelessWidget {
         border: Border.all(color: borderColor ?? AppColors.warning, width: 1.5),
         borderRadius: BorderRadius.circular(12),
       ),
-      padding: EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(icon, style: TextStyle(fontSize: 18)),
-          SizedBox(width: 10),
+          Text(icon, style: const TextStyle(fontSize: 18)),
+          const SizedBox(width: 10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -210,7 +211,7 @@ class AlertCard extends StatelessWidget {
                     color: textColor,
                   ),
                 ),
-                SizedBox(height: 2),
+                const SizedBox(height: 2),
                 Text(
                   message,
                   style: TextStyle(
@@ -236,17 +237,17 @@ class MedicineItem extends StatelessWidget {
   final bool isCompleted;
 
   const MedicineItem({
-    Key? key,
+    super.key,
     required this.name,
     required this.time,
     required this.dotColor,
     required this.isCompleted,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: EdgeInsets.symmetric(vertical: 8),
+      padding: const EdgeInsets.symmetric(vertical: 8),
       child: Row(
         children: [
           Container(
@@ -257,14 +258,14 @@ class MedicineItem extends StatelessWidget {
               shape: BoxShape.circle,
             ),
           ),
-          SizedBox(width: 10),
+          const SizedBox(width: 10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   name,
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w500,
                     color: AppColors.navy,
@@ -275,12 +276,12 @@ class MedicineItem extends StatelessWidget {
           ),
           Text(
             time,
-            style: TextStyle(
+            style: const TextStyle(
               fontSize: 11,
               color: AppColors.muted,
             ),
           ),
-          SizedBox(width: 10),
+          const SizedBox(width: 10),
           Container(
             width: 22,
             height: 22,
@@ -311,11 +312,11 @@ class MoodButton extends StatelessWidget {
   final VoidCallback onTap;
 
   const MoodButton({
-    Key? key,
+    super.key,
     required this.emoji,
     required this.isSelected,
     required this.onTap,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -333,7 +334,7 @@ class MoodButton extends StatelessWidget {
           shape: BoxShape.circle,
         ),
         child: Center(
-          child: Text(emoji, style: TextStyle(fontSize: 20)),
+          child: Text(emoji, style: const TextStyle(fontSize: 20)),
         ),
       ),
     );
@@ -347,18 +348,18 @@ class SymptomChip extends StatelessWidget {
   final VoidCallback onTap;
 
   const SymptomChip({
-    Key? key,
+    super.key,
     required this.label,
     required this.isSelected,
     required this.onTap,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
         decoration: BoxDecoration(
           color: isSelected ? AppColors.softBlue : Colors.transparent,
           border: Border.all(
@@ -389,20 +390,20 @@ class HealthSlider extends StatelessWidget {
   final Color? sliderColor;
 
   const HealthSlider({
-    Key? key,
+    super.key,
     required this.value,
     required this.onChanged,
     required this.leftLabel,
     required this.rightLabel,
     this.sliderColor,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
     return Column(
       children: [
         SliderTheme(
-          data: SliderThemeData(
+          data: const SliderThemeData(
             trackHeight: 6,
             thumbShape: RoundSliderThumbShape(
               enabledThumbRadius: 9,
@@ -418,17 +419,17 @@ class HealthSlider extends StatelessWidget {
             inactiveColor: AppColors.border,
           ),
         ),
-        SizedBox(height: 4),
+        const SizedBox(height: 4),
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(
               leftLabel,
-              style: TextStyle(fontSize: 9, color: AppColors.muted),
+              style: const TextStyle(fontSize: 9, color: AppColors.muted),
             ),
             Text(
               rightLabel,
-              style: TextStyle(fontSize: 9, color: AppColors.muted),
+              style: const TextStyle(fontSize: 9, color: AppColors.muted),
             ),
           ],
         ),
@@ -445,12 +446,12 @@ class NavItem extends StatelessWidget {
   final VoidCallback onTap;
 
   const NavItem({
-    Key? key,
+    super.key,
     required this.icon,
     required this.label,
     required this.isActive,
     required this.onTap,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -461,9 +462,9 @@ class NavItem extends StatelessWidget {
         children: [
           Text(
             icon,
-            style: TextStyle(fontSize: 18),
+            style: const TextStyle(fontSize: 18),
           ),
-          SizedBox(height: 3),
+          const SizedBox(height: 3),
           Text(
             label,
             style: TextStyle(
@@ -474,16 +475,16 @@ class NavItem extends StatelessWidget {
           ),
           if (isActive)
             Padding(
-              padding: EdgeInsets.only(top: 3),
+              padding: const EdgeInsets.only(top: 3),
               child: Container(
                 width: 4,
                 height: 4,
-                decoration: BoxDecoration(
+                decoration: const BoxDecoration(
                   color: AppColors.blue,
                   shape: BoxShape.circle,
                 ),
               ),
-            ),
+            )
         ],
       ),
     );
@@ -500,30 +501,30 @@ class TrendItem extends StatelessWidget {
   final Color badgeTextColor;
 
   const TrendItem({
-    Key? key,
+    super.key,
     required this.icon,
     required this.name,
     required this.value,
     required this.badge,
     required this.badgeColor,
     required this.badgeTextColor,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: EdgeInsets.symmetric(vertical: 9),
+      padding: const EdgeInsets.symmetric(vertical: 9),
       child: Row(
         children: [
-          Text(icon, style: TextStyle(fontSize: 20)),
-          SizedBox(width: 10),
+          Text(icon, style: const TextStyle(fontSize: 20)),
+          const SizedBox(width: 10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   name,
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w500,
                     color: AppColors.navy,
@@ -531,7 +532,7 @@ class TrendItem extends StatelessWidget {
                 ),
                 Text(
                   value,
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontSize: 11,
                     color: AppColors.muted,
                   ),
@@ -540,7 +541,7 @@ class TrendItem extends StatelessWidget {
             ),
           ),
           Container(
-            padding: EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
             decoration: BoxDecoration(
               color: badgeColor,
               borderRadius: BorderRadius.circular(10),
@@ -567,12 +568,12 @@ class SectionHeader extends StatelessWidget {
   final VoidCallback? onAction;
 
   const SectionHeader({
-    Key? key,
+    super.key,
     required this.title,
     this.subtitle,
     this.actionLabel,
     this.onAction,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -609,7 +610,7 @@ class SectionHeader extends StatelessWidget {
           TextButton(
             onPressed: onAction,
             child: Text(actionLabel!),
-          ),
+          )
       ],
     );
   }
@@ -620,10 +621,10 @@ class HealthShieldSection extends StatelessWidget {
   final VoidCallback? onRefresh;
 
   const HealthShieldSection({
-    Key? key,
+    super.key,
     required this.shield,
     this.onRefresh,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -654,7 +655,8 @@ class HealthShieldSection extends StatelessWidget {
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Icon(Icons.shield_outlined, size: 28, color: AppColors.blue),
+                    const Icon(Icons.shield_outlined,
+                        size: 28, color: AppColors.blue),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Column(
@@ -671,7 +673,10 @@ class HealthShieldSection extends StatelessWidget {
                           const SizedBox(height: 4),
                           const Text(
                             'Try refreshing, and make sure an active account is selected.',
-                            style: TextStyle(fontSize: 11, color: AppColors.muted, height: 1.4),
+                            style: TextStyle(
+                                fontSize: 11,
+                                color: AppColors.muted,
+                                height: 1.4),
                           ),
                           const SizedBox(height: 10),
                           if (onRefresh != null)
@@ -684,7 +689,7 @@ class HealthShieldSection extends StatelessWidget {
                                   ),
                                 ),
                               ],
-                            ),
+                            )
                         ],
                       ),
                     ),
@@ -703,7 +708,7 @@ class HealthShieldSection extends StatelessWidget {
                 penaltyPoints: shield!.penaltyPoints,
                 consecutiveFailedDays: shield!.consecutiveFailedDays,
                 dailyBreakdown: shield!.dailyBreakdown,
-              ),
+              )
           ],
         ),
       ),
@@ -713,8 +718,14 @@ class HealthShieldSection extends StatelessWidget {
 
 // Loading skeleton widgets (shimmer)
 class LoadingSkeleton {
-  static Color _base(BuildContext context) => Theme.of(context).brightness == Brightness.dark ? Colors.grey.shade800 : Colors.grey.shade300;
-  static Color _highlight(BuildContext context) => Theme.of(context).brightness == Brightness.dark ? Colors.grey.shade700 : Colors.grey.shade100;
+  static Color _base(BuildContext context) =>
+      Theme.of(context).brightness == Brightness.dark
+          ? Colors.grey.shade800
+          : Colors.grey.shade300;
+  static Color _highlight(BuildContext context) =>
+      Theme.of(context).brightness == Brightness.dark
+          ? Colors.grey.shade700
+          : Colors.grey.shade100;
 
   static Widget dashboard(BuildContext context) {
     final base = _base(context);
@@ -724,13 +735,30 @@ class LoadingSkeleton {
       highlightColor: highlight,
       child: Column(children: [
         // ring placeholder
-        Container(height: 180, margin: const EdgeInsets.symmetric(vertical: 8), decoration: BoxDecoration(color: base, borderRadius: BorderRadius.circular(12))),
+        Container(
+            height: 180,
+            margin: const EdgeInsets.symmetric(vertical: 8),
+            decoration: BoxDecoration(
+                color: base, borderRadius: BorderRadius.circular(12))),
         const SizedBox(height: 12),
         // stat cards
-        Row(children: List.generate(4, (_) => Expanded(child: Container(height: 80, margin: const EdgeInsets.only(right: 8), decoration: BoxDecoration(color: base, borderRadius: BorderRadius.circular(12))))),),
+        Row(
+          children: List.generate(
+              4,
+              (_) => Expanded(
+                  child: Container(
+                      height: 80,
+                      margin: const EdgeInsets.only(right: 8),
+                      decoration: BoxDecoration(
+                          color: base,
+                          borderRadius: BorderRadius.circular(12))))),
+        ),
         const SizedBox(height: 12),
         // chart placeholder
-        Container(height: 200, decoration: BoxDecoration(color: base, borderRadius: BorderRadius.circular(12))),
+        Container(
+            height: 200,
+            decoration: BoxDecoration(
+                color: base, borderRadius: BorderRadius.circular(12))),
       ]),
     );
   }
@@ -741,7 +769,14 @@ class LoadingSkeleton {
     return Shimmer.fromColors(
       baseColor: base,
       highlightColor: highlight,
-      child: Column(children: List.generate(3, (_) => Container(height: 120, margin: const EdgeInsets.symmetric(vertical: 8), decoration: BoxDecoration(color: base, borderRadius: BorderRadius.circular(12))))),
+      child: Column(
+          children: List.generate(
+              3,
+              (_) => Container(
+                  height: 120,
+                  margin: const EdgeInsets.symmetric(vertical: 8),
+                  decoration: BoxDecoration(
+                      color: base, borderRadius: BorderRadius.circular(12))))),
     );
   }
 
@@ -751,7 +786,14 @@ class LoadingSkeleton {
     return Shimmer.fromColors(
       baseColor: base,
       highlightColor: highlight,
-      child: Column(children: List.generate(6, (_) => Container(height: 56, margin: const EdgeInsets.symmetric(vertical: 6), decoration: BoxDecoration(color: base, borderRadius: BorderRadius.circular(8))))),
+      child: Column(
+          children: List.generate(
+              6,
+              (_) => Container(
+                  height: 56,
+                  margin: const EdgeInsets.symmetric(vertical: 6),
+                  decoration: BoxDecoration(
+                      color: base, borderRadius: BorderRadius.circular(8))))),
     );
   }
 
@@ -764,9 +806,21 @@ class LoadingSkeleton {
       child: SingleChildScrollView(
         physics: const NeverScrollableScrollPhysics(),
         child: Column(children: [
-          Container(height: 96, margin: const EdgeInsets.symmetric(vertical: 8), decoration: BoxDecoration(color: base, borderRadius: BorderRadius.circular(12))),
+          Container(
+              height: 96,
+              margin: const EdgeInsets.symmetric(vertical: 8),
+              decoration: BoxDecoration(
+                  color: base, borderRadius: BorderRadius.circular(12))),
           const SizedBox(height: 12),
-          Column(children: List.generate(6, (_) => Container(height: 48, margin: const EdgeInsets.symmetric(vertical: 6), decoration: BoxDecoration(color: base, borderRadius: BorderRadius.circular(8))))),
+          Column(
+              children: List.generate(
+                  6,
+                  (_) => Container(
+                      height: 48,
+                      margin: const EdgeInsets.symmetric(vertical: 6),
+                      decoration: BoxDecoration(
+                          color: base,
+                          borderRadius: BorderRadius.circular(8))))),
         ]),
       ),
     );
@@ -778,7 +832,10 @@ class LoadingSkeleton {
     return Shimmer.fromColors(
       baseColor: base,
       highlightColor: highlight,
-      child: Container(width: 18, height: 18, decoration: BoxDecoration(color: base, shape: BoxShape.circle)),
+      child: Container(
+          width: 18,
+          height: 18,
+          decoration: BoxDecoration(color: base, shape: BoxShape.circle)),
     );
   }
 }
@@ -791,7 +848,13 @@ class EmptyState extends StatelessWidget {
   final String buttonLabel;
   final VoidCallback onPressed;
 
-  const EmptyState({Key? key, required this.animationUrl, required this.title, required this.subtitle, required this.buttonLabel, required this.onPressed}) : super(key: key);
+  const EmptyState(
+      {super.key,
+      required this.animationUrl,
+      required this.title,
+      required this.subtitle,
+      required this.buttonLabel,
+      required this.onPressed});
 
   Widget _fallbackArt() {
     return Container(
@@ -801,7 +864,8 @@ class EmptyState extends StatelessWidget {
         color: AppColors.softBlue,
         borderRadius: BorderRadius.circular(16),
       ),
-      child: const Icon(Icons.self_improvement_rounded, size: 56, color: AppColors.blue),
+      child: const Icon(Icons.self_improvement_rounded,
+          size: 56, color: AppColors.blue),
     );
   }
 
@@ -821,15 +885,28 @@ class EmptyState extends StatelessWidget {
                   : Lottie.network(
                       animationUrl,
                       fit: BoxFit.contain,
-                      errorBuilder: (context, error, stackTrace) => _fallbackArt(),
+                      errorBuilder: (context, error, stackTrace) =>
+                          _fallbackArt(),
                     ),
             ),
             const SizedBox(height: 12),
-            Text(title, style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+            Text(title,
+                style: Theme.of(context)
+                    .textTheme
+                    .titleMedium
+                    ?.copyWith(fontWeight: FontWeight.w700)),
             const SizedBox(height: 6),
-            Text(subtitle, textAlign: TextAlign.center, style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: AppColors.muted)),
+            Text(subtitle,
+                textAlign: TextAlign.center,
+                style: Theme.of(context)
+                    .textTheme
+                    .bodyMedium
+                    ?.copyWith(color: AppColors.muted)),
             const SizedBox(height: 12),
-            SizedBox(width: 180, child: ElevatedButton(onPressed: onPressed, child: Text(buttonLabel))),
+            SizedBox(
+                width: 180,
+                child: ElevatedButton(
+                    onPressed: onPressed, child: Text(buttonLabel))),
           ],
         ),
       ),
@@ -850,7 +927,7 @@ class HealthShieldCard extends StatelessWidget {
   final HealthShieldDailyBreakdown? dailyBreakdown;
 
   const HealthShieldCard({
-    Key? key,
+    super.key,
     required this.level,
     required this.levelName,
     required this.totalPoints,
@@ -861,35 +938,69 @@ class HealthShieldCard extends StatelessWidget {
     required this.penaltyPoints,
     required this.consecutiveFailedDays,
     required this.dailyBreakdown,
-  }) : super(key: key);
+  });
 
-  static const List<String> _stageNames = ['Start', 'Insight', 'Consistency', 'Protection', 'Optimization', 'Intelligence', 'Mastery'];
+  static const List<String> _stageNames = [
+    'Start',
+    'Insight',
+    'Consistency',
+    'Protection',
+    'Optimization',
+    'Intelligence',
+    'Mastery'
+  ];
 
   int get _stageIndex {
-    if (level <= 1) return 0;
-    if (level <= 3) return 1;
-    if (level <= 6) return 2;
-    if (level <= 9) return 3;
-    if (level <= 14) return 4;
-    if (level <= 20) return 5;
+    if (level <= 1) {
+      return 0;
+    }
+    if (level <= 3) {
+      return 1;
+    }
+    if (level <= 6) {
+      return 2;
+    }
+    if (level <= 9) {
+      return 3;
+    }
+    if (level <= 14) {
+      return 4;
+    }
+    if (level <= 20) {
+      return 5;
+    }
     return 6;
   }
 
   Color get _accent {
-    if (_stageIndex >= 6) return const Color(0xFFE4AF3A);
-    if (_stageIndex >= 4) return AppColors.teal;
+    if (_stageIndex >= 6) {
+      return const Color(0xFFE4AF3A);
+    }
+    if (_stageIndex >= 4) {
+      return AppColors.teal;
+    }
     return AppColors.blue;
   }
 
-  Widget _statCell({required IconData icon, required String label, required String value, required Color valueColor}) {
+  Widget _statCell(
+      {required IconData icon,
+      required String label,
+      required String value,
+      required Color valueColor}) {
     return Expanded(
       child: Column(
         children: [
           Icon(icon, size: 16, color: AppColors.muted),
           const SizedBox(height: 4),
-          Text(value, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: valueColor)),
+          Text(value,
+              style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  color: valueColor)),
           const SizedBox(height: 2),
-          Text(label, style: const TextStyle(fontSize: 10, color: AppColors.muted), textAlign: TextAlign.center),
+          Text(label,
+              style: const TextStyle(fontSize: 10, color: AppColors.muted),
+              textAlign: TextAlign.center),
         ],
       ),
     );
@@ -914,12 +1025,19 @@ class HealthShieldCard extends StatelessWidget {
               border: Border.all(color: border, width: current ? 2 : 1.3),
             ),
             alignment: Alignment.center,
-            child: Icon(complete ? Icons.check : Icons.shield_outlined, size: 16, color: textColor),
+            child: Icon(complete ? Icons.check : Icons.shield_outlined,
+                size: 16, color: textColor),
           ),
           const SizedBox(height: 6),
-          Text('Stage ${index + 1}', style: TextStyle(fontSize: 10, color: textColor, fontWeight: FontWeight.w600)),
+          Text('Stage ${index + 1}',
+              style: TextStyle(
+                  fontSize: 10, color: textColor, fontWeight: FontWeight.w600)),
           const SizedBox(height: 2),
-          Text(_stageNames[index], style: TextStyle(fontSize: 10, color: textColor), textAlign: TextAlign.center, maxLines: 2, overflow: TextOverflow.ellipsis),
+          Text(_stageNames[index],
+              style: TextStyle(fontSize: 10, color: textColor),
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis),
         ],
       ),
     );
@@ -930,12 +1048,16 @@ class HealthShieldCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: (positive ? AppColors.success : AppColors.danger).withValues(alpha: 0.1),
+        color: (positive ? AppColors.success : AppColors.danger)
+            .withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(999),
       ),
       child: Text(
         '$label ${positive ? '+' : ''}$value',
-        style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: positive ? AppColors.success : AppColors.danger),
+        style: TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+            color: positive ? AppColors.success : AppColors.danger),
       ),
     );
   }
@@ -949,7 +1071,10 @@ class HealthShieldCard extends StatelessWidget {
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [_accent.withValues(alpha: 0.14), _accent.withValues(alpha: 0.05)],
+          colors: [
+            _accent.withValues(alpha: 0.14),
+            _accent.withValues(alpha: 0.05)
+          ],
         ),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: _accent.withValues(alpha: 0.35), width: 1.5),
@@ -966,15 +1091,29 @@ class HealthShieldCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('Digital Shield', style: TextStyle(fontSize: 12, color: AppColors.muted, fontWeight: FontWeight.w600)),
-                    Text(levelName, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: _accent)),
+                    const Text('Digital Shield',
+                        style: TextStyle(
+                            fontSize: 12,
+                            color: AppColors.muted,
+                            fontWeight: FontWeight.w600)),
+                    Text(levelName,
+                        style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                            color: _accent)),
                   ],
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                decoration: BoxDecoration(color: _accent, borderRadius: BorderRadius.circular(8)),
-                child: Text('Level $level', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 12)),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                    color: _accent, borderRadius: BorderRadius.circular(8)),
+                child: Text('Level $level',
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 12)),
               ),
             ],
           ),
@@ -984,7 +1123,9 @@ class HealthShieldCard extends StatelessWidget {
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
               itemCount: 7,
-              separatorBuilder: (context, index) => Icon(Icons.chevron_right, size: 16, color: index < _stageIndex ? _accent : AppColors.border),
+              separatorBuilder: (context, index) => Icon(Icons.chevron_right,
+                  size: 16,
+                  color: index < _stageIndex ? _accent : AppColors.border),
               itemBuilder: (context, index) => _stageNode(index),
             ),
           ),
@@ -992,8 +1133,13 @@ class HealthShieldCard extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text('Progress to next stage', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-              Text('$progressPercent%', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: _accent)),
+              const Text('Progress to next stage',
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+              Text('$progressPercent%',
+                  style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: _accent)),
             ],
           ),
           const SizedBox(height: 8),
@@ -1008,8 +1154,14 @@ class HealthShieldCard extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            pointsToNextLevel > 0 ? '$pointsToNextLevel points to the next stage' : 'Next stage reached. Great work!',
-            style: TextStyle(fontSize: 12, color: pointsToNextLevel > 0 ? AppColors.muted : AppColors.success, fontWeight: FontWeight.w600),
+            pointsToNextLevel > 0
+                ? '$pointsToNextLevel points to the next stage'
+                : 'Next stage reached. Great work!',
+            style: TextStyle(
+                fontSize: 12,
+                color:
+                    pointsToNextLevel > 0 ? AppColors.muted : AppColors.success,
+                fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 12),
           Container(
@@ -1021,33 +1173,63 @@ class HealthShieldCard extends StatelessWidget {
             padding: const EdgeInsets.all(10),
             child: Row(
               children: [
-                _statCell(icon: Icons.auto_graph, label: 'Total', value: '$totalPoints', valueColor: AppColors.navy),
+                _statCell(
+                    icon: Icons.auto_graph,
+                    label: 'Total',
+                    value: '$totalPoints',
+                    valueColor: AppColors.navy),
                 Expanded(
                   child: Column(
                     children: [
-                      const Icon(Icons.flash_on, size: 16, color: AppColors.muted),
+                      const Icon(Icons.flash_on,
+                          size: 16, color: AppColors.muted),
                       const SizedBox(height: 4),
                       if (todayPoints < 0)
                         Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Text('$todayPoints', style: const TextStyle(color: Colors.red, fontSize: 16, fontWeight: FontWeight.w700)),
+                            Text('$todayPoints',
+                                style: const TextStyle(
+                                    color: Colors.red,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w700)),
                             const SizedBox(width: 4),
-                            Tooltip(
-                              message: 'Penalty points for missed habits or unhealthy patterns today',
-                              child: const Icon(Icons.info_outline, size: 14, color: Colors.red),
+                            const Tooltip(
+                              message:
+                                  'Penalty points for missed habits or unhealthy patterns today',
+                              child: Icon(Icons.info_outline,
+                                  size: 14, color: Colors.red),
                             ),
                           ],
                         )
                       else
-                        Text('${todayPoints >= 0 ? '+' : ''}$todayPoints', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: todayPoints >= 0 ? AppColors.success : AppColors.danger)),
+                        Text('${todayPoints >= 0 ? '+' : ''}$todayPoints',
+                            style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w700,
+                                color: todayPoints >= 0
+                                    ? AppColors.success
+                                    : AppColors.danger)),
                       const SizedBox(height: 2),
-                      const Text('Today', style: TextStyle(fontSize: 10, color: AppColors.muted), textAlign: TextAlign.center),
+                      const Text('Today',
+                          style:
+                              TextStyle(fontSize: 10, color: AppColors.muted),
+                          textAlign: TextAlign.center),
                     ],
                   ),
                 ),
-                _statCell(icon: Icons.task_alt, label: 'Habits', value: '$completedHabits/5', valueColor: AppColors.teal),
-                _statCell(icon: Icons.warning_amber_rounded, label: 'Fails', value: '$consecutiveFailedDays', valueColor: consecutiveFailedDays > 0 ? AppColors.warning : AppColors.muted),
+                _statCell(
+                    icon: Icons.task_alt,
+                    label: 'Habits',
+                    value: '$completedHabits/5',
+                    valueColor: AppColors.teal),
+                _statCell(
+                    icon: Icons.warning_amber_rounded,
+                    label: 'Fails',
+                    value: '$consecutiveFailedDays',
+                    valueColor: consecutiveFailedDays > 0
+                        ? AppColors.warning
+                        : AppColors.muted),
               ],
             ),
           ),
@@ -1060,9 +1242,11 @@ class HealthShieldCard extends StatelessWidget {
                 _breakdownBadge('Sleep', dailyBreakdown!.sleepPoints),
                 _breakdownBadge('Activity', dailyBreakdown!.activityPoints),
                 _breakdownBadge('Wellbeing', dailyBreakdown!.wellbeingPoints),
-                _breakdownBadge('Supplements', dailyBreakdown!.supplementsPoints),
+                _breakdownBadge(
+                    'Supplements', dailyBreakdown!.supplementsPoints),
                 _breakdownBadge('Symptoms', dailyBreakdown!.symptomsPoints),
-                _breakdownBadge('Stability', dailyBreakdown!.routineStabilityPoints),
+                _breakdownBadge(
+                    'Stability', dailyBreakdown!.routineStabilityPoints),
                 _breakdownBadge('Penalty', -penaltyPoints),
               ],
             ),
@@ -1072,6 +1256,3 @@ class HealthShieldCard extends StatelessWidget {
     );
   }
 }
-
-
-

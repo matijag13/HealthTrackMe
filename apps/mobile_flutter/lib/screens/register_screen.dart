@@ -1,56 +1,83 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../config/theme.dart';
 import '../widgets/design_system.dart';
 import '../services/api_service.dart';
+
 class RegisterScreen extends StatefulWidget {
   final VoidCallback onSwitchToLogin;
   const RegisterScreen({required this.onSwitchToLogin, super.key});
   @override
   State<RegisterScreen> createState() => _RegisterScreenState();
 }
+
 class _RegisterScreenState extends State<RegisterScreen> {
+  static const _background = Color(0xFF050608);
+  static const _card = Color(0xFF0D0F14);
+  static const _field = Color(0xFF11141B);
+  static const _border = Color(0xFF242936);
+  static const _mutedText = Color(0xFF8B93A7);
+  static const _primaryText = Color(0xFFF7F8FA);
+
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
   final _firstNameController = TextEditingController();
   final _lastNameController = TextEditingController();
   final ApiService _api = ApiService.instance;
   bool _isLoading = false;
+  bool _submitted = false;
   bool _obscurePassword = true;
+  bool _obscureConfirmPassword = true;
+  String? _authError;
   String _selectedUserType = 'PATIENT';
   int? _selectedYear;
   int? _selectedMonth;
   int? _selectedDay;
+
+  bool get _isDateOfBirthComplete =>
+      _selectedYear != null && _selectedMonth != null && _selectedDay != null;
+
+  bool get _showDateOfBirthError => _submitted && !_isDateOfBirthComplete;
+
   @override
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
+    _confirmPasswordController.dispose();
     _firstNameController.dispose();
     _lastNameController.dispose();
     super.dispose();
   }
+
   String? _validateEmail(String? value) {
     final email = value?.trim() ?? '';
-    if (email.isEmpty) return 'Email is required.';
+    if (email.isEmpty) {
+      return 'Email is required.';
+    }
     final regex = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
-    if (!regex.hasMatch(email)) return 'Enter a valid email.';
+    if (!regex.hasMatch(email)) {
+      return 'Enter a valid email.';
+    }
     return null;
   }
+
   Future<void> _register() async {
-    if (!_formKey.currentState!.validate()) return;
-    if (_selectedYear == null || _selectedMonth == null || _selectedDay == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('⚠️ Please select your date of birth.'),
-          backgroundColor: AppColors.warning,
-        ),
-      );
+    setState(() {
+      _submitted = true;
+      _authError = null;
+    });
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
+    if (!_isDateOfBirthComplete) {
       return;
     }
     setState(() => _isLoading = true);
     try {
-      final dateOfBirth = '$_selectedYear-${_selectedMonth.toString().padLeft(2, '0')}-${_selectedDay.toString().padLeft(2, '0')}';
+      final dateOfBirth =
+          '$_selectedYear-${_selectedMonth.toString().padLeft(2, '0')}-${_selectedDay.toString().padLeft(2, '0')}';
       final user = await _api.createUser(
         email: _emailController.text.trim(),
         password: _passwordController.text.trim(),
@@ -70,163 +97,577 @@ class _RegisterScreenState extends State<RegisterScreen> {
       context.goNamed('home');
     } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('❌ $error'),
-          backgroundColor: AppColors.danger,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      setState(() => _authError = _formatAuthError(error));
     } finally {
-      if (mounted) setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
+
+  void _showGooglePlaceholder() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Google sign-in is not configured yet.'),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  String? _validateConfirmPassword(String? value) {
+    if (value == null || value.isEmpty) {
+      return 'Confirm password is required.';
+    }
+    if (value != _passwordController.text) {
+      return 'Passwords do not match.';
+    }
+    return null;
+  }
+
+  String _formatAuthError(Object error) {
+    final text = error.toString().replaceFirst('Exception: ', '').trim();
+    if (text.contains('Email already exists')) {
+      return 'Email already exists.';
+    }
+    return text.isEmpty ? 'Could not create account.' : text;
+  }
+
+  void _clearAuthError() {
+    if (_authError != null) {
+      setState(() => _authError = null);
+    }
+  }
+
+  Widget _authErrorBanner(String message) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.danger.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: AppColors.danger.withValues(alpha: 0.35),
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(
+            Icons.error_outline,
+            color: Color(0xFFFF8A8A),
+            size: 20,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              message,
+              style: const TextStyle(
+                color: Color(0xFFFFC4C4),
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _fieldLabel(String label) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Text(
+        label,
+        style: const TextStyle(
+          color: _primaryText,
+          fontSize: 13,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+
+  InputDecoration _inputDecoration({
+    required String hintText,
+    required IconData prefixIcon,
+    Widget? suffixIcon,
+    bool hasError = false,
+  }) {
+    final border = OutlineInputBorder(
+      borderRadius: BorderRadius.circular(14),
+      borderSide: BorderSide(
+        color: hasError ? AppColors.danger : _border,
+        width: hasError ? 1.2 : 1,
+      ),
+    );
+
+    return InputDecoration(
+      hintText: hintText,
+      hintStyle: const TextStyle(color: _mutedText),
+      prefixIcon: Icon(prefixIcon, color: _mutedText, size: 20),
+      suffixIcon: suffixIcon,
+      filled: true,
+      fillColor: _field,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      border: border,
+      enabledBorder: border,
+      focusedBorder: border.copyWith(
+        borderSide: BorderSide(
+          color: hasError ? AppColors.danger : AppColors.primaryBlue,
+          width: 1.2,
+        ),
+      ),
+      errorBorder: border.copyWith(
+        borderSide: const BorderSide(color: AppColors.danger, width: 1.2),
+      ),
+      focusedErrorBorder: border.copyWith(
+        borderSide: const BorderSide(color: AppColors.danger, width: 1.2),
+      ),
+    );
+  }
+
+  Widget _orDivider() {
+    return Row(
+      children: [
+        Expanded(child: Container(height: 1, color: _border)),
+        const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 14),
+          child: Text(
+            'Or',
+            style: TextStyle(color: _mutedText, fontWeight: FontWeight.w600),
+          ),
+        ),
+        Expanded(child: Container(height: 1, color: _border)),
+      ],
+    );
+  }
+
+  Widget _googleButton() {
+    return SizedBox(
+      width: double.infinity,
+      height: 52,
+      child: OutlinedButton.icon(
+        onPressed: _showGooglePlaceholder,
+        icon: const Text(
+          'G',
+          style: TextStyle(
+            color: _primaryText,
+            fontSize: 18,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        label: const Text('Continue with Google'),
+        style: OutlinedButton.styleFrom(
+          foregroundColor: _primaryText,
+          side: const BorderSide(color: _border),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [Color(0xFF0D2137), AppColors.navy, Color(0xFF0F4C75)],
-          ),
-        ),
-        child: SafeArea(
-          child: Center(
-            child: SingleChildScrollView(
-              padding: EdgeInsets.all(24),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Center(
-                    child: RichText(
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      textAlign: TextAlign.center,
-                      text: TextSpan(
-                        text: 'Health',
-                        style: TextStyle(fontSize: 32, fontWeight: FontWeight.w700, color: Colors.white),
-                        children: [
-                          TextSpan(text: 'Track', style: TextStyle(color: AppColors.teal)),
-                          TextSpan(text: 'Me'),
-                        ],
-                      ),
-                    ),
+      backgroundColor: _background,
+      body: SafeArea(
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 28),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 520),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: _card,
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.08),
                   ),
-                  SizedBox(height: 12),
-                  Text('Create your health account', textAlign: TextAlign.center, style: TextStyle(color: Colors.white70)),
-                  SizedBox(height: 32),
-                  Container(
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(20),
-                      boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 32)],
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.35),
+                      blurRadius: 32,
+                      offset: const Offset(0, 18),
                     ),
-                    padding: EdgeInsets.all(28),
-                    child: Form(
-                      key: _formKey,
-                      autovalidateMode: AutovalidateMode.onUserInteraction,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('Register', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700, color: AppColors.navy)),
-                          SizedBox(height: 4),
-                          Text('Enter your details', style: TextStyle(color: AppColors.muted)),
-                          SizedBox(height: 24),
-                          Row(children: [
-                            Expanded(child: TextFormField(controller: _firstNameController, validator: (v) => (v == null || v.isEmpty) ? 'Required' : null, decoration: InputDecoration(labelText: 'First name', border: OutlineInputBorder(borderRadius: BorderRadius.circular(12))))),
-                            SizedBox(width: 12),
-                            Expanded(child: TextFormField(controller: _lastNameController, validator: (v) => (v == null || v.isEmpty) ? 'Required' : null, decoration: InputDecoration(labelText: 'Last name', border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)))))
-                          ]),
-                          SizedBox(height: 16),
-                          TextFormField(controller: _emailController, validator: _validateEmail, keyboardType: TextInputType.emailAddress, decoration: InputDecoration(labelText: 'Email', border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)))),
-                          SizedBox(height: 16),
-                          Text('Date of birth', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.muted)),
-                          SizedBox(height: 8),
-                          LayoutBuilder(
-                            builder: (context, constraints) {
-                              final narrow = constraints.maxWidth < 420;
-
-                              final yearField = DropdownButtonFormField<int>(
-                                value: _selectedYear,
-                                hint: const Text('Year'),
-                                items: List.generate(100, (i) => DateTime.now().year - 80 + i)
-                                    .map((y) => DropdownMenuItem(value: y, child: Text(y.toString())))
-                                    .toList(),
-                                onChanged: (v) => setState(() => _selectedYear = v),
-                                decoration: InputDecoration(border: OutlineInputBorder(borderRadius: BorderRadius.circular(10))),
-                              );
-                              final monthField = DropdownButtonFormField<int>(
-                                value: _selectedMonth,
-                                hint: const Text('Month'),
-                                items: List.generate(12, (i) => i + 1)
-                                    .map((m) => DropdownMenuItem(value: m, child: Text(m.toString().padLeft(2, '0'))))
-                                    .toList(),
-                                onChanged: (v) => setState(() => _selectedMonth = v),
-                                decoration: InputDecoration(border: OutlineInputBorder(borderRadius: BorderRadius.circular(10))),
-                              );
-                              final dayField = DropdownButtonFormField<int>(
-                                value: _selectedDay,
-                                hint: const Text('Day'),
-                                items: List.generate(31, (i) => i + 1)
-                                    .map((d) => DropdownMenuItem(value: d, child: Text(d.toString().padLeft(2, '0'))))
-                                    .toList(),
-                                onChanged: (v) => setState(() => _selectedDay = v),
-                                decoration: InputDecoration(border: OutlineInputBorder(borderRadius: BorderRadius.circular(10))),
-                              );
-
-                              if (narrow) {
-                                return Column(
-                                  children: [
-                                    yearField,
-                                    const SizedBox(height: 8),
-                                    monthField,
-                                    const SizedBox(height: 8),
-                                    dayField,
-                                  ],
-                                );
-                              }
-
-                              return Row(
-                                children: [
-                                  Expanded(child: yearField),
-                                  const SizedBox(width: 8),
-                                  Expanded(child: monthField),
-                                  const SizedBox(width: 8),
-                                  Expanded(child: dayField),
-                                ],
-                              );
-                            },
-                          ),
-                          SizedBox(height: 16),
-                          DropdownButtonFormField<String>(
-                            value: _selectedUserType,
-                            items: const [
-                              DropdownMenuItem(value: 'PATIENT', child: Text('Patient')),
-                              DropdownMenuItem(value: 'ATHLETE', child: Text('Athlete')),
-                              DropdownMenuItem(value: 'ELDERLY', child: Text('Elderly')),
-                              DropdownMenuItem(value: 'HEALTHCARE_WORKER', child: Text('Healthcare worker')),
+                  ],
+                ),
+                padding: const EdgeInsets.all(28),
+                child: Form(
+                  key: _formKey,
+                  autovalidateMode: _submitted
+                      ? AutovalidateMode.onUserInteraction
+                      : AutovalidateMode.disabled,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Text(
+                        'HealthTrackMe',
+                        style: TextStyle(
+                          color: AppColors.primaryBlue,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      const SizedBox(height: 18),
+                      const Text(
+                        'Create account',
+                        style: TextStyle(
+                          color: _primaryText,
+                          fontSize: 34,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      const Text(
+                        'Set up your health profile to continue.',
+                        style: TextStyle(color: _mutedText, fontSize: 15),
+                      ),
+                      const SizedBox(height: 30),
+                      LayoutBuilder(
+                        builder: (context, constraints) {
+                          final narrow = constraints.maxWidth < 430;
+                          final firstName = Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _fieldLabel('First name'),
+                              TextFormField(
+                                controller: _firstNameController,
+                                validator: (v) => (v == null || v.isEmpty)
+                                    ? 'Required'
+                                    : null,
+                                style: const TextStyle(color: _primaryText),
+                                decoration: _inputDecoration(
+                                  hintText: 'First name',
+                                  prefixIcon: Icons.person_outline,
+                                ),
+                              ),
                             ],
-                            onChanged: (value) {
-                              if (value != null) {
-                                setState(() => _selectedUserType = value);
-                              }
-                            },
-                            decoration: InputDecoration(
-                              labelText: 'User type',
-                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                          );
+                          final lastName = Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _fieldLabel('Last name'),
+                              TextFormField(
+                                controller: _lastNameController,
+                                validator: (v) => (v == null || v.isEmpty)
+                                    ? 'Required'
+                                    : null,
+                                style: const TextStyle(color: _primaryText),
+                                decoration: _inputDecoration(
+                                  hintText: 'Last name',
+                                  prefixIcon: Icons.person_outline,
+                                ),
+                              ),
+                            ],
+                          );
+
+                          if (narrow) {
+                            return Column(
+                              children: [
+                                firstName,
+                                const SizedBox(height: 18),
+                                lastName,
+                              ],
+                            );
+                          }
+
+                          return Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(child: firstName),
+                              const SizedBox(width: 14),
+                              Expanded(child: lastName),
+                            ],
+                          );
+                        },
+                      ),
+                      const SizedBox(height: 18),
+                      _fieldLabel('Email'),
+                      TextFormField(
+                        controller: _emailController,
+                        onChanged: (_) => _clearAuthError(),
+                        validator: _validateEmail,
+                        keyboardType: TextInputType.emailAddress,
+                        style: const TextStyle(color: _primaryText),
+                        decoration: _inputDecoration(
+                          hintText: 'you@example.com',
+                          prefixIcon: Icons.mail_outline,
+                        ),
+                      ),
+                      const SizedBox(height: 18),
+                      _fieldLabel('Date of birth'),
+                      LayoutBuilder(
+                        builder: (context, constraints) {
+                          final narrow = constraints.maxWidth < 430;
+
+                          final yearField = DropdownButtonFormField<int>(
+                            initialValue: _selectedYear,
+                            dropdownColor: _field,
+                            style: const TextStyle(color: _primaryText),
+                            iconEnabledColor: _mutedText,
+                            hint: const Text(
+                              'Year',
+                              style: TextStyle(color: _mutedText),
+                            ),
+                            items: List.generate(
+                              100,
+                              (i) => DateTime.now().year - 80 + i,
+                            )
+                                .map(
+                                  (y) => DropdownMenuItem(
+                                    value: y,
+                                    child: Text(y.toString()),
+                                  ),
+                                )
+                                .toList(),
+                            onChanged: (v) => setState(() => _selectedYear = v),
+                            decoration: _inputDecoration(
+                              hintText: 'Year',
+                              prefixIcon: Icons.calendar_today_outlined,
+                              hasError: _showDateOfBirthError,
+                            ),
+                          );
+                          final monthField = DropdownButtonFormField<int>(
+                            initialValue: _selectedMonth,
+                            dropdownColor: _field,
+                            style: const TextStyle(color: _primaryText),
+                            iconEnabledColor: _mutedText,
+                            hint: const Text(
+                              'Month',
+                              style: TextStyle(color: _mutedText),
+                            ),
+                            items: List.generate(12, (i) => i + 1)
+                                .map(
+                                  (m) => DropdownMenuItem(
+                                    value: m,
+                                    child: Text(m.toString().padLeft(2, '0')),
+                                  ),
+                                )
+                                .toList(),
+                            onChanged: (v) =>
+                                setState(() => _selectedMonth = v),
+                            decoration: _inputDecoration(
+                              hintText: 'Month',
+                              prefixIcon: Icons.calendar_month_outlined,
+                              hasError: _showDateOfBirthError,
+                            ),
+                          );
+                          final dayField = DropdownButtonFormField<int>(
+                            initialValue: _selectedDay,
+                            dropdownColor: _field,
+                            style: const TextStyle(color: _primaryText),
+                            iconEnabledColor: _mutedText,
+                            hint: const Text(
+                              'Day',
+                              style: TextStyle(color: _mutedText),
+                            ),
+                            items: List.generate(31, (i) => i + 1)
+                                .map(
+                                  (d) => DropdownMenuItem(
+                                    value: d,
+                                    child: Text(d.toString().padLeft(2, '0')),
+                                  ),
+                                )
+                                .toList(),
+                            onChanged: (v) => setState(() => _selectedDay = v),
+                            decoration: _inputDecoration(
+                              hintText: 'Day',
+                              prefixIcon: Icons.event_outlined,
+                              hasError: _showDateOfBirthError,
+                            ),
+                          );
+
+                          if (narrow) {
+                            return Column(
+                              children: [
+                                yearField,
+                                const SizedBox(height: 12),
+                                monthField,
+                                const SizedBox(height: 12),
+                                dayField,
+                              ],
+                            );
+                          }
+
+                          return Row(
+                            children: [
+                              Expanded(child: yearField),
+                              const SizedBox(width: 10),
+                              Expanded(child: monthField),
+                              const SizedBox(width: 10),
+                              Expanded(child: dayField),
+                            ],
+                          );
+                        },
+                      ),
+                      if (_showDateOfBirthError) ...[
+                        const SizedBox(height: 8),
+                        const Padding(
+                          padding: EdgeInsets.only(left: 12),
+                          child: Text(
+                            'Date of birth is required.',
+                            style: TextStyle(
+                              color: AppColors.danger,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
                             ),
                           ),
-                          SizedBox(height: 16),
-                          TextFormField(controller: _passwordController, obscureText: _obscurePassword, validator: (v) => (v == null || v.isEmpty) ? 'Password is required.' : null, decoration: InputDecoration(labelText: 'Password', suffixIcon: IconButton(icon: Icon(_obscurePassword ? Icons.visibility_off : Icons.visibility), onPressed: () => setState(() => _obscurePassword = !_obscurePassword)), border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)))),
-                          SizedBox(height: 24),
-                          SizedBox(width: double.infinity, child: ElevatedButton(onPressed: _isLoading ? null : _register, child: _isLoading ? LoadingSkeleton.buttonSmall(context) : const Text('Create account'))),
-                          SizedBox(height: 16),
-                          Row(mainAxisAlignment: MainAxisAlignment.center, children: [Text('Already have an account?', style: TextStyle(color: AppColors.muted)), TextButton(onPressed: widget.onSwitchToLogin, child: Text('Sign In', style: TextStyle(color: AppColors.blue, fontWeight: FontWeight.w600)))]),
+                        ),
+                      ],
+                      const SizedBox(height: 18),
+                      _fieldLabel('User type'),
+                      DropdownButtonFormField<String>(
+                        initialValue: _selectedUserType,
+                        dropdownColor: _field,
+                        style: const TextStyle(color: _primaryText),
+                        iconEnabledColor: _mutedText,
+                        items: const [
+                          DropdownMenuItem(
+                            value: 'PATIENT',
+                            child: Text('Patient'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'ATHLETE',
+                            child: Text('Athlete'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'ELDERLY',
+                            child: Text('Elderly'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'HEALTHCARE_WORKER',
+                            child: Text('Healthcare worker'),
+                          ),
+                        ],
+                        onChanged: (value) {
+                          if (value != null) {
+                            setState(() => _selectedUserType = value);
+                          }
+                        },
+                        decoration: _inputDecoration(
+                          hintText: 'User type',
+                          prefixIcon: Icons.badge_outlined,
+                        ),
+                      ),
+                      const SizedBox(height: 18),
+                      _fieldLabel('Password'),
+                      TextFormField(
+                        controller: _passwordController,
+                        obscureText: _obscurePassword,
+                        onChanged: (_) {
+                          if (_submitted) {
+                            _formKey.currentState?.validate();
+                          }
+                        },
+                        validator: (v) => (v == null || v.isEmpty)
+                            ? 'Password is required.'
+                            : null,
+                        style: const TextStyle(color: _primaryText),
+                        decoration: _inputDecoration(
+                          hintText: 'Create a password',
+                          prefixIcon: Icons.lock_outline,
+                          suffixIcon: IconButton(
+                            icon: Icon(
+                              _obscurePassword
+                                  ? Icons.visibility_off_outlined
+                                  : Icons.visibility_outlined,
+                              color: _mutedText,
+                            ),
+                            onPressed: () => setState(
+                              () => _obscurePassword = !_obscurePassword,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 18),
+                      _fieldLabel('Confirm password'),
+                      TextFormField(
+                        controller: _confirmPasswordController,
+                        obscureText: _obscureConfirmPassword,
+                        onChanged: (_) {
+                          if (_submitted) {
+                            _formKey.currentState?.validate();
+                          }
+                        },
+                        validator: _validateConfirmPassword,
+                        style: const TextStyle(color: _primaryText),
+                        decoration: _inputDecoration(
+                          hintText: 'Confirm your password',
+                          prefixIcon: Icons.lock_outline,
+                          suffixIcon: IconButton(
+                            icon: Icon(
+                              _obscureConfirmPassword
+                                  ? Icons.visibility_off_outlined
+                                  : Icons.visibility_outlined,
+                              color: _mutedText,
+                            ),
+                            onPressed: () => setState(
+                              () => _obscureConfirmPassword =
+                                  !_obscureConfirmPassword,
+                            ),
+                          ),
+                        ),
+                      ),
+                      if (_authError != null) ...[
+                        const SizedBox(height: 18),
+                        _authErrorBanner(_authError!),
+                      ],
+                      const SizedBox(height: 26),
+                      SizedBox(
+                        width: double.infinity,
+                        height: 52,
+                        child: ElevatedButton(
+                          onPressed: _isLoading ? null : _register,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primaryBlue,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                          ),
+                          child: _isLoading
+                              ? LoadingSkeleton.buttonSmall(context)
+                              : const Text(
+                                  'Create account',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      _orDivider(),
+                      const SizedBox(height: 18),
+                      _googleButton(),
+                      const SizedBox(height: 22),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Flexible(
+                            child: Text(
+                              'Already have an account?',
+                              style: TextStyle(color: _mutedText),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          TextButton(
+                            onPressed: widget.onSwitchToLogin,
+                            child: const Text(
+                              'Log in',
+                              style: TextStyle(
+                                color: AppColors.primaryBlue,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
                         ],
                       ),
-                    ),
+                    ],
                   ),
-                ],
+                ),
               ),
             ),
           ),

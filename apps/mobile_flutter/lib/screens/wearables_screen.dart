@@ -166,7 +166,7 @@ class _WearablesScreenState extends State<WearablesScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     if (_loading) {
-      return Scaffold(
+      return const Scaffold(
         body: Center(
           child: CircularProgressIndicator(
             color: AppColors.primaryBlue,

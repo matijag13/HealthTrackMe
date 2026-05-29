@@ -48,14 +48,19 @@ class _MoodLogDialogState extends State<MoodLogDialog> {
               children: moods.map((mood) {
                 final isSelected = _selectedMood == mood['value'];
                 return GestureDetector(
-                  onTap: () => setState(() => _selectedMood = mood['value'] as String),
+                  onTap: () =>
+                      setState(() => _selectedMood = mood['value'] as String),
                   child: Container(
                     decoration: BoxDecoration(
                       color: isSelected
                           ? AppColors.primaryOrange.withValues(alpha: 0.2)
-                          : (isDark ? AppColors.darkSurface : AppColors.lightSurface),
+                          : (isDark
+                              ? AppColors.darkSurface
+                              : AppColors.lightSurface),
                       border: Border.all(
-                        color: isSelected ? AppColors.primaryOrange : AppColors.darkBorder,
+                        color: isSelected
+                            ? AppColors.primaryOrange
+                            : AppColors.darkBorder,
                         width: isSelected ? 2 : 0.5,
                       ),
                       borderRadius: BorderRadius.circular(12),
@@ -235,9 +240,13 @@ class _MedicationLogDialogState extends State<MedicationLogDialog> {
                       decoration: BoxDecoration(
                         color: isSelected
                             ? AppColors.primaryGreen.withValues(alpha: 0.1)
-                            : (isDark ? AppColors.darkSurface : AppColors.lightSurface),
+                            : (isDark
+                                ? AppColors.darkSurface
+                                : AppColors.lightSurface),
                         border: Border.all(
-                          color: isSelected ? AppColors.primaryGreen : AppColors.darkBorder,
+                          color: isSelected
+                              ? AppColors.primaryGreen
+                              : AppColors.darkBorder,
                           width: isSelected ? 2 : 0.5,
                         ),
                         borderRadius: BorderRadius.circular(12),
@@ -251,7 +260,9 @@ class _MedicationLogDialogState extends State<MedicationLogDialog> {
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
                               border: Border.all(
-                                color: isSelected ? AppColors.primaryGreen : AppColors.darkBorder,
+                                color: isSelected
+                                    ? AppColors.primaryGreen
+                                    : AppColors.darkBorder,
                                 width: 2,
                               ),
                             ),
@@ -272,8 +283,13 @@ class _MedicationLogDialogState extends State<MedicationLogDialog> {
                           Expanded(
                             child: Text(
                               med,
-                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodyMedium
+                                  ?.copyWith(
+                                    fontWeight: isSelected
+                                        ? FontWeight.w600
+                                        : FontWeight.w400,
                                   ),
                             ),
                           ),
@@ -289,7 +305,8 @@ class _MedicationLogDialogState extends State<MedicationLogDialog> {
               width: double.infinity,
               child: ElevatedButton(
                 onPressed: _selectedMedication != null
-                    ? () => Navigator.pop(context, {'medication': _selectedMedication})
+                    ? () => Navigator.pop(
+                        context, {'medication': _selectedMedication})
                     : null,
                 child: const Text('Confirm'),
               ),
@@ -356,13 +373,18 @@ class _SymptomLogDialogState extends State<SymptomLogDialog> {
                     });
                   },
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     decoration: BoxDecoration(
                       color: isSelected
                           ? AppColors.primaryOrange.withValues(alpha: 0.2)
-                          : (isDark ? AppColors.darkSurface : AppColors.lightSurface),
+                          : (isDark
+                              ? AppColors.darkSurface
+                              : AppColors.lightSurface),
                       border: Border.all(
-                        color: isSelected ? AppColors.primaryOrange : AppColors.darkBorder,
+                        color: isSelected
+                            ? AppColors.primaryOrange
+                            : AppColors.darkBorder,
                         width: isSelected ? 2 : 0.5,
                       ),
                       borderRadius: BorderRadius.circular(20),
@@ -371,7 +393,8 @@ class _SymptomLogDialogState extends State<SymptomLogDialog> {
                       symptom,
                       style: Theme.of(context).textTheme.labelSmall?.copyWith(
                             color: isSelected ? AppColors.primaryOrange : null,
-                            fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                            fontWeight:
+                                isSelected ? FontWeight.w600 : FontWeight.w400,
                           ),
                     ),
                   ),
@@ -383,7 +406,8 @@ class _SymptomLogDialogState extends State<SymptomLogDialog> {
               width: double.infinity,
               child: ElevatedButton(
                 onPressed: _selectedSymptoms.isNotEmpty
-                    ? () => Navigator.pop(context, {'symptoms': _selectedSymptoms})
+                    ? () =>
+                        Navigator.pop(context, {'symptoms': _selectedSymptoms})
                     : null,
                 child: const Text('Log Symptoms'),
               ),
@@ -445,7 +469,8 @@ class _SleepLogDialogState extends State<SleepLogDialog> {
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(8),
                             ),
-                            contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                            contentPadding:
+                                const EdgeInsets.symmetric(vertical: 12),
                           ),
                           onChanged: (value) {
                             final val = int.tryParse(value);
@@ -458,9 +483,10 @@ class _SleepLogDialogState extends State<SleepLogDialog> {
                       const SizedBox(width: 8),
                       Text(
                         'h',
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.w700,
-                            ),
+                        style:
+                            Theme.of(context).textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.w700,
+                                ),
                       ),
                       const SizedBox(width: 16),
                       SizedBox(
@@ -473,7 +499,8 @@ class _SleepLogDialogState extends State<SleepLogDialog> {
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(8),
                             ),
-                            contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                            contentPadding:
+                                const EdgeInsets.symmetric(vertical: 12),
                           ),
                           onChanged: (value) {
                             final val = int.tryParse(value);
@@ -486,9 +513,10 @@ class _SleepLogDialogState extends State<SleepLogDialog> {
                       const SizedBox(width: 8),
                       Text(
                         'm',
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.w700,
-                            ),
+                        style:
+                            Theme.of(context).textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.w700,
+                                ),
                       ),
                     ],
                   ),
