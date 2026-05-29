@@ -39,6 +39,10 @@ security:
   jwt:
     secret: ${JWT_SECRET:change-me-local-secret}
 
+google:
+  oauth:
+    allowed-client-ids: ${GOOGLE_OAUTH_ALLOWED_CLIENT_IDS:}
+
 app:
   data-retention:
     # TODO: Implement user-level hard-delete workflow for "delete my data" GDPR requests.

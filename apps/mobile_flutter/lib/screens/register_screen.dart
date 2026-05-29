@@ -1,8 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../config/theme.dart';
 import '../widgets/design_system.dart';
 import '../services/api_service.dart';
+import '../services/google_auth_service.dart';
+import '../services/google_web_sign_in_button.dart';
 
 class RegisterScreen extends StatefulWidget {
   final VoidCallback onSwitchToLogin;
@@ -26,7 +30,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _firstNameController = TextEditingController();
   final _lastNameController = TextEditingController();
   final ApiService _api = ApiService.instance;
+  final GoogleAuthService _googleAuth = GoogleAuthService.instance;
+  StreamSubscription<String>? _googleWebIdTokenSubscription;
+  StreamSubscription<Object>? _googleWebErrorSubscription;
   bool _isLoading = false;
+  bool _isGoogleLoading = false;
   bool _submitted = false;
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
@@ -42,13 +50,39 @@ class _RegisterScreenState extends State<RegisterScreen> {
   bool get _showDateOfBirthError => _submitted && !_isDateOfBirthComplete;
 
   @override
+  void initState() {
+    super.initState();
+    if (_googleAuth.usesWebSignInButton) {
+      _initializeGoogleWebSignIn();
+      _googleWebIdTokenSubscription = _googleAuth.webIdTokens.listen(
+        _loginWithGoogleIdToken,
+      );
+      _googleWebErrorSubscription = _googleAuth.webErrors.listen((error) {
+        if (!mounted) return;
+        setState(() => _authError = _formatGoogleAuthError(error));
+      });
+    }
+  }
+
+  @override
   void dispose() {
+    _googleWebIdTokenSubscription?.cancel();
+    _googleWebErrorSubscription?.cancel();
     _emailController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
     _firstNameController.dispose();
     _lastNameController.dispose();
     super.dispose();
+  }
+
+  Future<void> _initializeGoogleWebSignIn() async {
+    try {
+      await _googleAuth.initializeForWebSignIn();
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _authError = _formatGoogleAuthError(error));
+    }
   }
 
   String? _validateEmail(String? value) {
@@ -105,13 +139,49 @@ class _RegisterScreenState extends State<RegisterScreen> {
     }
   }
 
-  void _showGooglePlaceholder() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Google sign-in is not configured yet.'),
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
+  Future<void> _loginWithGoogle() async {
+    setState(() {
+      _authError = null;
+      _isGoogleLoading = true;
+    });
+
+    try {
+      final idToken = await _googleAuth.signInAndGetIdToken();
+      await _loginWithGoogleIdToken(idToken);
+    } on GoogleAuthCanceled {
+      if (!mounted) return;
+      setState(() => _authError = 'Google sign-in was cancelled.');
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _authError = _formatGoogleAuthError(error));
+    } finally {
+      if (mounted) {
+        setState(() => _isGoogleLoading = false);
+      }
+    }
+  }
+
+  Future<void> _loginWithGoogleIdToken(String idToken) async {
+    if (!mounted) return;
+    setState(() {
+      _authError = null;
+      _isGoogleLoading = true;
+    });
+
+    try {
+      final user = await _api.loginWithGoogle(idToken);
+      await _api.setActiveUserId(null);
+      await _api.setActiveUserId(user.id);
+      if (!mounted) return;
+      context.goNamed('home');
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _authError = _formatGoogleAuthError(error));
+    } finally {
+      if (mounted) {
+        setState(() => _isGoogleLoading = false);
+      }
+    }
   }
 
   String? _validateConfirmPassword(String? value) {
@@ -130,6 +200,28 @@ class _RegisterScreenState extends State<RegisterScreen> {
       return 'Email already exists.';
     }
     return text.isEmpty ? 'Could not create account.' : text;
+  }
+
+  String _formatGoogleAuthError(Object error) {
+    final message = error.toString().replaceFirst('Exception: ', '').trim();
+    if (message.contains('Google client ID is not configured')) {
+      return 'Google client ID is not configured.';
+    }
+    if (message.contains('Google sign-in was cancelled')) {
+      return 'Google sign-in was cancelled.';
+    }
+    if (message.contains('Google did not return an ID token')) {
+      return 'Google did not return an ID token.';
+    }
+    if (message.contains('not available on this platform')) {
+      return 'Google sign-in is not available on this platform yet.';
+    }
+    if (message.startsWith('Google sign-in failed:')) {
+      return message;
+    }
+    return message.isEmpty
+        ? 'Google sign-in failed. Please try again.'
+        : 'Google sign-in failed: $message';
   }
 
   void _clearAuthError() {
@@ -243,20 +335,36 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   Widget _googleButton() {
+    if (_googleAuth.usesWebSignInButton) {
+      return SizedBox(
+        width: double.infinity,
+        height: 52,
+        child: Center(child: buildGoogleWebSignInButton()),
+      );
+    }
+
     return SizedBox(
       width: double.infinity,
       height: 52,
       child: OutlinedButton.icon(
-        onPressed: _showGooglePlaceholder,
-        icon: const Text(
-          'G',
-          style: TextStyle(
-            color: _primaryText,
-            fontSize: 18,
-            fontWeight: FontWeight.w800,
-          ),
+        onPressed: (_isLoading || _isGoogleLoading) ? null : _loginWithGoogle,
+        icon: _isGoogleLoading
+            ? const SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            : const Text(
+                'G',
+                style: TextStyle(
+                  color: _primaryText,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+        label: Text(
+          _isGoogleLoading ? 'Connecting...' : 'Continue with Google',
         ),
-        label: const Text('Continue with Google'),
         style: OutlinedButton.styleFrom(
           foregroundColor: _primaryText,
           side: const BorderSide(color: _border),

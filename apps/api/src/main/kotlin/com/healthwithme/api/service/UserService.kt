@@ -3,7 +3,9 @@ package com.healthwithme.api.service
 import com.healthwithme.api.dto.CreateUserRequest
 import com.healthwithme.api.dto.UpdateUserRequest
 import com.healthwithme.api.dto.UserDto
+import com.healthwithme.api.model.AuthProvider
 import com.healthwithme.api.model.User
+import com.healthwithme.api.model.UserType
 import com.healthwithme.api.repository.UserRepository
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import org.springframework.security.crypto.password.PasswordEncoder
@@ -28,7 +30,7 @@ class UserService(
             firstName = request.firstName,
             lastName = request.lastName,
             dateOfBirth = request.dateOfBirth,
-            userType = com.healthwithme.api.model.UserType.valueOf(request.userType),
+            userType = UserType.valueOf(request.userType),
             medicalConditions = request.medicalConditions,
             allergies = request.allergies,
             createdAt = LocalDateTime.now(),
@@ -56,11 +58,61 @@ class UserService(
         val user = userRepository.findByEmail(normalizedEmail)
             .orElseThrow { IllegalArgumentException("Invalid email or password") }
 
-        if (!user.isActive || !passwordEncoder.matches(password, user.passwordHash)) {
+        val passwordHash = user.passwordHash
+        if (!user.isActive || passwordHash == null || !passwordEncoder.matches(password, passwordHash)) {
             throw IllegalArgumentException("Invalid email or password")
         }
 
         return toUserDto(user)
+    }
+
+    fun loginWithGoogle(googleUser: GoogleUserInfo): UserDto {
+        if (!googleUser.emailVerified) {
+            throw IllegalArgumentException("Invalid Google token")
+        }
+
+        val existingByGoogleSub = userRepository.findByGoogleSub(googleUser.sub)
+        if (existingByGoogleSub.isPresent) {
+            val user = existingByGoogleSub.get()
+            if (!user.isActive) {
+                throw IllegalArgumentException("Invalid Google token")
+            }
+            return toUserDto(user)
+        }
+
+        val existingByEmail = userRepository.findByEmail(googleUser.email)
+        if (existingByEmail.isPresent) {
+            val user = existingByEmail.get()
+            if (!user.isActive) {
+                throw IllegalArgumentException("Invalid Google token")
+            }
+            val linkedUser = user.copy(
+                googleSub = googleUser.sub,
+                authProvider = when (user.authProvider) {
+                    AuthProvider.GOOGLE -> AuthProvider.GOOGLE
+                    else -> AuthProvider.LOCAL_GOOGLE
+                },
+                updatedAt = LocalDateTime.now()
+            )
+            return toUserDto(userRepository.save(linkedUser))
+        }
+
+        val fallbackName = googleUser.email.substringBefore("@").ifBlank { "Google" }
+        val user = User(
+            email = googleUser.email,
+            passwordHash = null,
+            authProvider = AuthProvider.GOOGLE,
+            googleSub = googleUser.sub,
+            firstName = googleUser.givenName?.trim()?.takeIf { it.isNotEmpty() } ?: fallbackName,
+            lastName = googleUser.familyName?.trim() ?: "",
+            dateOfBirth = "",
+            userType = UserType.PATIENT,
+            isActive = true,
+            createdAt = LocalDateTime.now(),
+            updatedAt = LocalDateTime.now()
+        )
+
+        return toUserDto(userRepository.save(user))
     }
 
     fun updateUser(id: Long, request: UpdateUserRequest): UserDto {
@@ -73,7 +125,7 @@ class UserService(
         }
 
         val normalizedUserType = request.userType?.trim()?.takeIf { it.isNotEmpty() }?.let {
-            com.healthwithme.api.model.UserType.valueOf(it)
+            UserType.valueOf(it)
         } ?: user.userType
         
         val updatedUser = user.copy(
