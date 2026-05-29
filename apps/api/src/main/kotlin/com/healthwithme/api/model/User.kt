@@ -13,8 +13,15 @@ data class User(
     @Column(unique = true, nullable = false)
     val email: String = "",
     
+    @Column(nullable = true)
+    val passwordHash: String? = null,
+
     @Column(nullable = false)
-    val passwordHash: String = "",
+    @Enumerated(EnumType.STRING)
+    val authProvider: AuthProvider = AuthProvider.LOCAL,
+
+    @Column(unique = true, nullable = true)
+    val googleSub: String? = null,
     
     @Column(nullable = false)
     val firstName: String = "",
@@ -121,6 +128,12 @@ data class User(
 enum class UserRole {
     USER,
     ADMIN
+}
+
+enum class AuthProvider {
+    LOCAL,
+    GOOGLE,
+    LOCAL_GOOGLE
 }
 
 enum class UserType {

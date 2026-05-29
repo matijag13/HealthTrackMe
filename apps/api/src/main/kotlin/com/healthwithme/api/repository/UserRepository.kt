@@ -8,6 +8,7 @@ import java.util.*
 @Repository
 interface UserRepository : JpaRepository<User, Long> {
     fun findByEmail(email: String): Optional<User>
+    fun findByGoogleSub(googleSub: String): Optional<User>
     fun existsByEmail(email: String): Boolean
     fun findAllByIsActiveTrue(): List<User>
 }

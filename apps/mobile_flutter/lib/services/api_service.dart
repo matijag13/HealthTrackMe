@@ -488,6 +488,28 @@ class ApiService {
     throw Exception(_responseMessage(response) ?? 'Could not sign in');
   }
 
+  Future<User> loginWithGoogle(String idToken) async {
+    final response = await _postRaw('/auth/google',
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'idToken': idToken,
+        }));
+
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      final user = _parseSingle(response, User.fromJson);
+      if (user != null) {
+        return user;
+      }
+    }
+
+    if (response.statusCode == 401) {
+      throw Exception('Google sign-in failed. Please try again.');
+    }
+
+    throw Exception(_responseMessage(response) ??
+        'Google sign-in failed. Please try again.');
+  }
+
   Future<User?> getUser(int id) async {
     try {
       final response = await _getRaw('/users/$id');
