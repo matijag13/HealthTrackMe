@@ -428,7 +428,7 @@ class _DashboardScreenState extends State<DashboardScreen>
         subtitle: firstMedicine?.name ?? 'Tap to update',
         icon: Icons.medication_outlined,
         accent: _orange,
-        onTap: () => context.pushNamed(activeMeds > 0 ? 'meds' : 'medsAdd'),
+        onTap: () => context.pushNamed('meds'),
       ),
     ];
 
@@ -525,7 +525,7 @@ class _DashboardScreenState extends State<DashboardScreen>
               : 'No active medicines scheduled',
           icon: Icons.medication_liquid_outlined,
           accent: _orange,
-          onTap: () => context.pushNamed(activeMeds > 0 ? 'meds' : 'medsAdd'),
+          onTap: () => context.pushNamed('meds'),
         ),
         _feedGap(),
         _feedCard(

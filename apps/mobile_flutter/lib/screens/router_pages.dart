@@ -709,6 +709,33 @@ class MedicineDetailPage extends StatelessWidget {
 
   const MedicineDetailPage({required this.medicineId, super.key});
 
+  static const _background = Color(0xFF050608);
+  static const _surface = Color(0xFF0D0F14);
+  static const _surfaceSoft = Color(0xFF11141B);
+  static const _border = Color(0xFF242936);
+  static const _primaryText = Color(0xFFF7F8FA);
+  static const _mutedText = Color(0xFF8B93A7);
+  static const _accent = Color(0xFF5A8CFF);
+  static const _success = Color(0xFF36D399);
+
+  void _goBack(BuildContext context) {
+    if (Navigator.of(context).canPop()) {
+      Navigator.of(context).pop();
+      return;
+    }
+    context.goNamed('meds');
+  }
+
+  String _value(String? value) {
+    final text = value?.trim();
+    return text == null || text.isEmpty ? 'Not set' : text;
+  }
+
+  String _date(DateTime? date) {
+    if (date == null) return 'Not set';
+    return DateFormat('dd MMM yyyy').format(date.toLocal());
+  }
+
   @override
   Widget build(BuildContext context) {
     return FutureBuilder<List<Medicine>>(
@@ -719,57 +746,413 @@ class MedicineDetailPage extends StatelessWidget {
             .cast<Medicine?>()
             .firstOrNull;
         return Scaffold(
-          appBar: AppBar(title: const Text('Medicine details')),
+          backgroundColor: _background,
           body: snapshot.connectionState == ConnectionState.waiting &&
                   medicine == null
-              ? Center(
-                  child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: LoadingSkeleton.medicines(context)))
+              ? SafeArea(
+                  child: Column(
+                    children: [
+                      _topBar(context, 'Medicine details'),
+                      const Spacer(),
+                      const SizedBox(
+                        width: 28,
+                        height: 28,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2.4,
+                          color: _accent,
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                      const Text(
+                        'Loading medicine',
+                        style: TextStyle(
+                          color: _mutedText,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const Spacer(),
+                    ],
+                  ),
+                )
               : medicine == null
-                  ? const Center(child: Text('Medicine not found.'))
-                  : ListView(
-                      padding: const EdgeInsets.all(16),
-                      children: [
-                        Card(
-                          child: Padding(
-                            padding: const EdgeInsets.all(16),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(medicine.name,
-                                    style:
-                                        Theme.of(context).textTheme.titleLarge),
-                                const SizedBox(height: 8),
-                                Text('Dosage: ${medicine.dosage ?? '—'}'),
-                                Text('Frequency: ${medicine.frequency ?? '—'}'),
-                                Text('Reason: ${medicine.reason ?? '—'}'),
-                                Text(
-                                    'Status: ${medicine.isActive ? 'Active' : 'Inactive'}'),
-                                const SizedBox(height: 16),
-                                SizedBox(
-                                  width: double.infinity,
-                                  child: ElevatedButton.icon(
-                                    onPressed: () {
-                                      ScaffoldMessenger.of(context)
-                                          .showSnackBar(
-                                        const SnackBar(
-                                            content: Text(
-                                                'Dose logging API is not wired yet.')),
-                                      );
-                                    },
-                                    icon: const Icon(Icons.add_circle_rounded),
-                                    label: const Text('Log dose'),
+                  ? SafeArea(
+                      child: Column(
+                        children: [
+                          _topBar(context, 'Medicine details'),
+                          const Spacer(),
+                          _emptyCard(
+                            icon: Icons.search_off_rounded,
+                            title: 'Medicine not found',
+                            subtitle:
+                                'This medicine may have been removed or is no longer available.',
+                          ),
+                          const Spacer(),
+                        ],
+                      ),
+                    )
+                  : SafeArea(
+                      child: ListView(
+                        padding: const EdgeInsets.fromLTRB(20, 10, 20, 32),
+                        children: [
+                          _topBar(context, medicine.name),
+                          const SizedBox(height: 14),
+                          _heroCard(medicine),
+                          const SizedBox(height: 16),
+                          _section(
+                            title: 'Schedule',
+                            children: [
+                              _detailRow(Icons.medication_rounded, 'Dosage',
+                                  _value(medicine.dosage)),
+                              _divider(),
+                              _detailRow(Icons.repeat_rounded, 'Frequency',
+                                  _value(medicine.frequency)),
+                              _divider(),
+                              _detailRow(Icons.schedule_rounded, 'Next dose',
+                                  _value(medicine.scheduleLabel)),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+                          _section(
+                            title: 'Notes',
+                            children: [
+                              _detailRow(Icons.info_outline_rounded, 'Reason',
+                                  _value(medicine.reason)),
+                              _divider(),
+                              _detailRow(
+                                  Icons.notes_rounded,
+                                  'Side effects / notes',
+                                  _value(medicine.sideEffects)),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+                          _section(
+                            title: 'Timeline',
+                            children: [
+                              _detailRow(Icons.calendar_today_rounded,
+                                  'Start date', _date(medicine.startDate)),
+                              _divider(),
+                              _detailRow(Icons.event_rounded, 'End date',
+                                  _date(medicine.endDate)),
+                            ],
+                          ),
+                          const SizedBox(height: 18),
+                          SizedBox(
+                            width: double.infinity,
+                            height: 52,
+                            child: FilledButton.icon(
+                              onPressed: () {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: const Text(
+                                        'Dose logging API is not wired yet.'),
+                                    backgroundColor: _surface,
+                                    behavior: SnackBarBehavior.floating,
+                                    shape: RoundedRectangleBorder(
+                                        borderRadius:
+                                            BorderRadius.circular(14)),
                                   ),
-                                ),
-                              ],
+                                );
+                              },
+                              style: FilledButton.styleFrom(
+                                backgroundColor: _accent,
+                                foregroundColor: Colors.white,
+                                shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(15)),
+                              ),
+                              icon: const Icon(Icons.add_circle_rounded),
+                              label: const Text('Log dose',
+                                  style:
+                                      TextStyle(fontWeight: FontWeight.w800)),
                             ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
         );
       },
+    );
+  }
+
+  Widget _topBar(BuildContext context, String title) {
+    return Row(
+      children: [
+        _iconButton(
+          icon: Icons.arrow_back_rounded,
+          onTap: () => _goBack(context),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Text(
+            title,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: _primaryText,
+              fontSize: 24,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _iconButton({
+    required IconData icon,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(14),
+        child: Ink(
+          width: 44,
+          height: 44,
+          decoration: BoxDecoration(
+            color: _surfaceSoft,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: _border),
+          ),
+          child: Icon(icon, color: _primaryText, size: 22),
+        ),
+      ),
+    );
+  }
+
+  Widget _heroCard(Medicine medicine) {
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: _surface,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.28),
+            blurRadius: 28,
+            offset: const Offset(0, 16),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 52,
+                height: 52,
+                decoration: BoxDecoration(
+                  color: _accent.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(17),
+                ),
+                child: const Icon(
+                  Icons.medication_rounded,
+                  color: _accent,
+                  size: 28,
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      medicine.name,
+                      style: const TextStyle(
+                        color: _primaryText,
+                        fontSize: 22,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      _value(medicine.dosage),
+                      style: const TextStyle(
+                        color: _mutedText,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 18),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: [
+              _pill(
+                medicine.isActive ? 'Active' : 'Inactive',
+                medicine.isActive ? _success : _mutedText,
+                medicine.isActive
+                    ? Icons.check_circle_rounded
+                    : Icons.pause_circle_outline_rounded,
+              ),
+              _pill(_value(medicine.frequency), _accent, Icons.repeat_rounded),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _section({
+    required String title,
+    required List<Widget> children,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: _surface,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
+            child: Text(
+              title,
+              style: const TextStyle(
+                color: _primaryText,
+                fontSize: 16,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ),
+          ...children,
+        ],
+      ),
+    );
+  }
+
+  Widget _detailRow(IconData icon, String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+              color: _surfaceSoft,
+              borderRadius: BorderRadius.circular(13),
+              border: Border.all(color: _border),
+            ),
+            child: Icon(icon, color: _accent, size: 19),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: const TextStyle(
+                    color: _mutedText,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  value,
+                  style: const TextStyle(
+                    color: _primaryText,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    height: 1.25,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _divider() {
+    return const Padding(
+      padding: EdgeInsets.only(left: 66),
+      child: Divider(height: 1, color: _border),
+    );
+  }
+
+  Widget _pill(String label, Color color, IconData icon) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: color.withValues(alpha: 0.22)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: color, size: 15),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: TextStyle(
+              color: color,
+              fontSize: 12,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _emptyCard({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.all(20),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: _surface,
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, color: _accent, size: 34),
+            const SizedBox(height: 14),
+            Text(
+              title,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: _primaryText,
+                fontSize: 18,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              subtitle,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: _mutedText,
+                fontSize: 13,
+                height: 1.35,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -821,10 +1204,13 @@ class DiaryEntryViewPage extends StatelessWidget {
                                         Theme.of(context).textTheme.titleLarge),
                                 const SizedBox(height: 8),
                                 Text('Mood: ${match.mood ?? '—'}'),
-                                Text('Energy: ${match.energyLevel ?? 0}'),
-                                Text('Stress: ${match.stressLevel ?? 0}'),
                                 Text(
-                                    'Sleep: ${match.sleepHours?.toStringAsFixed(1) ?? '—'} h'),
+                                    'Sleep: ${match.sleepHours?.toStringAsFixed(1) ?? '—'} hours'),
+                                Text(
+                                    'Energy: ${match.energyLevel?.toString() ?? '—'}'),
+                                Text(
+                                    'Stress: ${match.stressLevel?.toString() ?? '—'}'),
+                                const SizedBox(height: 8),
                                 Text(
                                     'Symptoms: ${match.symptoms.isEmpty ? 'None' : match.symptoms.join(', ')}'),
                                 const SizedBox(height: 8),
