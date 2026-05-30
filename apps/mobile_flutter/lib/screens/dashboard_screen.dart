@@ -1,12 +1,10 @@
 import 'dart:convert';
+
 import 'package:flutter/material.dart';
-import 'package:fl_chart/fl_chart.dart';
-import 'package:percent_indicator/percent_indicator.dart';
-import 'package:shimmer/shimmer.dart';
+import 'package:go_router/go_router.dart';
 
 import '../models/models.dart';
 import '../services/api_service.dart';
-import '../widgets/widgets.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -20,8 +18,7 @@ class _DashboardStateModel {
   final List<HealthEntry> entries;
   final List<Medicine> medicines;
   final HealthShield? shield;
-  final List<Map<String, dynamic>>
-      sportActivities; // simple map for steps/calories
+  final List<Map<String, dynamic>> sportActivities;
 
   const _DashboardStateModel({
     this.user,
@@ -34,13 +31,20 @@ class _DashboardStateModel {
 
 class _DashboardScreenState extends State<DashboardScreen>
     with AutomaticKeepAliveClientMixin {
+  static const _bg = Color(0xFF070B13);
+  static const _surface = Color(0xFF0F1624);
+  static const _surfaceAlt = Color(0xFF121B2C);
+  static const _border = Color(0xFF243047);
+  static const _primaryText = Color(0xFFF5F7FB);
+  static const _secondaryText = Color(0xFF94A3B8);
+  static const _accent = Color(0xFF5B8DEF);
+  static const _green = Color(0xFF5FB878);
+  static const _orange = Color(0xFFD4956A);
+  static const _danger = Color(0xFFFF6B6B);
+
   final ApiService _api = ApiService.instance;
   _DashboardStateModel _state = const _DashboardStateModel();
   bool _loading = true;
-
-  // Overlay toggles for weekly chart
-  bool _overlaySleep = true;
-  bool _overlayStress = false;
 
   @override
   bool get wantKeepAlive => true;
@@ -52,11 +56,8 @@ class _DashboardScreenState extends State<DashboardScreen>
   }
 
   Future<void> _loadAll() async {
-    setState(() {
-      _loading = true;
-    });
+    setState(() => _loading = true);
     try {
-      // Ensure active user id is set before making parallel API calls
       await _api.ensureActiveUserId();
 
       final results = await Future.wait([
@@ -67,7 +68,6 @@ class _DashboardScreenState extends State<DashboardScreen>
         _api.getSportActivities(),
       ]);
 
-      // Unpack results
       final user = results[0] as User?;
       final entries = results[1] as List<HealthEntry>;
       final medicines = results[2] as List<Medicine>;
@@ -76,10 +76,6 @@ class _DashboardScreenState extends State<DashboardScreen>
           .map((e) => Map<String, dynamic>.from(e as Map))
           .toList();
 
-      // Also extract any steps that may have been recorded using the quick steps
-      // field (we store manual steps inside HealthEntry.notes as JSON under
-      // payload.activity.steps). This ensures the dashboard shows steps even
-      // when a dedicated sport-activity row wasn't created.
       try {
         final today = DateTime.now();
         final todays = entries
@@ -91,22 +87,20 @@ class _DashboardScreenState extends State<DashboardScreen>
         if (todays.isNotEmpty) {
           final e = todays.first;
           if (e.notes != null && e.notes!.startsWith('{')) {
-            try {
-              final parsed = Map<String, dynamic>.from(jsonDecode(e.notes!));
-              final activity = parsed['activity'];
-              if (activity is Map && activity['steps'] != null) {
-                final s = int.tryParse(activity['steps'].toString()) ?? 0;
-                if (s > 0) {
-                  sportActivities.add(
-                      {'start': e.entryDate.toIso8601String(), 'steps': s});
-                }
+            final parsed = Map<String, dynamic>.from(jsonDecode(e.notes!));
+            final activity = parsed['activity'];
+            if (activity is Map && activity['steps'] != null) {
+              final steps = int.tryParse(activity['steps'].toString()) ?? 0;
+              if (steps > 0) {
+                sportActivities.add(
+                    {'start': e.entryDate.toIso8601String(), 'steps': steps});
               }
-            } catch (_) {
-              // ignore parsing errors
             }
           }
         }
-      } catch (_) {}
+      } catch (_) {
+        // Ignore malformed legacy notes payloads.
+      }
 
       setState(() {
         _state = _DashboardStateModel(
@@ -120,103 +114,12 @@ class _DashboardScreenState extends State<DashboardScreen>
       });
     } catch (e) {
       debugPrint('Dashboard load error: $e');
-      setState(() {
-        _loading = false;
-      });
+      setState(() => _loading = false);
     }
   }
 
-  Future<void> _markDoseTaken(int medicineId) async {
-    try {
-      await _api.logMedicineDose(medicineId, DateTime.now(), 'TAKEN');
-      if (!mounted) {
-        return;
-      }
-      await _loadAll();
-    } catch (e) {
-      if (!mounted) {
-        return;
-      }
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('Network error')));
-    }
-  }
+  Future<void> _refresh() => _loadAll();
 
-  Future<void> _refresh() async => _loadAll();
-
-  String _greeting() {
-    final hour = DateTime.now().hour;
-    if (hour < 12) {
-      return 'Good morning';
-    }
-    if (hour < 18) {
-      return 'Good afternoon';
-    }
-    return 'Good evening';
-  }
-
-  String _moodLabel(String? mood) {
-    switch (mood) {
-      case '😰':
-        return 'Very bad';
-      case '😔':
-        return 'Bad';
-      case '😐':
-        return 'Neutral';
-      case '😊':
-        return 'Good';
-      case '🤩':
-        return 'Excellent';
-      default:
-        return mood ?? '—';
-    }
-  }
-
-  int _todayHealthIndex() {
-    if (_state.entries.isEmpty) {
-      return 0;
-    }
-    final today = DateTime.now();
-    final todays = _state.entries.where((e) =>
-        e.entryDate.year == today.year &&
-        e.entryDate.month == today.month &&
-        e.entryDate.day == today.day);
-    if (todays.isEmpty) {
-      return _state.entries.first.effectiveWellbeingScore;
-    }
-    return todays.first.effectiveWellbeingScore;
-  }
-
-  double _todaySleepHours() {
-    final today = DateTime.now();
-    final todays = _state.entries.where((e) =>
-        e.entryDate.year == today.year &&
-        e.entryDate.month == today.month &&
-        e.entryDate.day == today.day);
-    if (todays.isEmpty) {
-      return 0.0;
-    }
-    return todays.first.effectiveSleepHours;
-  }
-
-  // Helper empty entry for lookups when no entry exists for a day
-  HealthEntry _emptyEntry() {
-    return HealthEntry(
-        id: 0,
-        entryDate: DateTime.now(),
-        symptoms: const [],
-        wellbeingScore: 0,
-        mood: null,
-        energyLevel: 0,
-        sleepHours: 0.0,
-        sleepQuality: null,
-        stressLevel: 0,
-        notes: null,
-        createdAt: null,
-        updatedAt: null);
-  }
-
-  /// Returns today's HealthEntry if one was logged, or null.
   HealthEntry? _todayEntry() {
     final today = DateTime.now();
     final matches = _state.entries.where((e) =>
@@ -226,134 +129,127 @@ class _DashboardScreenState extends State<DashboardScreen>
     return matches.isNotEmpty ? matches.first : null;
   }
 
-  int _todaySteps() {
-    if (_state.sportActivities.isEmpty) return 0;
-    // find today's activities and sum steps (if present)
-    final today = DateTime.now();
-    final todays = _state.sportActivities.where((a) {
-      final t = DateTime.tryParse(a['start']?.toString() ?? '') ??
-          DateTime.fromMillisecondsSinceEpoch(0);
-      return t.year == today.year &&
-          t.month == today.month &&
-          t.day == today.day;
-    });
+  double _todaySleepHours() => _todayEntry()?.effectiveSleepHours ?? 0.0;
+
+  int _todaySteps() => _sumStepsForDay(DateTime.now());
+
+  int _sumStepsForDay(DateTime day) {
     var sum = 0;
-    for (final a in todays) {
-      sum += (a['steps'] as int?) ??
-          (a['distanceMeters'] != null
-              ? ((a['distanceMeters'] as num) / 0.8).round()
+    for (final activity in _state.sportActivities) {
+      final time = DateTime.tryParse(activity['start']?.toString() ?? '') ??
+          DateTime.fromMillisecondsSinceEpoch(0);
+      if (!_sameDay(time, day)) continue;
+      sum += (activity['steps'] as int?) ??
+          (activity['distanceMeters'] != null
+              ? ((activity['distanceMeters'] as num) / 0.8).round()
               : 0);
     }
     return sum;
+  }
+
+  int _todayActiveMinutes() {
+    final today = DateTime.now();
+    return _state.sportActivities.where((activity) {
+      final time = DateTime.tryParse(activity['start']?.toString() ?? '') ??
+          DateTime.fromMillisecondsSinceEpoch(0);
+      return _sameDay(time, today);
+    }).fold<int>(0, (sum, activity) {
+      return sum +
+          (int.tryParse(activity['durationMinutes']?.toString() ?? '') ?? 0);
+    });
+  }
+
+  int _todayCaloriesBurned() {
+    final today = DateTime.now();
+    return _state.sportActivities.where((activity) {
+      final time = DateTime.tryParse(activity['start']?.toString() ?? '') ??
+          DateTime.fromMillisecondsSinceEpoch(0);
+      return _sameDay(time, today);
+    }).fold<int>(0, (sum, activity) {
+      return sum +
+          (int.tryParse(activity['caloriesBurned']?.toString() ?? '') ??
+              int.tryParse(activity['calories']?.toString() ?? '') ??
+              0);
+    });
+  }
+
+  bool _sameDay(DateTime a, DateTime b) {
+    return a.year == b.year && a.month == b.month && a.day == b.day;
+  }
+
+  int _activeMedicinesCount() {
+    return _state.medicines.where((medicine) => medicine.isActive).length;
+  }
+
+  Future<void> _signOut() async {
+    await _api.resetActiveUserId();
+    if (!mounted) return;
+    context.go('/auth');
+  }
+
+  String _formatInt(int value) {
+    if (value <= 0) return 'No data';
+    final text = value.toString();
+    final buffer = StringBuffer();
+    for (var i = 0; i < text.length; i++) {
+      final remaining = text.length - i;
+      buffer.write(text[i]);
+      if (remaining > 1 && remaining % 3 == 1) buffer.write(',');
+    }
+    return buffer.toString();
+  }
+
+  String _formatSleep(double value) {
+    return value > 0 ? value.toStringAsFixed(1) : 'No data';
+  }
+
+  String _formatHeart(HealthEntry? entry) {
+    return entry?.heartRate != null ? '${entry!.heartRate}' : 'No data';
+  }
+
+  String _vitalsSubtitle(HealthEntry? entry) {
+    if (entry == null) return 'Tap to update';
+    final details = <String>[];
+    if (entry.systolicBp != null && entry.diastolicBp != null) {
+      details.add('${entry.systolicBp}/${entry.diastolicBp} BP');
+    }
+    if (entry.weight != null) {
+      details.add('${entry.weight!.toStringAsFixed(1)} kg');
+    }
+    if (entry.spO2 != null) details.add('${entry.spO2}% SpO2');
+    return details.isEmpty ? 'Tap to update' : details.join(' • ');
   }
 
   @override
   Widget build(BuildContext context) {
     super.build(context);
 
-    final name = _state.user?.firstName.isNotEmpty == true
-        ? _state.user!.firstName
-        : (_state.user?.fullName ?? 'there');
-    final greeting = '${_greeting()}, $name';
-
     return Scaffold(
+      backgroundColor: _bg,
       body: RefreshIndicator(
+        color: _accent,
+        backgroundColor: _surface,
         onRefresh: _refresh,
         child: CustomScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
           slivers: [
-            SliverAppBar(
-              pinned: true,
-              snap: false,
-              floating: false,
-              expandedHeight: 140,
-              backgroundColor: AppColors.primary,
-              foregroundColor: Colors.white,
-              title: const Text('Dashboard',
-                  style: TextStyle(
-                      color: Colors.white, fontWeight: FontWeight.w700)),
-              elevation: 0,
-              flexibleSpace: FlexibleSpaceBar(
-                background: Container(
-                  padding: const EdgeInsets.only(
-                      left: 18, right: 18, top: 36, bottom: 18),
-                  decoration: const BoxDecoration(
-                    gradient: LinearGradient(
-                        colors: [Color(0xFF0F172A), Color(0xFF0B3A7B)],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight),
-                  ),
-                  child: SafeArea(
-                    bottom: false,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(greeting,
-                                      style: const TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 20,
-                                          fontWeight: FontWeight.w700)),
-                                  const SizedBox(height: 4),
-                                  Text('Your daily health at a glance',
-                                      style: TextStyle(
-                                          color: Colors.white
-                                              .withValues(alpha: 0.9),
-                                          fontSize: 13)),
-                                ],
-                              ),
-                            ),
-                            CircleAvatar(
-                              radius: 22,
-                              backgroundColor: AppColors.blue,
-                              child: Text((_state.user?.initials ?? 'U'),
-                                  style: const TextStyle(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.w700)),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
+            SliverToBoxAdapter(
+              child: SafeArea(
+                bottom: false,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 18, 20, 0),
+                  child: _buildHeader(),
                 ),
               ),
             ),
-
-            // Body content
             SliverPadding(
-              padding: const EdgeInsets.all(14),
+              padding: const EdgeInsets.fromLTRB(20, 22, 20, 30),
               sliver: SliverList(
                 delegate: SliverChildListDelegate([
-                  // SECTION 1 - Health Score Ring
-                  _buildHeroRing(context),
-                  const SizedBox(height: 12),
-
-                  // SECTION 2 - Quick Stats horizontal
-                  _buildQuickStats(context),
-                  const SizedBox(height: 12),
-
-                  // SECTION 3 - Health Shield
-                  HealthShieldSection(
-                      shield: _state.shield, onRefresh: _refresh),
-                  const SizedBox(height: 12),
-
-                  // SECTION 4 - Upcoming Medicines
-                  _buildMedicinesSection(context),
-                  const SizedBox(height: 12),
-
-                  // SECTION 5 - Recent Diary Entries
-                  _buildDiarySection(context),
-                  const SizedBox(height: 12),
-
-                  // SECTION 6 - Weekly Trend Chart
-                  _buildWeeklyTrend(context),
-                  const SizedBox(height: 40),
+                  _buildFavoritesSection(),
+                  const SizedBox(height: 24),
+                  _buildFeed(),
+                  const SizedBox(height: 22),
                 ]),
               ),
             ),
@@ -363,628 +259,535 @@ class _DashboardScreenState extends State<DashboardScreen>
     );
   }
 
-  Widget _shimmerBox({double height = 120}) => Shimmer.fromColors(
-        baseColor: Colors.grey.shade300,
-        highlightColor: Colors.grey.shade100,
-        child: Container(
-            height: height,
-            decoration: BoxDecoration(
-                color: Colors.white, borderRadius: BorderRadius.circular(12))),
-      );
-
-  Widget _buildHeroRing(BuildContext context) {
-    if (_loading) {
-      return _shimmerBox(height: 220);
-    }
-
-    final index = _todayHealthIndex();
-    final sleep = _todaySleepHours();
-    final steps = _todaySteps();
-    final bpm = _todayEntry()?.heartRate ?? 0;
-    final sleepPct = (sleep / 8).clamp(0.0, 1.0);
-    final activityPct = (steps / 10000).clamp(0.0, 1.0);
-    final waterMl = _todayEntry()?.waterIntakeMl ?? 0;
-    final cals = _todayEntry()?.caloriesConsumed ?? 0;
-    final nutritionPct = (waterMl / 2000).clamp(0.0, 1.0); // target 2000ml/day
-    final vitalsPct =
-        (bpm > 0 ? (80 - (bpm - 60)).abs() / 80 : 0.6).clamp(0.0, 1.0);
-
-    return Container(
-      decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16), color: Colors.white),
-      padding: const EdgeInsets.all(14),
-      child: Column(
-        children: [
-          SizedBox(
-            width: 190,
-            height: 190,
-            child: CircularPercentIndicator(
-              radius: 95,
-              lineWidth: 11,
-              percent: (index.clamp(0, 100)) / 100,
-              circularStrokeCap: CircularStrokeCap.round,
-              backgroundColor: Colors.grey.shade200,
-              progressColor: AppColors.teal,
-              center: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text('$index',
-                      style: const TextStyle(
-                          fontSize: 36,
-                          fontWeight: FontWeight.w800,
-                          color: AppColors.navy)),
-                  const SizedBox(height: 4),
-                  const Text('Health Index',
-                      style: TextStyle(fontSize: 12, color: AppColors.muted)),
-                ],
-              ),
-            ),
-          ),
-
-          const SizedBox(height: 12),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              _metricRingChip(
-                  label: 'Sleep', percent: sleepPct, color: AppColors.navy),
-              _metricRingChip(
-                  label: 'Activity',
-                  percent: activityPct,
-                  color: AppColors.teal),
-              _metricRingChip(
-                  label: 'Nutrition',
-                  percent: nutritionPct,
-                  color: AppColors.blue),
-              _metricRingChip(
-                  label: 'Vitals', percent: vitalsPct, color: AppColors.danger),
-            ],
-          ),
-
-          const SizedBox(height: 12),
-          // Pills
-          Wrap(
-            spacing: 8,
-            runSpacing: 6,
-            children: [
-              _pill(
-                  '😴 ${sleep > 0 ? '${sleep.toStringAsFixed(1)}h' : '—'} sleep',
-                  AppColors.navy.withValues(alpha: 0.08),
-                  AppColors.navy),
-              _pill('👟 ${steps > 0 ? steps.toString() : '—'} steps',
-                  AppColors.teal.withValues(alpha: 0.08), AppColors.teal),
-              _pill(
-                  '💧 ${waterMl > 0 ? '${(waterMl / 1000).toStringAsFixed(1)}L' : '—'}  🔥 ${cals > 0 ? '${cals}kcal' : '—'}',
-                  AppColors.blue.withValues(alpha: 0.08),
-                  AppColors.blue),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _metricRingChip(
-      {required String label, required double percent, required Color color}) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
+  Widget _buildHeader() {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        SizedBox(
-          width: 52,
-          height: 52,
-          child: CircularPercentIndicator(
-            radius: 26,
-            lineWidth: 5,
-            percent: percent.clamp(0.0, 1.0),
-            center: Text('${(percent * 100).round()}%',
-                style:
-                    const TextStyle(fontSize: 10, fontWeight: FontWeight.w600)),
-            progressColor: color,
-            backgroundColor: Colors.grey.shade200,
-            circularStrokeCap: CircularStrokeCap.round,
+        Expanded(
+          child: Text(
+            'Summary',
+            style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                  color: _primaryText,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 0,
+                ),
           ),
         ),
-        const SizedBox(height: 4),
-        Text(label,
-            style: const TextStyle(fontSize: 10, color: AppColors.muted)),
+        const SizedBox(width: 16),
+        _buildAvatar(),
       ],
     );
   }
 
-  Widget _pill(String text, Color bg, Color color) => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-        decoration:
-            BoxDecoration(color: bg, borderRadius: BorderRadius.circular(20)),
-        child: Text(text,
-            style: TextStyle(
-                color: color, fontWeight: FontWeight.w600, fontSize: 12)),
-      );
-
-  Widget _buildQuickStats(BuildContext context) {
-    if (_loading) {
-      return SizedBox(
-          height: 120,
-          child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              itemBuilder: (_, __) => Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: _shimmerBox(height: 100)),
-              separatorBuilder: (_, __) => const SizedBox(),
-              itemCount: 6));
+  Widget _buildAvatar() {
+    final user = _state.user;
+    ImageProvider? image;
+    final photo = user?.profilePhotoBase64;
+    if (photo != null && photo.isNotEmpty) {
+      try {
+        image = MemoryImage(base64Decode(photo));
+      } catch (_) {
+        image = null;
+      }
     }
 
-    final te = _todayEntry();
-    // Bug fix: calories key in sport-activity maps is 'caloriesBurned', not 'calories'
-    final todayCaloriesBurned = _state.sportActivities.isNotEmpty
-        ? _state.sportActivities
-            .map((e) =>
-                (e['caloriesBurned'] as int?) ?? (e['calories'] as int?) ?? 0)
-            .fold(0, (a, b) => a + b)
-        : 0;
-    // Bug fix: also include calories consumed from today's HealthEntry if present
-    final caloriesConsumed = te?.caloriesConsumed ?? 0;
-    final totalCalories = todayCaloriesBurned + caloriesConsumed;
+    final avatar = Container(
+      width: 46,
+      height: 46,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        border: Border.all(color: _border, width: 1),
+      ),
+      child: CircleAvatar(
+        backgroundColor: _surfaceAlt,
+        backgroundImage: image,
+        child: image == null
+            ? Text(
+                user?.initials ?? 'U',
+                style: const TextStyle(
+                  color: _primaryText,
+                  fontWeight: FontWeight.w800,
+                ),
+              )
+            : null,
+      ),
+    );
+
+    return PopupMenuButton<String>(
+      tooltip: 'Account',
+      padding: EdgeInsets.zero,
+      offset: const Offset(0, 52),
+      color: _surfaceAlt,
+      elevation: 10,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: _border.withValues(alpha: 0.9)),
+      ),
+      onSelected: (value) async {
+        switch (value) {
+          case 'profile':
+            context.pushNamed('profileEdit');
+            break;
+          case 'settings':
+            context.pushNamed('profileSettings');
+            break;
+          case 'signOut':
+            await _signOut();
+            break;
+        }
+      },
+      itemBuilder: (context) => [
+        _avatarMenuItem(
+          value: 'profile',
+          icon: Icons.person_outline,
+          label: 'Profile',
+        ),
+        _avatarMenuItem(
+          value: 'settings',
+          icon: Icons.settings_outlined,
+          label: 'Settings',
+        ),
+        const PopupMenuDivider(height: 8),
+        _avatarMenuItem(
+          value: 'signOut',
+          icon: Icons.logout,
+          label: 'Sign out',
+          danger: true,
+        ),
+      ],
+      child: avatar,
+    );
+  }
+
+  PopupMenuItem<String> _avatarMenuItem({
+    required String value,
+    required IconData icon,
+    required String label,
+    bool danger = false,
+  }) {
+    final color = danger ? _danger : _primaryText;
+    return PopupMenuItem<String>(
+      value: value,
+      height: 44,
+      child: Row(
+        children: [
+          Icon(icon, size: 19, color: color),
+          const SizedBox(width: 12),
+          Text(
+            label,
+            style: TextStyle(
+              color: color,
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFavoritesSection() {
+    if (_loading) return _loadingCard(height: 260);
+
+    final entry = _todayEntry();
+    final activeMeds = _activeMedicinesCount();
+    final firstMedicine = _state.medicines.where((m) => m.isActive).isNotEmpty
+        ? _state.medicines.firstWhere((m) => m.isActive)
+        : null;
 
     final cards = [
-      {
-        'icon': '👟',
-        'name': 'Steps',
-        'value': _todaySteps() > 0 ? _todaySteps().toString() : '—',
-        'unit': ''
-      },
-      // Bug fix: was always '—'; now reads heartRate from today's HealthEntry
-      {
-        'icon': '💓',
-        'name': 'Heart',
-        'value': (te?.heartRate != null) ? '${te!.heartRate}' : '—',
-        'unit': 'bpm'
-      },
-      // Bug fix: was always '—'; now reads weight from today's HealthEntry
-      {
-        'icon': '⚖️',
-        'name': 'Weight',
-        'value': (te?.weight != null) ? te!.weight!.toStringAsFixed(1) : '—',
-        'unit': 'kg'
-      },
-      {
-        'icon': '😴',
-        'name': 'Sleep',
-        'value': _todaySleepHours() > 0
-            ? _todaySleepHours().toStringAsFixed(1)
-            : '—',
-        'unit': 'h'
-      },
-      // Bug fix: was always '—'; now reads waterIntakeMl from today's HealthEntry
-      {
-        'icon': '💧',
-        'name': 'Water',
-        'value': (te?.waterIntakeMl != null)
-            ? (te!.waterIntakeMl! / 1000).toStringAsFixed(1)
-            : '—',
-        'unit': 'L'
-      },
-      // Bug fix: was using key 'calories' which doesn't exist; now 'caloriesBurned'
-      {
-        'icon': '🔥',
-        'name': 'Calories',
-        'value': totalCalories > 0 ? '$totalCalories' : '—',
-        'unit': 'kcal'
-      },
-      {
-        'icon': '🧠',
-        'name': 'Stress',
-        'value': te != null ? '${te.stressLevel?.round() ?? '—'}' : '—',
-        'unit': ''
-      },
+      _favoriteCard(
+        title: 'Activity',
+        value: _formatInt(_todaySteps()),
+        subtitle: _todayActiveMinutes() > 0
+            ? '${_todayActiveMinutes()} active min'
+            : 'Tap to update',
+        icon: Icons.directions_walk,
+        accent: _green,
+        onTap: () => context.pushNamed('healthActivity'),
+      ),
+      _favoriteCard(
+        title: 'Sleep',
+        value: _formatSleep(_todaySleepHours()),
+        subtitle: _todaySleepHours() > 0 ? 'hours today' : 'Tap to update',
+        icon: Icons.bedtime_outlined,
+        accent: _accent,
+        onTap: () => context.pushNamed('healthSleep'),
+      ),
+      _favoriteCard(
+        title: 'Heart',
+        value: _formatHeart(entry),
+        subtitle: entry?.heartRate != null ? 'bpm' : 'Tap to update',
+        icon: Icons.favorite_outline,
+        accent: _danger,
+        onTap: () => context.pushNamed('healthVitals'),
+      ),
+      _favoriteCard(
+        title: 'Medicines',
+        value: activeMeds > 0 ? activeMeds.toString() : 'No data',
+        subtitle: firstMedicine?.name ?? 'Tap to update',
+        icon: Icons.medication_outlined,
+        accent: _orange,
+        onTap: () => context.pushNamed(activeMeds > 0 ? 'meds' : 'medsAdd'),
+      ),
     ];
 
-    return SizedBox(
-      height: 120,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        itemCount: cards.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 8),
-        itemBuilder: (context, index) {
-          final c = cards[index];
-          return GestureDetector(
-            onTap: () {
-              // navigate to detail if route exists else show snackbar
-              ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Open ${c['name']} detail')));
-            },
-            child: Container(
-              width: 160,
-              decoration: BoxDecoration(
-                  color: Colors.white, borderRadius: BorderRadius.circular(12)),
-              padding: const EdgeInsets.all(12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(c['icon'] as String),
-                        Text(c['name'] as String,
-                            style: const TextStyle(
-                                fontSize: 12, fontWeight: FontWeight.w600))
-                      ]),
-                  const Spacer(),
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Text(c['value'].toString(),
-                          style: const TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.w800,
-                              color: AppColors.navy)),
-                      const SizedBox(width: 6),
-                      Text(c['unit'].toString(),
-                          style: const TextStyle(color: AppColors.muted)),
-                      const Spacer(),
-                      SizedBox(
-                          width: 60,
-                          height: 34,
-                          child: _buildSparkline(
-                              _last7ValuesForMetric(c['name'] as String))),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          );
-        },
-      ),
-    );
-  }
-
-  List<double> _last7ValuesForMetric(String name) {
-    // Try to extract 7-day series from entries/sport activities
-    final now = DateTime.now();
-    final days = List.generate(
-        7,
-        (i) => DateTime(now.year, now.month, now.day)
-            .subtract(Duration(days: 6 - i)));
-    if (name == 'Steps') {
-      // map sport activities
-      return days.map((d) {
-        final sum = _state.sportActivities.where((a) {
-          final t = DateTime.tryParse(a['start']?.toString() ?? '') ??
-              DateTime.fromMillisecondsSinceEpoch(0);
-          return t.year == d.year && t.month == d.month && t.day == d.day;
-        }).fold<int>(0, (p, e) => p + ((e['steps'] as int?) ?? 0));
-        return sum.toDouble();
-      }).toList();
-    }
-
-    // For other metrics, use entries' effective values
-    return days
-        .map((d) {
-          final entry = _state.entries.firstWhere(
-              (e) =>
-                  e.entryDate.year == d.year &&
-                  e.entryDate.month == d.month &&
-                  e.entryDate.day == d.day,
-              orElse: () => _emptyEntry());
-          switch (name) {
-            case 'Heart':
-              return (entry.heartRate ?? 0).toDouble();
-            case 'Sleep':
-              return (entry.effectiveSleepHours).toDouble();
-            case 'Water':
-              return (entry.waterIntakeMl ?? 0).toDouble();
-            case 'Weight':
-              return entry.weight ?? 0.0;
-            case 'Calories':
-              return (entry.caloriesConsumed ?? 0).toDouble();
-            case 'Stress':
-              return (entry.stressLevel ?? 0).toDouble();
-            default:
-              return 0.0;
-          }
-        })
-        .toList()
-        .cast<double>();
-  }
-
-  Widget _buildSparkline(List<double> values) {
-    final spots =
-        List.generate(values.length, (i) => FlSpot(i.toDouble(), values[i]));
-    return LineChart(
-      LineChartData(
-          gridData: const FlGridData(show: false),
-          titlesData: const FlTitlesData(show: false),
-          borderData: FlBorderData(show: false),
-          lineBarsData: [
-            LineChartBarData(
-                spots: spots,
-                isCurved: true,
-                color: AppColors.teal,
-                dotData: const FlDotData(show: false),
-                barWidth: 2),
-          ]),
-    );
-  }
-
-  Widget _buildMedicinesSection(BuildContext context) {
-    if (_loading) return _shimmerBox(height: 140);
-
-    final meds = _state.medicines.where((m) => m.isActive).toList();
-    final morning = meds
-        .where((m) => m.scheduleLabel.toLowerCase().contains('morning'))
-        .toList();
-    final afternoon = meds
-        .where((m) => m.scheduleLabel.toLowerCase().contains('afternoon'))
-        .toList();
-    final evening = meds
-        .where((m) =>
-            m.scheduleLabel.toLowerCase().contains('evening') ||
-            m.scheduleLabel.toLowerCase().contains('night'))
-        .toList();
-
-    Widget group(String title, List<Medicine> list) {
-      if (list.isEmpty) return const SizedBox();
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const SizedBox(height: 6),
-          Text(title,
-              style:
-                  const TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
-          const SizedBox(height: 6),
-          ...list.map((m) => ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: Container(
-                    width: 10,
-                    height: 10,
-                    decoration: const BoxDecoration(
-                        color: AppColors.blue, shape: BoxShape.circle)),
-                title: Text(m.name,
-                    style: const TextStyle(fontWeight: FontWeight.w600)),
-                subtitle: Text(m.scheduleLabel),
-                trailing: IconButton(
-                  icon: Icon(
-                      m.isActive
-                          ? Icons.check_circle
-                          : Icons.radio_button_unchecked,
-                      color: m.isActive ? AppColors.success : AppColors.muted),
-                  onPressed: () => _markDoseTaken(m.id),
-                ),
-                onTap: () => ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Open full Meds for ${m.name}'))),
-              ))
-        ],
-      );
-    }
-
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('Upcoming medicines',
-                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
-            const SizedBox(height: 6),
-            if (meds.isEmpty)
-              const Text('No medicines scheduled for today. Tap to add.')
-            else
-              Column(children: [
-                group('Morning', morning),
-                group('Afternoon', afternoon),
-                group('Evening', evening)
-              ]),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildDiarySection(BuildContext context) {
-    if (_loading) return _shimmerBox(height: 120);
-
-    final last3 = _state.entries.take(3).toList();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Recent diary entries',
-            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
-        const SizedBox(height: 8),
-        if (last3.isEmpty)
-          const Text('No diary entries yet. Tap to create one.')
-        else
-          SizedBox(
-            height: 120,
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              itemCount: last3.length,
-              separatorBuilder: (_, __) => const SizedBox(width: 10),
-              itemBuilder: (context, i) {
-                final e = last3[i];
-                return GestureDetector(
-                  onTap: () => ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Open diary ${e.entryDate}'))),
-                  child: Container(
-                    width: 260,
-                    decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(12)),
-                    padding: const EdgeInsets.all(12),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(children: [
-                          Text(_moodLabel(e.mood),
-                              style: const TextStyle(fontSize: 22)),
-                          const SizedBox(width: 8),
-                          Text(
-                              e.entryDate
-                                  .toLocal()
-                                  .toIso8601String()
-                                  .split('T')
-                                  .first,
-                              style:
-                                  const TextStyle(fontWeight: FontWeight.w600))
-                        ]),
-                        const SizedBox(height: 8),
-                        Text('Wellbeing ${e.effectiveWellbeingScore}',
-                            style:
-                                const TextStyle(fontWeight: FontWeight.w700)),
-                        const SizedBox(height: 8),
-                        Text(
-                            (e.symptoms.isNotEmpty
-                                ? e.symptoms.take(2).join(', ')
-                                : 'No symptoms'),
-                            style: const TextStyle(color: AppColors.muted)),
-                      ],
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                'Favorites',
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      color: _primaryText,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 0,
                     ),
-                  ),
+              ),
+            ),
+            TextButton(
+              onPressed: () {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                      content: Text('Favorites editing coming soon')),
                 );
               },
+              child: const Text('Edit'),
             ),
-          ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        GridView.count(
+          crossAxisCount: 2,
+          crossAxisSpacing: 12,
+          mainAxisSpacing: 12,
+          childAspectRatio: 1.28,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          children: cards,
+        ),
       ],
     );
   }
 
-  Widget _buildWeeklyTrend(BuildContext context) {
-    if (_loading) return _shimmerBox(height: 200);
+  Widget _buildFeed() {
+    if (_loading) return _loadingCard(height: 420);
 
-    final now = DateTime.now();
-    final days = List.generate(
-        7,
-        (i) => DateTime(now.year, now.month, now.day)
-            .subtract(Duration(days: 6 - i)));
-    final wellbeing = days.map((d) {
-      final entry = _state.entries.firstWhere(
-          (e) =>
-              e.entryDate.year == d.year &&
-              e.entryDate.month == d.month &&
-              e.entryDate.day == d.day,
-          orElse: () => _emptyEntry());
-      return entry.effectiveWellbeingScore.toDouble();
-    }).toList();
+    final entry = _todayEntry();
+    final activeMeds = _activeMedicinesCount();
+    final shield = _state.shield;
+    final shieldProgress = shield?.progressPercent ?? 0;
+    final calories = _todayCaloriesBurned();
 
-    final sleep = days.map((d) {
-      final entry = _state.entries.firstWhere(
-          (e) =>
-              e.entryDate.year == d.year &&
-              e.entryDate.month == d.month &&
-              e.entryDate.day == d.day,
-          orElse: () => _emptyEntry());
-      return (entry.effectiveSleepHours / 12 * 100).clamp(0.0, 100.0);
-    }).toList();
-
-    final stress = days
-        .map((d) {
-          final entry = _state.entries.firstWhere(
-              (e) =>
-                  e.entryDate.year == d.year &&
-                  e.entryDate.month == d.month &&
-                  e.entryDate.day == d.day,
-              orElse: () => _emptyEntry());
-          return (entry.stressLevel ?? 0).toDouble();
-        })
-        .toList()
-        .cast<double>();
-
-    List<LineChartBarData> lines = [];
-    lines.add(LineChartBarData(
-        spots: List.generate(
-            wellbeing.length, (i) => FlSpot(i.toDouble(), wellbeing[i])),
-        isCurved: true,
-        color: AppColors.teal,
-        barWidth: 3,
-        dotData: const FlDotData(show: false)));
-    if (_overlaySleep) {
-      lines.add(LineChartBarData(
-          spots: List.generate(
-              sleep.length, (i) => FlSpot(i.toDouble(), sleep[i])),
-          isCurved: true,
-          color: AppColors.navy.withValues(alpha: 0.9),
-          barWidth: 2,
-          dashArray: const [4, 2],
-          dotData: const FlDotData(show: false)));
-    }
-    if (_overlayStress) {
-      lines.add(LineChartBarData(
-          spots: List.generate(
-              stress.length, (i) => FlSpot(i.toDouble(), stress[i])),
-          isCurved: true,
-          color: AppColors.danger.withValues(alpha: 0.9),
-          barWidth: 2,
-          dotData: const FlDotData(show: false)));
-    }
-
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-              const Text('Weekly wellbeing',
-                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
-              Row(children: [
-                TextButton(
-                    onPressed: () => setState(() {
-                          _overlaySleep = !_overlaySleep;
-                        }),
-                    child: Text('Sleep',
-                        style: TextStyle(
-                            color: _overlaySleep
-                                ? AppColors.navy
-                                : AppColors.muted))),
-                TextButton(
-                    onPressed: () => setState(() {
-                          _overlayStress = !_overlayStress;
-                        }),
-                    child: Text('Stress',
-                        style: TextStyle(
-                            color: _overlayStress
-                                ? AppColors.danger
-                                : AppColors.muted))),
-              ])
-            ]),
-            const SizedBox(height: 6),
-            SizedBox(
-              height: 220,
-              child: LineChart(LineChartData(
-                minY: 0,
-                maxY: 100,
-                gridData: const FlGridData(
-                    show: true,
-                    drawVerticalLine: false,
-                    horizontalInterval: 25),
-                titlesData: FlTitlesData(
-                    bottomTitles: AxisTitles(
-                        sideTitles: SideTitles(
-                            showTitles: true,
-                            getTitlesWidget: (v, meta) {
-                              final idx = v.toInt();
-                              if (idx < 0 || idx >= days.length) {
-                                return const SizedBox.shrink();
-                              }
-                              final d = days[idx];
-                              return SideTitleWidget(
-                                  axisSide: meta.axisSide,
-                                  child: Text([
-                                    'Mon',
-                                    'Tue',
-                                    'Wed',
-                                    'Thu',
-                                    'Fri',
-                                    'Sat',
-                                    'Sun'
-                                  ][d.weekday - 1]));
-                            })),
-                    leftTitles: const AxisTitles(
-                        sideTitles:
-                            SideTitles(showTitles: true, interval: 25))),
-                borderData: FlBorderData(show: false),
-                lineBarsData: lines,
-              )),
-            ),
-          ],
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _healthShieldFeedCard(shield, shieldProgress),
+        _feedGap(),
+        _feedCard(
+          title: 'Activity',
+          value: _formatInt(_todaySteps()),
+          subtitle: _todaySteps() > 0
+              ? '${_todayActiveMinutes()} active min • $calories kcal'
+              : 'No activity data for today',
+          icon: Icons.directions_run_outlined,
+          accent: _green,
+          onTap: () => context.pushNamed('healthActivity'),
         ),
+        _feedGap(),
+        _feedCard(
+          title: 'Sleep',
+          value: _formatSleep(_todaySleepHours()),
+          subtitle: _todaySleepHours() > 0
+              ? entry?.sleepQuality ?? 'Sleep recorded'
+              : 'No sleep data for today',
+          icon: Icons.nightlight_outlined,
+          accent: _accent,
+          onTap: () => context.pushNamed('healthSleep'),
+        ),
+        _feedGap(),
+        _feedCard(
+          title: 'Vitals',
+          value: _formatHeart(entry),
+          subtitle: _vitalsSubtitle(entry),
+          icon: Icons.monitor_heart_outlined,
+          accent: _danger,
+          onTap: () => context.pushNamed('healthVitals'),
+        ),
+        _feedGap(),
+        _feedCard(
+          title: 'Medicines',
+          value: activeMeds > 0 ? '$activeMeds active' : 'No data',
+          subtitle: activeMeds > 0
+              ? 'Review schedule and doses'
+              : 'No active medicines scheduled',
+          icon: Icons.medication_liquid_outlined,
+          accent: _orange,
+          onTap: () => context.pushNamed(activeMeds > 0 ? 'meds' : 'medsAdd'),
+        ),
+        _feedGap(),
+        _feedCard(
+          title: 'Insights / Trends',
+          value: _state.entries.isNotEmpty ? 'History ready' : 'No data',
+          subtitle: _state.entries.isNotEmpty
+              ? 'Review your recent health patterns'
+              : 'Add module data to unlock trends',
+          icon: Icons.insights_outlined,
+          accent: _accent,
+          onTap: () => context.pushNamed('healthHistory'),
+        ),
+      ],
+    );
+  }
+
+  Widget _healthShieldFeedCard(HealthShield? shield, int progress) {
+    final level = shield?.level.toString() ?? 'No data';
+    final levelName = shield?.levelName ?? 'Tap to update';
+    final todayPoints = shield?.todayPoints ?? 0;
+    final habits = shield?.completedHabitsCount ?? 0;
+
+    return _premiumCard(
+      onTap: () {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Health Shield details coming soon')),
+        );
+      },
+      child: Row(
+        children: [
+          _iconTile(Icons.shield_outlined, _accent),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const _CardTitle('Health Shield'),
+                const SizedBox(height: 6),
+                Text(
+                  shield == null ? 'No data' : 'Level $level • $progress%',
+                  style: const TextStyle(
+                    color: _primaryText,
+                    fontSize: 17,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  shield == null
+                      ? levelName
+                      : '$levelName • $todayPoints pts today • $habits habits',
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(color: _secondaryText, height: 1.3),
+                ),
+                const SizedBox(height: 12),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(999),
+                  child: LinearProgressIndicator(
+                    minHeight: 6,
+                    value: (progress / 100).clamp(0.0, 1.0),
+                    backgroundColor: Colors.white.withValues(alpha: 0.07),
+                    valueColor: const AlwaysStoppedAnimation<Color>(_accent),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 10),
+          const Icon(Icons.chevron_right_rounded, color: _secondaryText),
+        ],
+      ),
+    );
+  }
+
+  Widget _favoriteCard({
+    required String title,
+    required String value,
+    required String subtitle,
+    required IconData icon,
+    required Color accent,
+    required VoidCallback onTap,
+  }) {
+    return _premiumCard(
+      onTap: onTap,
+      padding: const EdgeInsets.all(14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, color: accent, size: 20),
+              const Spacer(),
+              Icon(
+                Icons.chevron_right_rounded,
+                color: _secondaryText.withValues(alpha: 0.65),
+                size: 20,
+              ),
+            ],
+          ),
+          const Spacer(),
+          Text(
+            title,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: _secondaryText,
+              fontSize: 12,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: _primaryText,
+              fontSize: 18,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            subtitle,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: _secondaryText.withValues(alpha: 0.82),
+              fontSize: 12,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _feedCard({
+    required String title,
+    required String value,
+    required String subtitle,
+    required IconData icon,
+    required Color accent,
+    required VoidCallback onTap,
+  }) {
+    return _premiumCard(
+      onTap: onTap,
+      child: Row(
+        children: [
+          _iconTile(icon, accent),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _CardTitle(title),
+                const SizedBox(height: 6),
+                Text(
+                  value,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: _primaryText,
+                    fontSize: 17,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 5),
+                Text(
+                  subtitle,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(color: _secondaryText, height: 1.3),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 10),
+          const Icon(Icons.chevron_right_rounded, color: _secondaryText),
+        ],
+      ),
+    );
+  }
+
+  SizedBox _feedGap() => const SizedBox(height: 12);
+
+  Widget _premiumCard({
+    required Widget child,
+    EdgeInsets padding = const EdgeInsets.all(16),
+    VoidCallback? onTap,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(20),
+        child: Ink(
+          decoration: BoxDecoration(
+            color: _surface,
+            borderRadius: BorderRadius.circular(20),
+            border:
+                Border.all(color: _border.withValues(alpha: 0.75), width: 1),
+          ),
+          child: Padding(
+            padding: padding,
+            child: child,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _loadingCard({required double height}) {
+    return Container(
+      height: height,
+      decoration: BoxDecoration(
+        color: _surface,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: _border.withValues(alpha: 0.75), width: 1),
+      ),
+      child: Center(
+        child: SizedBox(
+          width: 22,
+          height: 22,
+          child: CircularProgressIndicator(
+            strokeWidth: 2,
+            color: _accent.withValues(alpha: 0.9),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _iconTile(IconData icon, Color color) {
+    return Container(
+      width: 44,
+      height: 44,
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.13),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: color.withValues(alpha: 0.22)),
+      ),
+      child: Icon(icon, color: color, size: 22),
+    );
+  }
+}
+
+class _CardTitle extends StatelessWidget {
+  final String text;
+
+  const _CardTitle(this.text);
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      text,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: const TextStyle(
+        color: _DashboardScreenState._secondaryText,
+        fontSize: 13,
+        fontWeight: FontWeight.w800,
       ),
     );
   }

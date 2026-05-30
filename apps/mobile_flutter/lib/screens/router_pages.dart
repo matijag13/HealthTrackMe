@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
-import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/models.dart';
@@ -881,11 +880,17 @@ class ProfileSettingsPage extends StatefulWidget {
 }
 
 class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
-  static const _unitsKey = 'healthtrackme_units';
   static const _notificationsKey = 'healthtrackme_notifications_enabled';
+  static const _bg = Color(0xFF070B13);
+  static const _surface = Color(0xFF0F1624);
+  static const _border = Color(0xFF243047);
+  static const _primaryText = Color(0xFFF5F7FB);
+  static const _secondaryText = Color(0xFF94A3B8);
+  static const _accent = Color(0xFF5B8DEF);
+  static const _green = Color(0xFF5FB878);
+  static const _danger = Color(0xFFFF6B6B);
 
   bool _notificationsEnabled = true;
-  String _units = 'metric';
   bool _loaded = false;
 
   @override
@@ -899,94 +904,432 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
     if (!mounted) return;
     setState(() {
       _notificationsEnabled = prefs.getBool(_notificationsKey) ?? true;
-      _units = prefs.getString(_unitsKey) ?? 'metric';
       _loaded = true;
     });
   }
 
-  Future<void> _save({bool? notificationsEnabled, String? units}) async {
+  Future<void> _saveNotifications(bool value) async {
     final prefs = await SharedPreferences.getInstance();
-    if (notificationsEnabled != null) {
-      _notificationsEnabled = notificationsEnabled;
-      await prefs.setBool(_notificationsKey, notificationsEnabled);
-    }
-    if (units != null) {
-      _units = units;
-      await prefs.setString(_unitsKey, units);
-    }
-    if (mounted) setState(() {});
+    await prefs.setBool(_notificationsKey, value);
+    if (mounted) setState(() => _notificationsEnabled = value);
+  }
+
+  Future<void> _deleteAllData() async {
+    final confirm = await _confirmDialog(
+      title: 'Delete all data?',
+      message: 'This will permanently delete your data.',
+      action: 'Delete',
+      danger: true,
+    );
+    if (confirm != true) return;
+
+    final user = await ApiService.instance.getCurrentUser();
+    if (!mounted || user == null) return;
+    final ok = await ApiService.instance.deleteUser(user.id);
+    if (!mounted) return;
+    _snack(ok ? 'Account deleted' : 'Could not delete account');
+  }
+
+  Future<void> _showApiConfiguration() async {
+    final api = ApiService.instance;
+    final debugInfo = await api.getDebugInfo();
+    if (!mounted) return;
+
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: _surface,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+          side: const BorderSide(color: _border),
+        ),
+        title: const Text(
+          'API Configuration',
+          style: TextStyle(color: _primaryText, fontWeight: FontWeight.w900),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _debugLine('Base URL', debugInfo['currentBaseUrl'].toString()),
+            _debugLine('Platform', debugInfo['isWeb'] ? 'Web' : 'Mobile'),
+            _debugLine(
+              'API reachable',
+              debugInfo['canReachApi'] == true ? 'Yes' : 'No',
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Close'),
+          ),
+          TextButton(
+            onPressed: () async {
+              await api.resetApiConfiguration();
+              if (!ctx.mounted || !mounted) return;
+              Navigator.pop(ctx);
+              _snack('API configuration reset');
+            },
+            child: const Text('Reset API', style: TextStyle(color: _danger)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<bool?> _confirmDialog({
+    required String title,
+    required String message,
+    required String action,
+    bool danger = false,
+  }) {
+    return showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: _surface,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+          side: const BorderSide(color: _border),
+        ),
+        title: Text(
+          title,
+          style: const TextStyle(
+            color: _primaryText,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+        content: Text(
+          message,
+          style: const TextStyle(color: _secondaryText, height: 1.4),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(
+              action,
+              style: TextStyle(color: danger ? _danger : _accent),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _debugLine(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Text(
+        '$label: $value',
+        style: const TextStyle(
+          color: _secondaryText,
+          fontFamily: 'monospace',
+          fontSize: 12,
+        ),
+      ),
+    );
+  }
+
+  void _snack(String message) {
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
   Widget build(BuildContext context) {
-    final themeProvider = context.read<ThemeProvider>();
     return Scaffold(
-      appBar: AppBar(title: const Text('Settings')),
+      backgroundColor: _bg,
       body: !_loaded
-          ? Center(
-              child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: LoadingSkeleton.profile(context)))
-          : ListView(
-              padding: const EdgeInsets.all(16),
-              children: [
-                const SectionHeader(
-                    title: 'Account settings',
-                    subtitle: 'Theme, notifications and units.'),
-                const SizedBox(height: 12),
-                Card(
-                  child: SwitchListTile(
-                    value: themeProvider.isDarkMode,
-                    onChanged: (_) => themeProvider.toggleTheme(),
-                    title: const Text('Dark mode'),
-                    subtitle: const Text('Persisted with SharedPreferences'),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Card(
-                  child: SwitchListTile(
-                    value: _notificationsEnabled,
-                    onChanged: (value) => _save(notificationsEnabled: value),
-                    title: const Text('Notifications'),
-                    subtitle:
-                        const Text('Medication reminders and health alerts'),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Card(
-                  child: ListTile(
-                    title: const Text('Units preference'),
-                    subtitle: const Text('Metric or imperial'),
-                    trailing: DropdownButton<String>(
-                      value: _units,
-                      items: const [
-                        DropdownMenuItem(
-                            value: 'metric', child: Text('Metric')),
-                        DropdownMenuItem(
-                            value: 'imperial', child: Text('Imperial')),
-                      ],
-                      onChanged: (value) {
-                        if (value != null) {
-                          _save(units: value);
-                        }
-                      },
+          ? const Center(child: CircularProgressIndicator(color: _accent))
+          : CustomScrollView(
+              slivers: [
+                SliverToBoxAdapter(
+                  child: SafeArea(
+                    bottom: false,
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+                      child: _topBar(),
                     ),
                   ),
                 ),
-                const SizedBox(height: 12),
-                Card(
-                  child: ListTile(
-                    leading: const Icon(Icons.palette_outlined),
-                    title: const Text('Theme choice'),
-                    subtitle: Text(themeProvider.isDarkMode ? 'Dark' : 'Light'),
-                    trailing: TextButton(
-                      onPressed: themeProvider.toggleTheme,
-                      child: const Text('Toggle'),
-                    ),
+                SliverPadding(
+                  padding: const EdgeInsets.fromLTRB(20, 22, 20, 32),
+                  sliver: SliverList(
+                    delegate: SliverChildListDelegate([
+                      _section('Notifications', [
+                        _SettingsTile(
+                          icon: Icons.notifications_active_outlined,
+                          accent: _accent,
+                          title: 'Enable notifications',
+                          subtitle:
+                              'Allow HealthTrackMe to send reminders and alerts',
+                          trailing: Switch(
+                            value: _notificationsEnabled,
+                            onChanged: _saveNotifications,
+                            activeThumbColor: _accent,
+                          ),
+                          onTap: () =>
+                              _saveNotifications(!_notificationsEnabled),
+                        ),
+                      ]),
+                      const SizedBox(height: 22),
+                      _section('Data & Privacy', [
+                        _SettingsTile(
+                          icon: Icons.upload_file_outlined,
+                          accent: _green,
+                          title: 'Export data',
+                          subtitle: 'Download your health data',
+                          onTap: () => context.pushNamed('profileExport'),
+                        ),
+                        _SettingsTile(
+                          icon: Icons.delete_outline,
+                          accent: _danger,
+                          title: 'Delete all my data',
+                          subtitle: 'Permanent account data removal',
+                          onTap: _deleteAllData,
+                        ),
+                        _SettingsTile(
+                          icon: Icons.privacy_tip_outlined,
+                          accent: _accent,
+                          title: 'Privacy policy',
+                          subtitle: 'Review privacy information',
+                          onTap: () => _snack('Open privacy policy'),
+                        ),
+                      ]),
+                      const SizedBox(height: 22),
+                      _section('Developer / Debug', [
+                        _SettingsTile(
+                          icon: Icons.api_outlined,
+                          accent: _accent,
+                          title: 'API Configuration',
+                          subtitle: 'View and reset API settings',
+                          onTap: _showApiConfiguration,
+                        ),
+                      ]),
+                    ]),
                   ),
                 ),
               ],
             ),
+    );
+  }
+
+  Widget _topBar() {
+    return Row(
+      children: [
+        _IconButtonSurface(
+          icon: Icons.arrow_back,
+          onTap: () {
+            if (Navigator.of(context).canPop()) {
+              Navigator.of(context).pop();
+            } else {
+              context.go('/home');
+            }
+          },
+        ),
+        const SizedBox(width: 14),
+        Expanded(
+          child: Text(
+            'Settings',
+            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                  color: _primaryText,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 0,
+                ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _section(String title, List<Widget> children) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(left: 2, bottom: 10),
+          child: Text(
+            title,
+            style: const TextStyle(
+              color: _primaryText,
+              fontSize: 18,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+        ),
+        _SettingsCard(
+          child: Column(
+            children: [
+              for (var i = 0; i < children.length; i++) ...[
+                children[i],
+                if (i != children.length - 1) const _SettingsDivider(),
+              ],
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _SettingsCard extends StatelessWidget {
+  final Widget child;
+
+  const _SettingsCard({required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: _ProfileSettingsPageState._surface,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: _ProfileSettingsPageState._border.withValues(alpha: 0.75),
+        ),
+      ),
+      child: child,
+    );
+  }
+}
+
+class _SettingsTile extends StatelessWidget {
+  final IconData icon;
+  final Color accent;
+  final String title;
+  final String subtitle;
+  final VoidCallback? onTap;
+  final Widget? trailing;
+
+  const _SettingsTile({
+    required this.icon,
+    required this.accent,
+    required this.title,
+    required this.subtitle,
+    this.onTap,
+    this.trailing,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(18),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+          child: Row(
+            children: [
+              _SettingsIconTile(icon: icon, color: accent),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        color: _ProfileSettingsPageState._primaryText,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      subtitle,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: _ProfileSettingsPageState._secondaryText,
+                        fontSize: 12,
+                        height: 1.25,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 10),
+              trailing ??
+                  const Icon(
+                    Icons.chevron_right_rounded,
+                    color: _ProfileSettingsPageState._secondaryText,
+                  ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SettingsIconTile extends StatelessWidget {
+  final IconData icon;
+  final Color color;
+
+  const _SettingsIconTile({required this.icon, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 40,
+      height: 40,
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.13),
+        borderRadius: BorderRadius.circular(13),
+        border: Border.all(color: color.withValues(alpha: 0.22)),
+      ),
+      child: Icon(icon, color: color, size: 21),
+    );
+  }
+}
+
+class _IconButtonSurface extends StatelessWidget {
+  final IconData icon;
+  final VoidCallback onTap;
+
+  const _IconButtonSurface({required this.icon, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(15),
+        child: Ink(
+          width: 44,
+          height: 44,
+          decoration: BoxDecoration(
+            color: _ProfileSettingsPageState._surface,
+            borderRadius: BorderRadius.circular(15),
+            border: Border.all(color: _ProfileSettingsPageState._border),
+          ),
+          child: Icon(
+            icon,
+            color: _ProfileSettingsPageState._primaryText,
+            size: 21,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SettingsDivider extends StatelessWidget {
+  const _SettingsDivider();
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 68),
+      child: Container(
+        height: 1,
+        color: _ProfileSettingsPageState._border.withValues(alpha: 0.45),
+      ),
     );
   }
 }
