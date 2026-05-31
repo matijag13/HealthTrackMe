@@ -58,16 +58,12 @@ class ApiService {
 
   Future<void> init() async {
     _prefs = await SharedPreferences.getInstance();
-    final stored = _prefs.getString(_prefsKeyBaseUrl);
 
-    final preferred = _normalizeBaseUrl(stored ?? _baseUrl);
-    if (stored != preferred) {
-      await _prefs.setString(_prefsKeyBaseUrl, preferred);
-    }
-
-    // Don't wait for reachable URL check - use preferred URL and check in background
+    // Always use the compiled-in default URL, ignoring any cached URL.
+    // This ensures the correct Railway URL is used after an APK update.
+    final preferred = _resolveDefaultBaseUrl();
     _baseUrl = preferred;
-    _validateAndUpdateBaseUrlInBackground();
+    await _prefs.setString(_prefsKeyBaseUrl, preferred);
 
     _activeUserId = _prefs.getInt(_prefsKeyActiveUserId);
     _authToken = _prefs.getString(_prefsKeyAuthToken);
