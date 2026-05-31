@@ -753,6 +753,42 @@ class ApiService {
     }
   }
 
+  Map<String, dynamic> _normalizeSportActivityPayload(
+      Map<String, dynamic> payload) {
+    final normalized = Map<String, dynamic>.from(payload);
+
+    if (!normalized.containsKey('activityType') && normalized['type'] != null) {
+      normalized['activityType'] = normalized['type'];
+    }
+    if (!normalized.containsKey('activityDate') &&
+        normalized['start'] != null) {
+      final raw = normalized['start'];
+      final parsed = DateTime.tryParse(raw.toString());
+      normalized['activityDate'] =
+          parsed?.toIso8601String().split('T').first ?? raw.toString();
+    }
+    if (!normalized.containsKey('duration') &&
+        normalized['durationMinutes'] != null) {
+      normalized['duration'] = normalized['durationMinutes'];
+    }
+    if (!normalized.containsKey('distance') &&
+        normalized['distanceKm'] != null) {
+      normalized['distance'] = normalized['distanceKm'];
+    }
+    if (!normalized.containsKey('caloriesBurned') &&
+        normalized['calories'] != null) {
+      normalized['caloriesBurned'] = normalized['calories'];
+    }
+
+    normalized.remove('type');
+    normalized.remove('durationMinutes');
+    normalized.remove('distanceKm');
+    normalized.remove('calories');
+    normalized.remove('start');
+
+    return normalized;
+  }
+
   Future<bool> createSportActivity(Map<String, dynamic> payload,
       {int? userId}) async {
     if (_sportActivitiesEndpointMissing) {
@@ -765,7 +801,7 @@ class ApiService {
     final response = await _postRaw(
       '/sport-activities/users/$id',
       headers: {'Content-Type': 'application/json'},
-      body: jsonEncode(payload),
+      body: jsonEncode(_normalizeSportActivityPayload(payload)),
     );
     if (response.statusCode == 404) {
       _sportActivitiesEndpointMissing = true;

@@ -147,32 +147,6 @@ class _DashboardScreenState extends State<DashboardScreen>
           .map((e) => Map<String, dynamic>.from(e as Map))
           .toList();
 
-      try {
-        final today = DateTime.now();
-        final todays = entries
-            .where((e) =>
-                e.entryDate.year == today.year &&
-                e.entryDate.month == today.month &&
-                e.entryDate.day == today.day)
-            .toList();
-        if (todays.isNotEmpty) {
-          final e = todays.first;
-          if (e.notes != null && e.notes!.startsWith('{')) {
-            final parsed = Map<String, dynamic>.from(jsonDecode(e.notes!));
-            final activity = parsed['activity'];
-            if (activity is Map && activity['steps'] != null) {
-              final steps = int.tryParse(activity['steps'].toString()) ?? 0;
-              if (steps > 0) {
-                sportActivities.add(
-                    {'start': e.entryDate.toIso8601String(), 'steps': steps});
-              }
-            }
-          }
-        }
-      } catch (_) {
-        // Ignore malformed legacy notes payloads.
-      }
-
       setState(() {
         _state = _DashboardStateModel(
           user: user,
@@ -206,6 +180,12 @@ class _DashboardScreenState extends State<DashboardScreen>
 
   Future<void> _openVitals() async {
     await context.pushNamed('healthVitals');
+    if (!mounted) return;
+    await _refresh();
+  }
+
+  Future<void> _openActivity() async {
+    await context.pushNamed('healthActivity');
     if (!mounted) return;
     await _refresh();
   }
@@ -506,46 +486,27 @@ class _DashboardScreenState extends State<DashboardScreen>
   double _todaySleepHours() =>
       _latestValidSleepEntryForToday()?.sleepHours ?? 0.0;
 
-  int _todaySteps() => _sumStepsForDay(DateTime.now());
-
-  int _sumStepsForDay(DateTime day) {
-    var sum = 0;
-    for (final activity in _state.sportActivities) {
-      final time = DateTime.tryParse(activity['start']?.toString() ?? '') ??
-          DateTime.fromMillisecondsSinceEpoch(0);
-      if (!_sameDay(time, day)) continue;
-      sum += (activity['steps'] as int?) ??
-          (activity['distanceMeters'] != null
-              ? ((activity['distanceMeters'] as num) / 0.8).round()
-              : 0);
-    }
-    return sum;
-  }
-
   int _todayActiveMinutes() {
     final today = DateTime.now();
     return _state.sportActivities.where((activity) {
-      final time = DateTime.tryParse(activity['start']?.toString() ?? '') ??
-          DateTime.fromMillisecondsSinceEpoch(0);
-      return _sameDay(time, today);
+      final date = _sportActivityDate(activity);
+      return date != null && _sameDay(date, today);
     }).fold<int>(0, (sum, activity) {
-      return sum +
-          (int.tryParse(activity['durationMinutes']?.toString() ?? '') ?? 0);
+      return sum + _sportActivityDuration(activity);
     });
   }
 
-  int _todayCaloriesBurned() {
-    final today = DateTime.now();
-    return _state.sportActivities.where((activity) {
-      final time = DateTime.tryParse(activity['start']?.toString() ?? '') ??
-          DateTime.fromMillisecondsSinceEpoch(0);
-      return _sameDay(time, today);
-    }).fold<int>(0, (sum, activity) {
-      return sum +
-          (int.tryParse(activity['caloriesBurned']?.toString() ?? '') ??
-              int.tryParse(activity['calories']?.toString() ?? '') ??
-              0);
-    });
+  DateTime? _sportActivityDate(Map<String, dynamic> activity) {
+    final raw = activity['activityDate'] ?? activity['start'];
+    return raw == null ? null : DateTime.tryParse(raw.toString());
+  }
+
+  int _sportActivityDuration(Map<String, dynamic> activity) {
+    return int.tryParse(
+          (activity['duration'] ?? activity['durationMinutes'] ?? '')
+              .toString(),
+        ) ??
+        0;
   }
 
   bool _sameDay(DateTime a, DateTime b) {
@@ -562,18 +523,6 @@ class _DashboardScreenState extends State<DashboardScreen>
     context.go('/auth');
   }
 
-  String _formatInt(int value) {
-    if (value <= 0) return 'No data';
-    final text = value.toString();
-    final buffer = StringBuffer();
-    for (var i = 0; i < text.length; i++) {
-      final remaining = text.length - i;
-      buffer.write(text[i]);
-      if (remaining > 1 && remaining % 3 == 1) buffer.write(',');
-    }
-    return buffer.toString();
-  }
-
   String _formatSleep(double value) {
     if (!_isValidSleepHours(value)) {
       return 'No data';
@@ -585,6 +534,15 @@ class _DashboardScreenState extends State<DashboardScreen>
       return '${hours}h';
     }
     return '${hours}h ${minutes.toString().padLeft(2, '0')}m';
+  }
+
+  String _formatActivityDuration(int minutes) {
+    if (minutes <= 0) return 'No data';
+    final hours = minutes ~/ 60;
+    final remaining = minutes % 60;
+    if (hours == 0) return '$remaining min';
+    if (remaining == 0) return '${hours}h';
+    return '${hours}h ${remaining}m';
   }
 
   bool _isValidSleepHours(double? value) {
@@ -853,15 +811,18 @@ class _DashboardScreenState extends State<DashboardScreen>
         .map((option) {
           switch (option.key) {
             case 'activity':
+              final activeMinutes = _todayActiveMinutes();
               return _favoriteCard(
                 title: option.label,
-                value: _formatInt(_todaySteps()),
-                subtitle: _todayActiveMinutes() > 0
-                    ? '${_todayActiveMinutes()} active min'
-                    : 'Tap to update',
+                value: activeMinutes > 0
+                    ? _formatActivityDuration(activeMinutes)
+                    : 'No data',
+                subtitle: activeMinutes > 0
+                    ? 'Activity logged today'
+                    : 'No activity data for today',
                 icon: Icons.directions_walk,
                 accent: _green,
-                onTap: () => context.pushNamed('healthActivity'),
+                onTap: _openActivity,
               );
             case 'sleep':
               final sleepEntry = _latestValidSleepEntryForToday();
@@ -971,7 +932,7 @@ class _DashboardScreenState extends State<DashboardScreen>
     final activeMeds = _activeMedicinesCount();
     final shield = _state.shield;
     final shieldProgress = shield?.progressPercent ?? 0;
-    final calories = _todayCaloriesBurned();
+    final activeMinutes = _todayActiveMinutes();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -980,13 +941,15 @@ class _DashboardScreenState extends State<DashboardScreen>
         _feedGap(),
         _feedCard(
           title: 'Activity',
-          value: _formatInt(_todaySteps()),
-          subtitle: _todaySteps() > 0
-              ? '${_todayActiveMinutes()} active min • $calories kcal'
+          value: activeMinutes > 0
+              ? _formatActivityDuration(activeMinutes)
+              : 'No data',
+          subtitle: activeMinutes > 0
+              ? 'Activity logged today'
               : 'No activity data for today',
           icon: Icons.directions_run_outlined,
           accent: _green,
-          onTap: () => context.pushNamed('healthActivity'),
+          onTap: _openActivity,
         ),
         _feedGap(),
         _feedCard(

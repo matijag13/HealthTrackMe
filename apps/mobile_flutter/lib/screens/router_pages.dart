@@ -2396,97 +2396,1456 @@ class _VitalsManualEntrySheetState extends State<_VitalsManualEntrySheet> {
   }
 }
 
-class HealthActivityPage extends StatelessWidget {
+class HealthActivityPage extends StatefulWidget {
   const HealthActivityPage({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return FutureBuilder<_HealthSnapshot>(
-      future: _loadHealthSnapshot(),
-      builder: (context, snapshot) {
-        final data = snapshot.data;
-        final activeMedicines =
-            data?.medicines.where((medicine) => medicine.isActive).toList() ??
-                const <Medicine>[];
-        return Scaffold(
-          appBar: AppBar(title: const Text('Activity')),
-          body: snapshot.connectionState == ConnectionState.waiting &&
-                  data == null
-              ? Center(
-                  child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: LoadingSkeleton.health(context)))
-              : ListView(
-                  padding: const EdgeInsets.all(16),
+  State<HealthActivityPage> createState() => _HealthActivityPageState();
+}
+
+class _HealthActivityPageState extends State<HealthActivityPage> {
+  static const _bg = Color(0xFF070B13);
+  static const _surface = Color(0xFF0F1624);
+  static const _surfaceAlt = Color(0xFF121B2C);
+  static const _surfaceSoft = Color(0xFF11141B);
+  static const _border = Color(0xFF243047);
+  static const _primaryText = Color(0xFFF5F7FB);
+  static const _secondaryText = Color(0xFF94A3B8);
+  static const _accent = Color(0xFF5B8DEF);
+
+  final ApiService _api = ApiService.instance;
+  late Future<List<Map<String, dynamic>>> _activitiesFuture;
+  _ActivityType _selectedType = _ActivityType.walking;
+  _ActivityTimeRange _selectedTimeRange = _ActivityTimeRange.week;
+
+  static const _activityTypes = [
+    _ActivityTypeDefinition(
+        _ActivityType.walking, 'Walking', Icons.directions_walk_rounded),
+    _ActivityTypeDefinition(
+        _ActivityType.running, 'Running', Icons.directions_run_rounded),
+    _ActivityTypeDefinition(
+        _ActivityType.cycling, 'Cycling', Icons.directions_bike_rounded),
+    _ActivityTypeDefinition(
+        _ActivityType.workout, 'Workout', Icons.fitness_center_rounded),
+    _ActivityTypeDefinition(
+        _ActivityType.swimming, 'Swimming', Icons.pool_rounded),
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _activitiesFuture = _loadActivities();
+  }
+
+  Future<List<Map<String, dynamic>>> _loadActivities() async {
+    final activities = await _api.getSportActivities();
+    activities.sort((a, b) {
+      final aDate = _activityDate(a) ?? DateTime.fromMillisecondsSinceEpoch(0);
+      final bDate = _activityDate(b) ?? DateTime.fromMillisecondsSinceEpoch(0);
+      return bDate.compareTo(aDate);
+    });
+    return activities;
+  }
+
+  Future<List<Map<String, dynamic>>> _refreshActivities() {
+    final refreshed = _loadActivities();
+    setState(() => _activitiesFuture = refreshed);
+    return refreshed;
+  }
+
+  void _goBack() {
+    if (Navigator.of(context).canPop()) {
+      Navigator.of(context).pop();
+    } else {
+      context.goNamed('health');
+    }
+  }
+
+  Future<void> _openManualEntrySheet() async {
+    final result = await showModalBottomSheet<_ActivityManualEntryResult>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _ActivityManualEntrySheet(
+        api: _api,
+        initialType: _selectedType,
+      ),
+    );
+    if (!mounted || result == null) return;
+    setState(() => _selectedType = result.type);
+    final refreshed = await _refreshActivities();
+    if (!mounted) return;
+    final confirmed = refreshed.any(
+      (activity) => _activityMatchesResult(activity, result),
+    );
+    _showVitalsToast(
+      context,
+      message:
+          confirmed ? 'Activity added' : 'Activity refresh did not confirm it',
+      success: confirmed,
+    );
+  }
+
+  DateTime? _activityDate(Map<String, dynamic> activity) {
+    final raw = activity['activityDate'] ?? activity['start'];
+    return raw == null ? null : DateTime.tryParse(raw.toString());
+  }
+
+  int _activityDuration(Map<String, dynamic> activity) {
+    return int.tryParse(
+          (activity['duration'] ?? activity['durationMinutes'] ?? '')
+              .toString(),
+        ) ??
+        0;
+  }
+
+  String _activityTypeLabel(Map<String, dynamic> activity) {
+    final raw = (activity['activityType'] ?? activity['type'] ?? '').toString();
+    for (final definition in _activityTypes) {
+      if (definition.label.toLowerCase() == raw.toLowerCase()) {
+        return definition.label;
+      }
+    }
+    return raw;
+  }
+
+  bool _sameDate(DateTime a, DateTime b) =>
+      a.year == b.year && a.month == b.month && a.day == b.day;
+
+  bool _activityMatchesResult(
+    Map<String, dynamic> activity,
+    _ActivityManualEntryResult result,
+  ) {
+    final date = _activityDate(activity);
+    if (date == null || !_sameDate(date, result.activityDate)) {
+      return false;
+    }
+
+    if (_activityTypeLabel(activity) != result.type.label) {
+      return false;
+    }
+
+    if (_activityDuration(activity) != result.duration) {
+      return false;
+    }
+
+    if (result.distance != null &&
+        _activityDistance(activity) != result.distance) {
+      return false;
+    }
+
+    if (result.calories != null &&
+        _activityCalories(activity) != result.calories) {
+      return false;
+    }
+
+    if (result.notes != null && _activityNotes(activity) != result.notes) {
+      return false;
+    }
+
+    return true;
+  }
+
+  double? _activityDistance(Map<String, dynamic> activity) {
+    return double.tryParse(
+      (activity['distance'] ?? activity['distanceKm'] ?? '').toString(),
+    );
+  }
+
+  int? _activityCalories(Map<String, dynamic> activity) {
+    return int.tryParse(
+      (activity['caloriesBurned'] ?? activity['calories'] ?? '').toString(),
+    );
+  }
+
+  String? _activityNotes(Map<String, dynamic> activity) {
+    final raw = (activity['notes'] ?? '').toString().trim();
+    return raw.isEmpty ? null : raw;
+  }
+
+  List<_ActivityPoint> _pointsForRange(List<Map<String, dynamic>> activities) {
+    final points = <_ActivityPoint>[];
+    for (final activity in activities.reversed) {
+      final date = _activityDate(activity);
+      final duration = _activityDuration(activity);
+      if (_activityTypeLabel(activity) == _selectedType.label &&
+          date != null &&
+          duration > 0) {
+        points.add(_ActivityPoint(date, duration));
+      }
+    }
+    if (_selectedTimeRange == _ActivityTimeRange.max) return points;
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    if (_selectedTimeRange == _ActivityTimeRange.day) {
+      return points.where((p) => _sameDate(p.date, today)).toList();
+    }
+    final days = _selectedTimeRange == _ActivityTimeRange.week ? 7 : 30;
+    final start = today.subtract(Duration(days: days - 1));
+    final end = today.add(const Duration(days: 1));
+    return points.where((p) {
+      final date = DateTime(p.date.year, p.date.month, p.date.day);
+      return !date.isBefore(start) && date.isBefore(end);
+    }).toList();
+  }
+
+  _ActivityChartData _chartData(List<_ActivityPoint> points) {
+    if (points.isEmpty) {
+      return const _ActivityChartData([], 0, 1);
+    }
+    final spots = <FlSpot>[];
+    var maxValue = 0.0;
+    for (var i = 0; i < points.length; i++) {
+      final value = points[i].duration.toDouble();
+      spots.add(FlSpot(i.toDouble(), value));
+      if (value > maxValue) maxValue = value;
+    }
+    final padding = maxValue <= 30 ? 10.0 : maxValue * 0.18;
+    return _ActivityChartData(spots, 0, maxValue + padding);
+  }
+
+  String _formatDuration(int minutes) {
+    if (minutes <= 0) return '-';
+    final hours = minutes ~/ 60;
+    final remaining = minutes % 60;
+    if (hours == 0) return '$remaining min';
+    if (remaining == 0) return '${hours}h';
+    return '${hours}h ${remaining}m';
+  }
+
+  String _latest(List<_ActivityPoint> points) =>
+      points.isEmpty ? '-' : _formatDuration(points.last.duration);
+
+  String _average(List<_ActivityPoint> points) {
+    if (points.isEmpty) return '-';
+    final total = points.fold<int>(0, (sum, point) => sum + point.duration);
+    return _formatDuration((total / points.length).round());
+  }
+
+  String _total(List<_ActivityPoint> points) {
+    if (points.isEmpty) return '-';
+    return _formatDuration(
+      points.fold<int>(0, (sum, point) => sum + point.duration),
+    );
+  }
+
+  bool _isActivityInSelectedRange(DateTime date) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final activityDate = DateTime(date.year, date.month, date.day);
+
+    switch (_selectedTimeRange) {
+      case _ActivityTimeRange.day:
+        return _sameDate(activityDate, today);
+      case _ActivityTimeRange.week:
+        final start = today.subtract(const Duration(days: 6));
+        final end = today.add(const Duration(days: 1));
+        return !activityDate.isBefore(start) && activityDate.isBefore(end);
+      case _ActivityTimeRange.month:
+        final start = today.subtract(const Duration(days: 29));
+        final end = today.add(const Duration(days: 1));
+        return !activityDate.isBefore(start) && activityDate.isBefore(end);
+      case _ActivityTimeRange.max:
+        return true;
+    }
+  }
+
+  List<Map<String, dynamic>> _filteredActivitiesForRange(
+    List<Map<String, dynamic>> activities,
+  ) {
+    final filtered = activities.where((activity) {
+      final date = _activityDate(activity);
+      final duration = _activityDuration(activity);
+      return _activityTypeLabel(activity) == _selectedType.label &&
+          date != null &&
+          duration > 0 &&
+          _isActivityInSelectedRange(date);
+    }).toList(growable: false);
+
+    filtered.sort((a, b) {
+      final aDate = _activityDate(a) ?? DateTime.fromMillisecondsSinceEpoch(0);
+      final bDate = _activityDate(b) ?? DateTime.fromMillisecondsSinceEpoch(0);
+      return bDate.compareTo(aDate);
+    });
+
+    return filtered;
+  }
+
+  String _formatDistance(double distance) {
+    final text = distance == distance.truncateToDouble()
+        ? distance.toStringAsFixed(0)
+        : distance.toStringAsFixed(1);
+    return '$text km';
+  }
+
+  String _formatCalories(int calories) => '$calories kcal';
+
+  String _formatActivitySummary(Map<String, dynamic> activity) {
+    final parts = <String>[];
+
+    final duration = _activityDuration(activity);
+    if (duration > 0) {
+      parts.add(_formatDuration(duration));
+    }
+
+    final distance = _activityDistance(activity);
+    if (distance != null) {
+      parts.add(_formatDistance(distance));
+    }
+
+    final calories = _activityCalories(activity);
+    if (calories != null) {
+      parts.add(_formatCalories(calories));
+    }
+
+    return parts.isEmpty ? '-' : parts.join(' • ');
+  }
+
+  String _formatActivityDate(DateTime? date) {
+    if (date == null) {
+      return '-';
+    }
+    return DateFormat('d MMM yyyy').format(date);
+  }
+
+  String _activityListTitle() {
+    switch (_selectedTimeRange) {
+      case _ActivityTimeRange.day:
+        return "Today's ${_selectedType.label}";
+      case _ActivityTimeRange.week:
+        return '${_selectedType.label} this week';
+      case _ActivityTimeRange.month:
+        return '${_selectedType.label} this month';
+      case _ActivityTimeRange.max:
+        return 'All ${_selectedType.label} activities';
+    }
+  }
+
+  String _activityEmptyStateMessage() {
+    return 'No ${_selectedType.label} activities for this period';
+  }
+
+  void _openActivityDetails(Map<String, dynamic> activity) {
+    final typeLabel = _activityTypeLabel(activity);
+    final date = _activityDate(activity);
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _ActivityDetailsSheet(
+        title: '$typeLabel details',
+        dateLabel: _formatActivityDate(date),
+        durationLabel: _formatDuration(_activityDuration(activity)),
+        distanceLabel: _activityDistance(activity) == null
+            ? null
+            : _formatDistance(_activityDistance(activity)!),
+        caloriesLabel: _activityCalories(activity) == null
+            ? null
+            : _formatCalories(_activityCalories(activity)!),
+        notes: _activityNotes(activity),
+      ),
+    );
+  }
+
+  Widget _buildActivityListSection(List<Map<String, dynamic>> activities) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          _activityListTitle(),
+          style: const TextStyle(
+            color: _primaryText,
+            fontSize: 18,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+        const SizedBox(height: 14),
+        if (activities.isEmpty)
+          _buildActivityEmptyState()
+        else
+          Column(
+            children: [
+              for (var i = 0; i < activities.length; i++) ...[
+                _buildActivityListCard(activities[i]),
+                if (i < activities.length - 1) const SizedBox(height: 12),
+              ],
+            ],
+          ),
+      ],
+    );
+  }
+
+  Widget _buildActivityEmptyState() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: _surface,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: _border.withValues(alpha: 0.75)),
+      ),
+      child: Text(
+        _activityEmptyStateMessage(),
+        textAlign: TextAlign.center,
+        style: const TextStyle(
+          color: _secondaryText,
+          fontSize: 14,
+          fontWeight: FontWeight.w700,
+          height: 1.35,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildActivityListCard(Map<String, dynamic> activity) {
+    final title = _activityTypeLabel(activity);
+    final summary = _formatActivitySummary(activity);
+    final dateLabel = _formatActivityDate(_activityDate(activity));
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () => _openActivityDetails(activity),
+        borderRadius: BorderRadius.circular(20),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: _surface,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: _border.withValues(alpha: 0.75)),
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const SectionHeader(
-                        title: 'Activity',
-                        subtitle: 'Movement, consistency and routine support.'),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        Expanded(
-                            child: _MetricCard(
-                                label: 'Entries',
-                                value:
-                                    data?.report.entriesCount.toString() ?? '0',
-                                suffix: '',
-                                color: AppColors.info)),
-                        const SizedBox(width: 12),
-                        Expanded(
-                            child: _MetricCard(
-                                label: 'Shield level',
-                                value: data?.shield?.level.toString() ?? '—',
-                                suffix: '',
-                                color: AppColors.success)),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    Card(
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text('ACTIVE MEDICINES',
-                                style: Theme.of(context).textTheme.labelSmall),
-                            const SizedBox(height: 8),
-                            if (activeMedicines.isEmpty)
-                              const Text('No active medicines to show.')
-                            else
-                              ...activeMedicines.map(
-                                (medicine) => ListTile(
-                                  contentPadding: EdgeInsets.zero,
-                                  title: Text(medicine.name),
-                                  subtitle: Text(medicine.scheduleLabel),
-                                  trailing: TextButton(
-                                    onPressed: () => context
-                                        .goNamed('medsDetail', pathParameters: {
-                                      'id': medicine.id.toString()
-                                    }),
-                                    child: const Text('Open'),
-                                  ),
-                                ),
-                              ),
-                          ],
-                        ),
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        color: _primaryText,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w900,
                       ),
                     ),
-                    const SizedBox(height: 12),
-                    Card(
-                      child: ListTile(
-                        leading: const Icon(Icons.add_circle_rounded),
-                        title: const Text('Add workout / activity log'),
-                        subtitle: const Text(
-                            'Create a richer activity tracker entry from the Log tab later.'),
-                        trailing: const Icon(Icons.chevron_right),
-                        onTap: () => context.goNamed('log'),
+                    const SizedBox(height: 8),
+                    Text(
+                      summary,
+                      style: const TextStyle(
+                        color: _secondaryText,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        height: 1.35,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      dateLabel,
+                      style: const TextStyle(
+                        color: _secondaryText,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   ],
                 ),
+              ),
+              const SizedBox(width: 12),
+              const Icon(
+                Icons.chevron_right_rounded,
+                color: _secondaryText,
+                size: 24,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _backButton() => Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: _goBack,
+          borderRadius: BorderRadius.circular(15),
+          child: Ink(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: _surface,
+              borderRadius: BorderRadius.circular(15),
+              border: Border.all(color: _border),
+            ),
+            child: const Icon(Icons.arrow_back, color: _primaryText, size: 21),
+          ),
+        ),
+      );
+
+  Widget _topBar() => Padding(
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+        child: Row(
+          children: [
+            _backButton(),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Text(
+                'Activity',
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                      color: _primaryText,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 0,
+                    ),
+              ),
+            ),
+          ],
+        ),
+      );
+
+  Widget _activitySelector() => SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        physics: const BouncingScrollPhysics(),
+        child: Row(
+          children: [
+            for (var i = 0; i < _activityTypes.length; i++) ...[
+              _activityChip(_activityTypes[i]),
+              if (i < _activityTypes.length - 1) const SizedBox(width: 10),
+            ],
+          ],
+        ),
+      );
+
+  Widget _activityChip(_ActivityTypeDefinition definition) {
+    final selected = definition.type == _selectedType;
+    return InkWell(
+      borderRadius: BorderRadius.circular(999),
+      onTap: () => setState(() => _selectedType = definition.type),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+        decoration: BoxDecoration(
+          color: selected ? _accent.withValues(alpha: 0.16) : _surfaceAlt,
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(
+            color: selected ? _accent : _border.withValues(alpha: 0.9),
+          ),
+        ),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          Icon(definition.icon,
+              size: 16, color: selected ? _accent : _secondaryText),
+          const SizedBox(width: 8),
+          Text(
+            definition.label,
+            style: TextStyle(
+              color: selected ? _primaryText : _secondaryText,
+              fontSize: 13,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ]),
+      ),
+    );
+  }
+
+  Widget _timeRangeSelector() => Container(
+        padding: const EdgeInsets.all(4),
+        decoration: BoxDecoration(
+          color: _surface,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: _border.withValues(alpha: 0.75)),
+        ),
+        child: Row(
+          children: [
+            for (final range in _ActivityTimeRange.values)
+              Expanded(child: _timeRangeSegment(range)),
+          ],
+        ),
+      );
+
+  Widget _timeRangeSegment(_ActivityTimeRange range) {
+    final selected = range == _selectedTimeRange;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 2),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(14),
+        onTap: () => setState(() => _selectedTimeRange = range),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          height: 38,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: selected ? _accent.withValues(alpha: 0.18) : _surfaceAlt,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: selected ? _accent : Colors.transparent),
+          ),
+          child: Text(
+            range.label,
+            style: TextStyle(
+              color: selected ? _primaryText : _secondaryText,
+              fontSize: 13,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _chartCard(_ActivityChartData chartData, List<_ActivityPoint> points) {
+    final hasData = points.isNotEmpty;
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: _surface,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: _border.withValues(alpha: 0.75)),
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          Expanded(
+            child: Text(
+              _selectedType.label,
+              style: const TextStyle(
+                color: _primaryText,
+                fontSize: 18,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ),
+          _addButton(),
+        ]),
+        const SizedBox(height: 16),
+        SizedBox(
+          height: 280,
+          child: hasData ? _chart(chartData, points) : _emptyChart(),
+        ),
+        const SizedBox(height: 14),
+        Text(
+          hasData
+              ? 'Activity duration in the selected range.'
+              : 'No activity data for this period',
+          style: const TextStyle(
+            color: _secondaryText,
+            fontSize: 13,
+            height: 1.35,
+          ),
+        ),
+      ]),
+    );
+  }
+
+  Widget _chart(_ActivityChartData data, List<_ActivityPoint> points) {
+    return LineChart(
+      LineChartData(
+        minX: 0,
+        maxX: data.spots.length == 1 ? 1 : (data.spots.length - 1).toDouble(),
+        minY: data.minY,
+        maxY: data.maxY,
+        gridData: FlGridData(
+          show: true,
+          drawVerticalLine: false,
+          horizontalInterval: data.maxY <= 90 ? 15 : 60,
+          getDrawingHorizontalLine: (value) => FlLine(
+            color: Colors.white.withValues(alpha: 0.06),
+            strokeWidth: 1,
+          ),
+        ),
+        borderData: FlBorderData(show: false),
+        titlesData: FlTitlesData(
+          show: true,
+          topTitles:
+              const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          rightTitles:
+              const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          leftTitles:
+              const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          bottomTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: true,
+              reservedSize: 30,
+              interval: points.length <= 7
+                  ? 1
+                  : ((points.length / 4).ceil()).toDouble(),
+              getTitlesWidget: (value, meta) {
+                final index = value.round();
+                if (index < 0 || index >= points.length) {
+                  return const SizedBox.shrink();
+                }
+                return Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Text(
+                    DateFormat('d MMM').format(points[index].date),
+                    style: const TextStyle(
+                      color: _secondaryText,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ),
+        lineBarsData: [
+          LineChartBarData(
+            spots: data.spots,
+            isCurved: data.spots.length > 1,
+            color: _accent,
+            barWidth: 3,
+            isStrokeCapRound: true,
+            dotData: FlDotData(show: data.spots.length == 1),
+            belowBarData: BarAreaData(
+              show: data.spots.length > 1,
+              color: _accent.withValues(alpha: 0.12),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _addButton() => Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: _openManualEntrySheet,
+          borderRadius: BorderRadius.circular(14),
+          child: Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: _surfaceSoft,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: _border),
+            ),
+            child: const Icon(Icons.add_rounded, color: _accent, size: 22),
+          ),
+        ),
+      );
+
+  Widget _emptyChart() => Container(
+        width: double.infinity,
+        decoration: BoxDecoration(
+          color: _surfaceAlt,
+          borderRadius: BorderRadius.circular(22),
+          border: Border.all(color: _border.withValues(alpha: 0.85)),
+        ),
+        child: const Center(
+          child: Text(
+            'No activity data for this period',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: _primaryText,
+              fontSize: 15,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ),
+      );
+
+  Widget _stats(List<_ActivityPoint> points) {
+    if (points.isEmpty) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 22),
+        decoration: BoxDecoration(
+          color: _surface,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: _border.withValues(alpha: 0.75)),
+        ),
+        child: const Text(
+          'No activity data for this period',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            color: _primaryText,
+            fontSize: 15,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+      );
+    }
+    return Wrap(spacing: 12, runSpacing: 12, children: [
+      _statCard('Latest', _latest(points)),
+      _statCard('Average', _average(points)),
+      _statCard('Total', _total(points)),
+    ]);
+  }
+
+  Widget _statCard(String label, String value) => Container(
+        width: 148,
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: _surface,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: _border.withValues(alpha: 0.75)),
+        ),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(
+            label,
+            style: const TextStyle(
+              color: _secondaryText,
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            value,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: _primaryText,
+              fontSize: 18,
+              fontWeight: FontWeight.w900,
+              height: 1.1,
+            ),
+          ),
+        ]),
+      );
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<List<Map<String, dynamic>>>(
+      future: _activitiesFuture,
+      builder: (context, snapshot) {
+        final loading = snapshot.connectionState == ConnectionState.waiting &&
+            !snapshot.hasData;
+        final activities = snapshot.data ?? const <Map<String, dynamic>>[];
+        final filteredActivities = _filteredActivitiesForRange(activities);
+        final points = _pointsForRange(filteredActivities);
+        final chartData = _chartData(points);
+
+        return Scaffold(
+          backgroundColor: _bg,
+          body: SafeArea(
+            child: Column(children: [
+              _topBar(),
+              Expanded(
+                child: loading
+                    ? const Center(
+                        child: CircularProgressIndicator(color: _accent),
+                      )
+                    : ListView(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        padding: const EdgeInsets.fromLTRB(20, 22, 20, 24),
+                        children: [
+                          _activitySelector(),
+                          const SizedBox(height: 16),
+                          _timeRangeSelector(),
+                          const SizedBox(height: 16),
+                          _chartCard(chartData, points),
+                          const SizedBox(height: 16),
+                          _stats(points),
+                          const SizedBox(height: 16),
+                          _buildActivityListSection(filteredActivities),
+                        ],
+                      ),
+              ),
+            ]),
+          ),
         );
       },
+    );
+  }
+}
+
+enum _ActivityType {
+  walking('Walking'),
+  running('Running'),
+  cycling('Cycling'),
+  workout('Workout'),
+  swimming('Swimming');
+
+  final String label;
+
+  const _ActivityType(this.label);
+}
+
+enum _ActivityTimeRange {
+  day('1D'),
+  week('1W'),
+  month('1M'),
+  max('Max');
+
+  final String label;
+
+  const _ActivityTimeRange(this.label);
+}
+
+class _ActivityTypeDefinition {
+  final _ActivityType type;
+  final String label;
+  final IconData icon;
+
+  const _ActivityTypeDefinition(this.type, this.label, this.icon);
+}
+
+class _ActivityPoint {
+  final DateTime date;
+  final int duration;
+
+  const _ActivityPoint(this.date, this.duration);
+}
+
+class _ActivityChartData {
+  final List<FlSpot> spots;
+  final double minY;
+  final double maxY;
+
+  const _ActivityChartData(this.spots, this.minY, this.maxY);
+}
+
+class _ActivityManualEntryResult {
+  final _ActivityType type;
+  final DateTime activityDate;
+  final int duration;
+  final double? distance;
+  final int? calories;
+  final String? notes;
+
+  const _ActivityManualEntryResult(
+    this.type,
+    this.activityDate,
+    this.duration, {
+    this.distance,
+    this.calories,
+    this.notes,
+  });
+}
+
+class _ActivityDetailsSheet extends StatelessWidget {
+  static const _surface = Color(0xFF0F1624);
+  static const _surfaceAlt = Color(0xFF121B2C);
+  static const _surfaceSoft = Color(0xFF11141B);
+  static const _border = Color(0xFF243047);
+  static const _primaryText = Color(0xFFF5F7FB);
+  static const _secondaryText = Color(0xFF94A3B8);
+
+  final String title;
+  final String dateLabel;
+  final String durationLabel;
+  final String? distanceLabel;
+  final String? caloriesLabel;
+  final String? notes;
+
+  const _ActivityDetailsSheet({
+    required this.title,
+    required this.dateLabel,
+    required this.durationLabel,
+    required this.distanceLabel,
+    required this.caloriesLabel,
+    required this.notes,
+  });
+
+  Widget _detailRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: const TextStyle(
+              color: _secondaryText,
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            value,
+            style: const TextStyle(
+              color: _primaryText,
+              fontSize: 15,
+              fontWeight: FontWeight.w800,
+              height: 1.35,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _detailNotes(String value) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: _surfaceAlt,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: _border.withValues(alpha: 0.8)),
+      ),
+      child: Text(
+        value,
+        style: const TextStyle(
+          color: _primaryText,
+          fontSize: 14,
+          fontWeight: FontWeight.w700,
+          height: 1.45,
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bottomPadding = MediaQuery.of(context).viewInsets.bottom;
+    final hasNotes = notes != null && notes!.trim().isNotEmpty;
+
+    return SafeArea(
+      top: false,
+      child: Container(
+        decoration: BoxDecoration(
+          color: _surface,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+          border: Border.all(color: _border.withValues(alpha: 0.85)),
+        ),
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(20, 12, 20, 20 + bottomPadding),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 44,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: _secondaryText.withValues(alpha: 0.35),
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 18),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        title,
+                        style: const TextStyle(
+                          color: _primaryText,
+                          fontSize: 22,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                    ),
+                    Material(
+                      color: Colors.transparent,
+                      child: IconButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        icon: const Icon(
+                          Icons.close_rounded,
+                          color: _primaryText,
+                        ),
+                        style: IconButton.styleFrom(
+                          backgroundColor: _surfaceSoft,
+                          side: BorderSide(
+                            color: _border.withValues(alpha: 0.95),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 18),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(18),
+                  decoration: BoxDecoration(
+                    color: _surfaceAlt,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: _border.withValues(alpha: 0.75)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _detailRow('Date', dateLabel),
+                      _detailRow('Duration', durationLabel),
+                      if (distanceLabel != null)
+                        _detailRow('Distance', distanceLabel!),
+                      if (caloriesLabel != null)
+                        _detailRow('Calories burned', caloriesLabel!),
+                      if (hasNotes) ...[
+                        const Text(
+                          'Notes',
+                          style: TextStyle(
+                            color: _secondaryText,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        _detailNotes(notes!.trim()),
+                      ],
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 18),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: _primaryText,
+                      side: BorderSide(color: _border.withValues(alpha: 0.95)),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                    ),
+                    child: const Text('Close'),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ActivityManualEntrySheet extends StatefulWidget {
+  final ApiService api;
+  final _ActivityType initialType;
+
+  const _ActivityManualEntrySheet({
+    required this.api,
+    required this.initialType,
+  });
+
+  @override
+  State<_ActivityManualEntrySheet> createState() =>
+      _ActivityManualEntrySheetState();
+}
+
+class _ActivityManualEntrySheetState extends State<_ActivityManualEntrySheet> {
+  static const _surface = Color(0xFF0F1624);
+  static const _surfaceAlt = Color(0xFF121B2C);
+  static const _border = Color(0xFF243047);
+  static const _primaryText = Color(0xFFF5F7FB);
+  static const _secondaryText = Color(0xFF94A3B8);
+  static const _accent = Color(0xFF5B8DEF);
+  static const _danger = Color(0xFFFF6B6B);
+
+  final _formKey = GlobalKey<FormState>();
+  final _durationController = TextEditingController();
+  final _distanceController = TextEditingController();
+  final _caloriesController = TextEditingController();
+  final _notesController = TextEditingController();
+
+  late _ActivityType _selectedType;
+  late DateTime _selectedDate;
+  bool _saving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedType = widget.initialType;
+    final now = DateTime.now();
+    _selectedDate = DateTime(now.year, now.month, now.day);
+  }
+
+  @override
+  void dispose() {
+    _durationController.dispose();
+    _distanceController.dispose();
+    _caloriesController.dispose();
+    _notesController.dispose();
+    super.dispose();
+  }
+
+  InputDecoration _decoration(String label, {String? suffix}) =>
+      InputDecoration(
+        labelText: label,
+        suffixText: suffix,
+        labelStyle: const TextStyle(color: _secondaryText),
+        suffixStyle: const TextStyle(color: _secondaryText),
+        filled: true,
+        fillColor: _surfaceAlt,
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide(color: _border.withValues(alpha: 0.85)),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: const BorderSide(color: _accent),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: const BorderSide(color: _danger),
+        ),
+        focusedErrorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: const BorderSide(color: _danger),
+        ),
+        errorStyle: const TextStyle(color: _danger),
+      );
+
+  TextStyle get _inputStyle =>
+      const TextStyle(color: _primaryText, fontWeight: FontWeight.w700);
+
+  Future<void> _pickDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _selectedDate,
+      firstDate: DateTime(2000),
+      lastDate: DateTime.now().add(const Duration(days: 1)),
+      builder: (context, child) => Theme(
+        data: Theme.of(context).copyWith(
+          colorScheme: const ColorScheme.dark(
+            primary: _accent,
+            onPrimary: Colors.white,
+            surface: _surface,
+            onSurface: _primaryText,
+            secondary: _accent,
+          ),
+          dialogTheme: DialogThemeData(
+            backgroundColor: _surface,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(22),
+              side: const BorderSide(color: _border),
+            ),
+          ),
+          datePickerTheme: DatePickerThemeData(
+            backgroundColor: _surface,
+            surfaceTintColor: Colors.transparent,
+            headerBackgroundColor: _surfaceAlt,
+            headerForegroundColor: _primaryText,
+            todayForegroundColor: WidgetStateProperty.all(_accent),
+            todayBorder: const BorderSide(color: _accent),
+          ),
+          textButtonTheme: TextButtonThemeData(
+            style: TextButton.styleFrom(foregroundColor: _accent),
+          ),
+        ),
+        child: child!,
+      ),
+    );
+    if (picked != null) {
+      setState(() =>
+          _selectedDate = DateTime(picked.year, picked.month, picked.day));
+    }
+  }
+
+  Future<void> _save() async {
+    if (_saving || !_formKey.currentState!.validate()) return;
+    final duration = int.parse(_durationController.text.trim());
+    final distance = _selectedType == _ActivityType.workout
+        ? null
+        : double.tryParse(_distanceController.text.trim());
+    final calories = int.tryParse(_caloriesController.text.trim());
+    final notes = _notesController.text.trim();
+    final payload = <String, dynamic>{
+      'activityType': _selectedType.label,
+      'activityDate': DateFormat('yyyy-MM-dd').format(_selectedDate),
+      'duration': duration,
+      if (distance != null) 'distance': distance,
+      if (calories != null) 'caloriesBurned': calories,
+      if (notes.isNotEmpty) 'notes': notes,
+    };
+
+    setState(() => _saving = true);
+    try {
+      final saved = await widget.api.createSportActivity(payload);
+      if (!mounted) return;
+      if (!saved) {
+        _showVitalsToast(
+          context,
+          message: 'Could not save activity',
+          success: false,
+        );
+        setState(() => _saving = false);
+        return;
+      }
+      Navigator.of(context).pop(
+        _ActivityManualEntryResult(
+          _selectedType,
+          _selectedDate,
+          duration,
+          distance: distance,
+          calories: calories,
+          notes: notes.isEmpty ? null : notes,
+        ),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      _showVitalsToast(
+        context,
+        message: 'Could not save activity',
+        success: false,
+      );
+      setState(() => _saving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bottomPadding = MediaQuery.of(context).viewInsets.bottom;
+    return SafeArea(
+      top: false,
+      child: Container(
+        decoration: BoxDecoration(
+          color: _surface,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+          border: Border.all(color: _border.withValues(alpha: 0.85)),
+        ),
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(20, 12, 20, 20 + bottomPadding),
+          child: Form(
+            key: _formKey,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 44,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: _secondaryText.withValues(alpha: 0.35),
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+                  Text(
+                    'Add ${_selectedType.label}',
+                    style: const TextStyle(
+                      color: _primaryText,
+                      fontSize: 22,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+                  InkWell(
+                    borderRadius: BorderRadius.circular(16),
+                    onTap: _pickDate,
+                    child: InputDecorator(
+                      decoration: _decoration('Date'),
+                      child: Text(
+                        DateFormat('dd MMM yyyy').format(_selectedDate),
+                        style: _inputStyle,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: _durationController,
+                    keyboardType: TextInputType.number,
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                    style: _inputStyle,
+                    decoration: _decoration('Duration', suffix: 'min'),
+                    validator: (value) {
+                      final duration = int.tryParse(value?.trim() ?? '') ?? 0;
+                      return duration > 0
+                          ? null
+                          : 'Duration must be greater than 0';
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  if (_selectedType != _ActivityType.workout) ...[
+                    Row(children: [
+                      Expanded(
+                        child: TextFormField(
+                          controller: _distanceController,
+                          keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true,
+                          ),
+                          inputFormatters: [
+                            FilteringTextInputFormatter.allow(
+                                RegExp(r'[0-9.]')),
+                          ],
+                          style: _inputStyle,
+                          decoration: _decoration('Distance', suffix: 'km'),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: TextFormField(
+                          controller: _caloriesController,
+                          keyboardType: TextInputType.number,
+                          inputFormatters: [
+                            FilteringTextInputFormatter.digitsOnly,
+                          ],
+                          style: _inputStyle,
+                          decoration: _decoration('Calories', suffix: 'kcal'),
+                        ),
+                      ),
+                    ]),
+                    const SizedBox(height: 12),
+                  ] else ...[
+                    TextFormField(
+                      controller: _caloriesController,
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [
+                        FilteringTextInputFormatter.digitsOnly,
+                      ],
+                      style: _inputStyle,
+                      decoration: _decoration('Calories', suffix: 'kcal'),
+                    ),
+                    const SizedBox(height: 12),
+                  ],
+                  TextFormField(
+                    controller: _notesController,
+                    maxLines: 3,
+                    style: _inputStyle,
+                    decoration: _decoration('Notes'),
+                  ),
+                  const SizedBox(height: 18),
+                  Row(children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed:
+                            _saving ? null : () => Navigator.of(context).pop(),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: _primaryText,
+                          side: BorderSide(
+                            color: _border.withValues(alpha: 0.95),
+                          ),
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                        ),
+                        child: const Text('Cancel'),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: _saving ? null : _save,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: _accent,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                        ),
+                        child: _saving
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : const Text('Save'),
+                      ),
+                    ),
+                  ]),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
