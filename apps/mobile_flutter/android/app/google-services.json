@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "46567361839",
+    "project_id": "healthtrackme-f6eca",
+    "storage_bucket": "healthtrackme-f6eca.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:46567361839:android:6bfd89275b8329a82ae5da",
+        "android_client_info": {
+          "package_name": "com.example.healthtrackme"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDRwf59-G_e4oN1vniIGDFCO_2mO0fbAsk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
