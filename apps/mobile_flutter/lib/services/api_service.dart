@@ -72,19 +72,6 @@ class ApiService {
     _reconcileStoredActiveUserIdInBackground();
   }
 
-  /// Check API connectivity in background without blocking initialization
-  Future<void> _validateAndUpdateBaseUrlInBackground() async {
-    try {
-      final reachable =
-          await _resolveReachableBaseUrl(preferredBaseUrl: _baseUrl);
-      if (reachable != _baseUrl) {
-        _baseUrl = reachable;
-        await _prefs.setString(_prefsKeyBaseUrl, reachable);
-      }
-    } catch (e) {
-      debugPrint('Background URL validation error: $e');
-    }
-  }
 
   /// Reconcile active user in background without blocking app startup
   Future<void> _reconcileStoredActiveUserIdInBackground() async {
