@@ -601,10 +601,22 @@ class ApiService {
       if (response.statusCode >= 200 && response.statusCode < 300) {
         final entries = _parseList(response, HealthEntry.fromJson);
         entries.sort((a, b) => b.entryDate.compareTo(a.entryDate));
+        if (kDebugMode) {
+          debugPrint(
+            'Vitals debug: getHealthEntries status=${response.statusCode} count=${entries.length}',
+          );
+        }
         return entries;
       }
+      if (kDebugMode) {
+        debugPrint(
+            'Vitals debug: getHealthEntries status=${response.statusCode}');
+      }
       return const [];
-    } catch (_) {
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('Vitals debug: getHealthEntries error=$e');
+      }
       return const [];
     }
   }
@@ -615,18 +627,51 @@ class ApiService {
     if (id == null) {
       throw StateError('No active user selected');
     }
+    final payload = entry.toJson();
+    if (kDebugMode) {
+      debugPrint(
+        'Vitals debug: createHealthEntry payloadKeys=${_debugNonNullKeys(payload)} entryDate=${payload['entryDate']}',
+      );
+    }
     final response = await _postRaw('/health-entries/users/$id',
         headers: {'Content-Type': 'application/json'},
-        body: jsonEncode(entry.toJson()));
+        body: jsonEncode(payload));
+
+    if (kDebugMode) {
+      debugPrint(
+        'Vitals debug: createHealthEntry status=${response.statusCode}',
+      );
+    }
 
     if (response.statusCode >= 200 && response.statusCode < 300) {
       final created = _parseSingle(response, HealthEntry.fromJson);
+      if (kDebugMode) {
+        debugPrint(
+          'Vitals debug: createHealthEntry responseKeys=${created == null ? 'null' : _debugHealthEntryFields(created)}',
+        );
+      }
       if (created != null) {
         return created;
       }
     }
     throw Exception(
         _responseMessage(response) ?? 'Could not save health entry');
+  }
+
+  List<String> _debugNonNullKeys(Map<String, dynamic> payload) {
+    return payload.entries
+        .where((entry) => entry.value != null)
+        .map((entry) => entry.key)
+        .toList(growable: false);
+  }
+
+  List<String> _debugHealthEntryFields(HealthEntry entry) {
+    return entry
+        .toJson()
+        .entries
+        .where((field) => field.value != null)
+        .map((field) => field.key)
+        .toList(growable: false);
   }
 
   // Medicine endpoints

@@ -198,6 +198,12 @@ class _DashboardScreenState extends State<DashboardScreen>
     }
   }
 
+  Future<void> _openVitals() async {
+    await context.pushNamed('healthVitals');
+    if (!mounted) return;
+    await _refresh();
+  }
+
   void _showFavoritesWarning(String message) {
     final messenger = ScaffoldMessenger.of(context);
     messenger.clearSnackBars();
@@ -559,8 +565,70 @@ class _DashboardScreenState extends State<DashboardScreen>
     return value > 0 ? value.toStringAsFixed(1) : 'No data';
   }
 
-  String _formatHeart(HealthEntry? entry) {
-    return entry?.heartRate != null ? '${entry!.heartRate}' : 'No data';
+  bool _hasVitalsData(HealthEntry entry) {
+    return entry.heartRate != null ||
+        entry.stressLevel != null ||
+        (entry.systolicBp != null && entry.diastolicBp != null) ||
+        entry.spO2 != null ||
+        entry.bodyTemperature != null ||
+        entry.weight != null;
+  }
+
+  HealthEntry? _latestVitalsEntry() {
+    for (final entry in _state.entries) {
+      if (_hasVitalsData(entry)) {
+        return entry;
+      }
+    }
+    return null;
+  }
+
+  String _vitalsValue() {
+    final entry = _latestVitalsEntry();
+    if (entry == null) return 'No data';
+    if (_sameDay(entry.entryDate, DateTime.now())) {
+      return 'Updated today';
+    }
+    return 'Last updated ${_shortDate(entry.entryDate)}';
+  }
+
+  String _favoriteVitalsValue() {
+    final entry = _latestVitalsEntry();
+    if (entry == null) return 'No data';
+    if (_sameDay(entry.entryDate, DateTime.now())) {
+      return 'Updated today';
+    }
+    final date = _shortDate(entry.entryDate);
+    final text = 'Updated $date';
+    return text.length <= 14 ? text : date;
+  }
+
+  String _favoriteVitalsSubtitle() {
+    return _latestVitalsEntry() == null ? _vitalsSubtitle(null) : 'View trends';
+  }
+
+  String _vitalsSummarySubtitle() {
+    return _latestVitalsEntry() == null
+        ? _vitalsSubtitle(null)
+        : 'Tap to view trends';
+  }
+
+  String _shortDate(DateTime date) {
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
+    return '${months[date.month - 1]} ${date.day}';
   }
 
   String _vitalsSubtitle(HealthEntry? entry) {
@@ -746,7 +814,6 @@ class _DashboardScreenState extends State<DashboardScreen>
   Widget _buildFavoritesSection() {
     if (_loading) return _loadingCard(height: 260);
 
-    final entry = _todayEntry();
     final activeMeds = _activeMedicinesCount();
     final firstMedicine = _state.medicines.where((m) => m.isActive).isNotEmpty
         ? _state.medicines.firstWhere((m) => m.isActive)
@@ -779,11 +846,11 @@ class _DashboardScreenState extends State<DashboardScreen>
             case 'vitals':
               return _favoriteCard(
                 title: option.label,
-                value: _formatHeart(entry),
-                subtitle: _vitalsSubtitle(entry),
+                value: _favoriteVitalsValue(),
+                subtitle: _favoriteVitalsSubtitle(),
                 icon: Icons.monitor_heart_outlined,
                 accent: _danger,
-                onTap: () => context.pushNamed('healthVitals'),
+                onTap: _openVitals,
               );
             case 'medicines':
               return _favoriteCard(
@@ -903,11 +970,11 @@ class _DashboardScreenState extends State<DashboardScreen>
         _feedGap(),
         _feedCard(
           title: 'Vitals',
-          value: _formatHeart(entry),
-          subtitle: _vitalsSubtitle(entry),
+          value: _vitalsValue(),
+          subtitle: _vitalsSummarySubtitle(),
           icon: Icons.monitor_heart_outlined,
           accent: _danger,
-          onTap: () => context.pushNamed('healthVitals'),
+          onTap: _openVitals,
         ),
         _feedGap(),
         _feedCard(
