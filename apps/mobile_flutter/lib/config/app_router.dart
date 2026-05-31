@@ -10,6 +10,7 @@ import '../screens/reports_screen.dart';
 import '../screens/router_pages.dart';
 import '../screens/health_screen.dart';
 import '../screens/onboarding_screen.dart';
+import '../screens/wearables_screen.dart';
 import '../services/api_service.dart';
 
 GoRouter createAppRouter() {
@@ -159,6 +160,11 @@ GoRouter createAppRouter() {
             ],
           ),
         ],
+      ),
+      GoRoute(
+        path: '/wearables',
+        name: 'wearables',
+        builder: (context, state) => const WearablesScreen(),
       ),
       GoRoute(
         path: '/diary/:date',

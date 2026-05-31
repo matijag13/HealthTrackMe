@@ -190,6 +190,12 @@ class _DashboardScreenState extends State<DashboardScreen>
     await _refresh();
   }
 
+  Future<void> _openWearables() async {
+    await context.pushNamed('wearables');
+    if (!mounted) return;
+    await _refresh();
+  }
+
   void _showFavoritesWarning(String message) {
     final messenger = ScaffoldMessenger.of(context);
     messenger.clearSnackBars();
@@ -992,6 +998,15 @@ class _DashboardScreenState extends State<DashboardScreen>
           icon: Icons.insights_outlined,
           accent: _accent,
           onTap: () => context.pushNamed('healthHistory'),
+        ),
+        _feedGap(),
+        _feedCard(
+          title: 'Wearable Devices',
+          value: 'Sync & manage',
+          subtitle: 'Connect your device and sync health data',
+          icon: Icons.watch_outlined,
+          accent: _green,
+          onTap: _openWearables,
         ),
       ],
     );
