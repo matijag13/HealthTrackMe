@@ -1148,7 +1148,7 @@ class _DevicesTabState extends State<_DevicesTab> {
             ),
             const SizedBox(height: 12),
             DropdownButtonFormField<WearableDeviceType>(
-              value: selectedType,
+              initialValue: selectedType,
               decoration: const InputDecoration(labelText: 'Type'),
               items: WearableDeviceType.values
                   .map((t) => DropdownMenuItem(
