@@ -44,6 +44,16 @@ class WearableService {
   }
 
   List<HealthDataType> get _requestedDataTypes {
+    if (_isAndroid) {
+      return [
+        HealthDataType.STEPS,
+        HealthDataType.HEART_RATE,
+        HealthDataType.SLEEP_SESSION,
+        HealthDataType.ACTIVE_ENERGY_BURNED,
+        HealthDataType.BLOOD_PRESSURE_SYSTOLIC,
+        HealthDataType.BLOOD_PRESSURE_DIASTOLIC,
+      ];
+    }
     return [
       HealthDataType.STEPS,
       HealthDataType.HEART_RATE,
@@ -215,7 +225,9 @@ class WearableService {
     DateTime endDate,
   ) async {
     try {
-      const types = [HealthDataType.SLEEP_IN_BED];
+      final types = [
+        _isAndroid ? HealthDataType.SLEEP_SESSION : HealthDataType.SLEEP_IN_BED
+      ];
       final data = await health.getHealthDataFromTypes(
         types: types,
         startTime: startDate,

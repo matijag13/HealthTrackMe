@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../config/theme.dart';
 import '../models/wearable_device.dart';
 import '../services/api_service.dart';
 import '../services/wearable_service.dart';
@@ -12,572 +11,454 @@ class WearablesScreen extends StatefulWidget {
 }
 
 class _WearablesScreenState extends State<WearablesScreen> {
+  static const _bg = Color(0xFF070B13);
+  static const _surface = Color(0xFF0F1624);
+  static const _surfaceAlt = Color(0xFF121B2C);
+  static const _border = Color(0xFF243047);
+  static const _primaryText = Color(0xFFF5F7FB);
+  static const _secondaryText = Color(0xFF94A3B8);
+  static const _accent = Color(0xFF5B8DEF);
+  static const _green = Color(0xFF36D399);
+  static const _danger = Color(0xFFFF5C7A);
+
   final WearableService _wearableService = WearableService();
   final ApiService _api = ApiService.instance;
 
   List<WearableDevice> _devices = [];
-  List<SyncEvent> _syncHistory = [];
   bool _loading = true;
   bool _syncing = false;
 
   @override
   void initState() {
     super.initState();
-    _loadWearableData();
+    _load();
   }
 
-  Future<void> _loadWearableData() async {
+  Future<void> _load() async {
     setState(() => _loading = true);
-
     try {
       final userId = await _api.ensureActiveUserId();
-      if (userId == null) {
-        setState(() => _loading = false);
-        return;
+      if (userId != null) {
+        final devices = await _wearableService.getConnectedDevices(userId);
+        if (mounted) setState(() => _devices = devices);
       }
-
-      final devices = await _wearableService.getConnectedDevices(userId);
-      final history = await _wearableService.getSyncHistory(userId);
-
-      setState(() {
-        _devices = devices;
-        _syncHistory = history;
-        _loading = false;
-      });
-    } catch (e) {
-      setState(() {
-        _loading = false;
-      });
-    }
+    } catch (_) {}
+    if (mounted) setState(() => _loading = false);
   }
 
-  Future<void> _requestAndSyncHealthData() async {
-    final hasPermission = await _wearableService.hasPermissions();
-
-    if (!hasPermission) {
-      final granted = await _wearableService.requestPermissions();
-      if (!granted) {
-        if (mounted) {
-          WearableService.showSyncStatus(
-            context,
-            'Health permissions are required for syncing',
-            false,
-          );
-        }
-        return;
-      }
-    }
-
+  Future<void> _sync() async {
     setState(() => _syncing = true);
-
     try {
       final userId = await _api.ensureActiveUserId();
-      if (userId == null) {
-        if (mounted) {
-          WearableService.showSyncStatus(
-            context,
-            'No active user selected',
-            false,
-          );
+      if (userId != null) {
+        final hasPermission = await _wearableService.hasPermissions();
+        if (!hasPermission) {
+          final granted = await _wearableService.requestPermissions();
+          if (!granted) {
+            if (mounted) _showStatus('Health permissions denied', false);
+            return;
+          }
         }
-        return;
-      }
-
-      // Sync data from past 7 days
-      final startDate = DateTime.now().subtract(const Duration(days: 7));
-      await _wearableService.syncWearableData(
-        userId: userId,
-        startDate: startDate,
-      );
-
-      if (mounted) {
-        WearableService.showSyncStatus(
-          context,
-          '✅ Health data synced successfully!',
-          true,
+        await _wearableService.syncWearableData(
+          userId: userId,
+          startDate: DateTime.now().subtract(const Duration(days: 7)),
         );
+        await _load();
+        if (mounted) _showStatus('Health data synced', true);
       }
-
-      // Reload data
-      await _loadWearableData();
     } catch (e) {
-      if (mounted) {
-        WearableService.showSyncStatus(
-          context,
-          'Failed to sync health data',
-          false,
-        );
-      }
+      if (mounted) _showStatus('Sync failed', false);
     } finally {
-      setState(() => _syncing = false);
+      if (mounted) setState(() => _syncing = false);
     }
   }
 
   Future<void> _addDevice() async {
     showModalBottomSheet(
       context: context,
-      builder: (context) => _buildAddDeviceSheet(),
+      backgroundColor: _surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        side: BorderSide(color: _border),
+      ),
+      builder: (_) => _AddDeviceSheet(
+        onAdd: (type) async {
+          Navigator.pop(context);
+          try {
+            final userId = await _api.ensureActiveUserId();
+            if (userId != null) {
+              await _wearableService.addDevice(userId, type.displayName, type);
+              await _load();
+              if (mounted) _showStatus('${type.displayName} added', true);
+            }
+          } catch (e) {
+            if (mounted) _showStatus('Failed to add device', false);
+          }
+        },
+      ),
     );
   }
 
-  Future<void> _disconnectDevice(WearableDevice device) async {
-    final confirm = await showDialog<bool>(
+  Future<void> _removeDevice(WearableDevice device) async {
+    final confirmed = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Disconnect Device?'),
-        content: Text('Do you want to disconnect ${device.name}?'),
+      builder: (ctx) => AlertDialog(
+        backgroundColor: _surface,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+          side: const BorderSide(color: _border),
+        ),
+        title:
+            const Text('Remove device', style: TextStyle(color: _primaryText)),
+        content: Text('Remove ${device.name}?',
+            style: const TextStyle(color: _secondaryText)),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+            onPressed: () => Navigator.pop(ctx, false),
+            child:
+                const Text('Cancel', style: TextStyle(color: _secondaryText)),
           ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: TextButton.styleFrom(
-              foregroundColor: Colors.red,
-            ),
-            child: const Text('Disconnect'),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: FilledButton.styleFrom(backgroundColor: _danger),
+            child: const Text('Remove'),
           ),
         ],
       ),
     );
-
-    if (confirm == true) {
-      final success = await _wearableService.disconnectDevice(device.id);
-
-      if (mounted) {
-        WearableService.showSyncStatus(
-          context,
-          success
-              ? '${device.name} disconnected'
-              : 'Failed to disconnect device',
-          success,
-        );
-
-        if (success) {
-          await _loadWearableData();
-        }
-      }
+    if (confirmed == true) {
+      await _wearableService.disconnectDevice(device.id);
+      await _load();
+      if (mounted) _showStatus('${device.name} removed', true);
     }
+  }
+
+  void _showStatus(String message, bool success) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      backgroundColor: success ? _green : _danger,
+      content: Text(message,
+          style: const TextStyle(
+              color: Colors.white, fontWeight: FontWeight.w600)),
+      behavior: SnackBarBehavior.floating,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+    ));
   }
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    if (_loading) {
-      return const Scaffold(
-        body: Center(
-          child: CircularProgressIndicator(
-            color: AppColors.primaryBlue,
+    return Scaffold(
+      backgroundColor: _bg,
+      appBar: AppBar(
+        backgroundColor: _bg,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: _primaryText),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: const Text(
+          'Wearable Devices',
+          style: TextStyle(
+            color: _primaryText,
+            fontWeight: FontWeight.w800,
           ),
         ),
-      );
-    }
-
-    return Scaffold(
-      backgroundColor:
-          isDark ? AppColors.darkBackground : AppColors.lightBackground,
-      appBar: AppBar(
-        backgroundColor: isDark ? AppColors.darkCard : AppColors.lightCard,
-        elevation: 0,
-        title: const Text('Wearable Devices'),
         actions: [
           IconButton(
-            onPressed: _loadWearableData,
-            icon: const Icon(Icons.refresh),
-          ),
-        ],
-      ),
-      body: RefreshIndicator(
-        onRefresh: _loadWearableData,
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Quick sync button
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: _syncing ? null : _requestAndSyncHealthData,
-                  icon: _syncing
-                      ? SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            valueColor: AlwaysStoppedAnimation<Color>(
-                              Theme.of(context).colorScheme.onPrimary,
-                            ),
-                          ),
-                        )
-                      : const Icon(Icons.sync_alt),
-                  label: Text(_syncing ? 'Syncing...' : 'Sync Health Data'),
-                ),
-              ),
-              const SizedBox(height: 24),
-
-              // Connected Devices Section
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Connected Devices',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w600,
-                        ),
-                  ),
-                  GestureDetector(
-                    onTap: _addDevice,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: AppColors.primaryBlue,
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(
-                            Icons.add,
-                            size: 14,
-                            color: Colors.white,
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            'Add',
-                            style: Theme.of(context)
-                                .textTheme
-                                .labelSmall
-                                ?.copyWith(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-
-              // Devices List
-              if (_devices.isEmpty)
-                _buildEmptyState(isDark)
-              else
-                ..._buildDevicesList(isDark),
-
-              const SizedBox(height: 24),
-
-              // Sync History
-              if (_syncHistory.isNotEmpty) ...[
-                Text(
-                  'Sync History',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
-                ),
-                const SizedBox(height: 12),
-                ..._buildSyncHistory(isDark),
-              ],
-
-              const SizedBox(height: 24),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildEmptyState(bool isDark) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: isDark ? AppColors.darkCard : AppColors.lightCard,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Column(
-        children: [
-          Icon(
-            Icons.watch_later_outlined,
-            size: 48,
-            color: AppColors.primaryBlue.withValues(alpha: 0.5),
-          ),
-          const SizedBox(height: 16),
-          Text(
-            'No Devices Connected',
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Connect a wearable device to automatically sync health data',
-            textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: isDark
-                      ? AppColors.darkTextSecondary
-                      : AppColors.textSecondary,
-                ),
-          ),
-          const SizedBox(height: 16),
-          ElevatedButton.icon(
+            icon: const Icon(Icons.add_rounded, color: _accent),
             onPressed: _addDevice,
-            icon: const Icon(Icons.add),
-            label: const Text('Add Device'),
+            tooltip: 'Add device',
           ),
         ],
       ),
-    );
-  }
-
-  List<Widget> _buildDevicesList(bool isDark) {
-    return _devices.map((device) {
-      return Padding(
-        padding: const EdgeInsets.only(bottom: 12),
-        child: Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: isDark ? AppColors.darkCard : AppColors.lightCard,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: isDark ? AppColors.darkBorder : AppColors.border,
-              width: 0.5,
-            ),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Header
-              Row(
+      body: _loading
+          ? const Center(child: CircularProgressIndicator(color: _accent))
+          : RefreshIndicator(
+              color: _accent,
+              onRefresh: _load,
+              child: ListView(
+                padding: const EdgeInsets.all(20),
+                physics: const AlwaysScrollableScrollPhysics(),
                 children: [
-                  Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: AppColors.primaryBlue.withValues(alpha: 0.1),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Center(
-                      child: Text(
-                        device.type.emoji,
-                        style: const TextStyle(fontSize: 20),
-                      ),
+                  // Sync button
+                  _SyncButton(syncing: _syncing, onSync: _sync),
+                  const SizedBox(height: 24),
+
+                  // Devices section
+                  const Text(
+                    'CONNECTED DEVICES',
+                    style: TextStyle(
+                      color: _secondaryText,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.8,
                     ),
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
+                  const SizedBox(height: 12),
+                  if (_devices.isEmpty)
+                    _EmptyDevices(onAdd: _addDevice)
+                  else
+                    ..._devices.map((d) => Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: _DeviceCard(
+                            device: d,
+                            onRemove: () => _removeDevice(d),
+                          ),
+                        )),
+                  const SizedBox(height: 24),
+
+                  // Info card
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: _surfaceAlt,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: _border),
+                    ),
+                    child: const Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        Row(children: [
+                          Icon(Icons.info_outline_rounded,
+                              color: _accent, size: 16),
+                          SizedBox(width: 8),
+                          Text('How syncing works',
+                              style: TextStyle(
+                                  color: _primaryText,
+                                  fontWeight: FontWeight.w700)),
+                        ]),
+                        SizedBox(height: 8),
                         Text(
-                          device.name,
-                          style:
-                              Theme.of(context).textTheme.labelLarge?.copyWith(
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          device.type.displayName,
-                          style:
-                              Theme.of(context).textTheme.labelSmall?.copyWith(
-                                    color: isDark
-                                        ? AppColors.darkTextSecondary
-                                        : AppColors.textSecondary,
-                                  ),
+                          'Tap "Sync Health Data" to pull the last 7 days from Samsung Health or Google Fit via Health Connect. Make sure Samsung Health is set to sync with Health Connect in its settings.',
+                          style: TextStyle(
+                              color: _secondaryText, height: 1.5, fontSize: 13),
                         ),
                       ],
                     ),
                   ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: _getSyncStatusColor(device.syncStatus)
-                          .withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: Text(
-                      '${device.syncStatus.emoji} ${device.syncStatus.label}',
-                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                            color: _getSyncStatusColor(device.syncStatus),
-                            fontWeight: FontWeight.w600,
-                          ),
-                    ),
-                  ),
                 ],
               ),
-              const SizedBox(height: 12),
-
-              // Info
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Last Sync',
-                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                              color: isDark
-                                  ? AppColors.darkTextSecondary
-                                  : AppColors.textSecondary,
-                              fontSize: 10,
-                            ),
-                      ),
-                      Text(
-                        device.lastSyncLabel,
-                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                              fontWeight: FontWeight.w600,
-                            ),
-                      ),
-                    ],
-                  ),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Text(
-                        'Connected',
-                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                              color: isDark
-                                  ? AppColors.darkTextSecondary
-                                  : AppColors.textSecondary,
-                              fontSize: 10,
-                            ),
-                      ),
-                      Text(
-                        device.connectedDuration,
-                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                              fontWeight: FontWeight.w600,
-                            ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-
-              // Action Button
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton.icon(
-                  onPressed: () => _disconnectDevice(device),
-                  icon: const Icon(Icons.delete_outline, size: 16),
-                  label: const Text('Disconnect'),
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
-    }).toList();
+            ),
+    );
   }
+}
 
-  List<Widget> _buildSyncHistory(bool isDark) {
-    return _syncHistory.take(5).map((event) {
-      return Padding(
-        padding: const EdgeInsets.only(bottom: 8),
-        child: Container(
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(
-            color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Row(
-            children: [
-              Text(
-                event.statusEmoji,
-                style: const TextStyle(fontSize: 16),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      event.deviceName,
-                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                            fontWeight: FontWeight.w600,
-                          ),
-                    ),
-                    Text(
-                      event.status,
-                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                            color: isDark
-                                ? AppColors.darkTextSecondary
-                                : AppColors.textSecondary,
-                            fontSize: 10,
-                          ),
-                    ),
-                  ],
-                ),
-              ),
-              Text(
-                _formatSyncTime(event.syncTime),
-                style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      color: isDark
-                          ? AppColors.darkTextSecondary
-                          : AppColors.textSecondary,
-                      fontSize: 10,
-                    ),
-              ),
-            ],
-          ),
+class _SyncButton extends StatelessWidget {
+  final bool syncing;
+  final VoidCallback onSync;
+
+  const _SyncButton({required this.syncing, required this.onSync});
+
+  static const _accent = Color(0xFF5B8DEF);
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      height: 52,
+      child: FilledButton.icon(
+        onPressed: syncing ? null : onSync,
+        style: FilledButton.styleFrom(
+          backgroundColor: _accent,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         ),
-      );
-    }).toList();
+        icon: syncing
+            ? const SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(
+                    strokeWidth: 2, color: Colors.white),
+              )
+            : const Icon(Icons.sync_rounded, color: Colors.white),
+        label: Text(
+          syncing ? 'Syncing...' : 'Sync Health Data',
+          style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+        ),
+      ),
+    );
   }
+}
 
-  Widget _buildAddDeviceSheet() {
+class _EmptyDevices extends StatelessWidget {
+  final VoidCallback onAdd;
+
+  const _EmptyDevices({required this.onAdd});
+
+  static const _surface = Color(0xFF0F1624);
+  static const _border = Color(0xFF243047);
+  static const _primaryText = Color(0xFFF5F7FB);
+  static const _secondaryText = Color(0xFF94A3B8);
+  static const _accent = Color(0xFF5B8DEF);
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(28),
+      decoration: BoxDecoration(
+        color: _surface,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: _border),
+      ),
+      child: Column(
+        children: [
+          const Icon(Icons.watch_outlined, size: 48, color: _secondaryText),
+          const SizedBox(height: 16),
+          const Text('No devices connected',
+              style: TextStyle(
+                  color: _primaryText,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700)),
+          const SizedBox(height: 8),
+          const Text(
+            'Add your wearable to track which device your data comes from',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: _secondaryText, height: 1.4),
+          ),
+          const SizedBox(height: 20),
+          FilledButton.icon(
+            onPressed: onAdd,
+            style: FilledButton.styleFrom(
+              backgroundColor: _accent,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
+            ),
+            icon: const Icon(Icons.add_rounded),
+            label: const Text('Add Device',
+                style: TextStyle(fontWeight: FontWeight.w700)),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DeviceCard extends StatelessWidget {
+  final WearableDevice device;
+  final VoidCallback onRemove;
+
+  const _DeviceCard({required this.device, required this.onRemove});
+
+  static const _surface = Color(0xFF0F1624);
+  static const _border = Color(0xFF243047);
+  static const _primaryText = Color(0xFFF5F7FB);
+  static const _secondaryText = Color(0xFF94A3B8);
+  static const _accent = Color(0xFF5B8DEF);
+  static const _danger = Color(0xFFFF5C7A);
+
+  @override
+  Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: _surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: _border),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: _accent.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: _accent.withValues(alpha: 0.2)),
+            ),
+            child: Center(
+              child:
+                  Text(device.type.emoji, style: const TextStyle(fontSize: 22)),
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(device.name,
+                    style: const TextStyle(
+                        color: _primaryText, fontWeight: FontWeight.w700)),
+                const SizedBox(height: 4),
+                Text(device.type.displayName,
+                    style:
+                        const TextStyle(color: _secondaryText, fontSize: 12)),
+                const SizedBox(height: 2),
+                Text(device.lastSyncLabel,
+                    style:
+                        const TextStyle(color: _secondaryText, fontSize: 11)),
+              ],
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.remove_circle_outline, color: _danger),
+            onPressed: onRemove,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AddDeviceSheet extends StatelessWidget {
+  final void Function(WearableDeviceType) onAdd;
+
+  const _AddDeviceSheet({required this.onAdd});
+
+  static const _primaryText = Color(0xFFF5F7FB);
+  static const _secondaryText = Color(0xFF94A3B8);
+  static const _surfaceAlt = Color(0xFF121B2C);
+  static const _border = Color(0xFF243047);
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Add Wearable Device',
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
+          Center(
+            child: Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: _secondaryText.withValues(alpha: 0.3),
+                borderRadius: BorderRadius.circular(999),
+              ),
+            ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 20),
+          const Text('Add Wearable Device',
+              style: TextStyle(
+                  color: _primaryText,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800)),
+          const SizedBox(height: 6),
+          const Text('Select the type of device to register',
+              style: TextStyle(color: _secondaryText, fontSize: 13)),
+          const SizedBox(height: 20),
           Wrap(
-            spacing: 8,
-            runSpacing: 8,
+            spacing: 10,
+            runSpacing: 10,
             children: WearableDeviceType.values.map((type) {
               return GestureDetector(
-                onTap: () => _confirmAddDevice(type),
+                onTap: () => onAdd(type),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 8,
-                  ),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                   decoration: BoxDecoration(
-                    border: Border.all(
-                      color: AppColors.primaryBlue,
-                      width: 1,
-                    ),
-                    borderRadius: BorderRadius.circular(8),
+                    color: _surfaceAlt,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: _border),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text(
-                        type.emoji,
-                        style: const TextStyle(fontSize: 18),
-                      ),
-                      const SizedBox(width: 6),
-                      Text(type.displayName),
+                      Text(type.emoji, style: const TextStyle(fontSize: 18)),
+                      const SizedBox(width: 8),
+                      Text(type.displayName,
+                          style: const TextStyle(
+                              color: _primaryText,
+                              fontWeight: FontWeight.w600)),
                     ],
                   ),
                 ),
@@ -587,102 +468,5 @@ class _WearablesScreenState extends State<WearablesScreen> {
         ],
       ),
     );
-  }
-
-  void _confirmAddDevice(WearableDeviceType type) {
-    Navigator.pop(context);
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Add ${type.displayName}?'),
-        content: Text(
-          'This will enable automatic syncing of health data from ${type.displayName}.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              _addNewDevice(type);
-            },
-            child: const Text('Add'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _addNewDevice(WearableDeviceType type) async {
-    try {
-      final userId = await _api.ensureActiveUserId();
-      if (userId == null) {
-        if (mounted) {
-          WearableService.showSyncStatus(
-            context,
-            'No active user selected',
-            false,
-          );
-        }
-        return;
-      }
-
-      final device = await _wearableService.addDevice(
-        userId,
-        type.displayName,
-        type,
-      );
-
-      if (mounted) {
-        WearableService.showSyncStatus(
-          context,
-          '${device.name} added successfully!',
-          true,
-        );
-      }
-
-      await _loadWearableData();
-    } catch (e) {
-      if (mounted) {
-        WearableService.showSyncStatus(
-          context,
-          'Failed to add device',
-          false,
-        );
-      }
-    }
-  }
-
-  Color _getSyncStatusColor(SyncStatus status) {
-    switch (status) {
-      case SyncStatus.synced:
-        return AppColors.primaryGreen;
-      case SyncStatus.syncing:
-        return AppColors.primaryBlue;
-      case SyncStatus.failed:
-        return Colors.red;
-      case SyncStatus.paused:
-        return AppColors.primaryOrange;
-      case SyncStatus.notConnected:
-        return Colors.grey;
-    }
-  }
-
-  String _formatSyncTime(DateTime time) {
-    final now = DateTime.now();
-    final diff = now.difference(time);
-
-    if (diff.inMinutes < 1) {
-      return 'Just now';
-    } else if (diff.inMinutes < 60) {
-      return '${diff.inMinutes}m ago';
-    } else if (diff.inHours < 24) {
-      return '${diff.inHours}h ago';
-    } else {
-      return '${diff.inDays}d ago';
-    }
   }
 }
