@@ -72,7 +72,6 @@ class ApiService {
     _reconcileStoredActiveUserIdInBackground();
   }
 
-
   /// Reconcile active user in background without blocking app startup
   Future<void> _reconcileStoredActiveUserIdInBackground() async {
     try {
