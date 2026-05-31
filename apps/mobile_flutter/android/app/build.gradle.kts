@@ -20,6 +20,15 @@ android {
         jvmTarget = JavaVersion.VERSION_17.toString()
     }
 
+    signingConfigs {
+        create("release") {
+            storeFile = file(System.getenv("KEYSTORE_PATH") ?: "healthtrackme.keystore")
+            storePassword = System.getenv("KEYSTORE_PASSWORD") ?: "healthtrackme123"
+            keyAlias = System.getenv("KEY_ALIAS") ?: "healthtrackme"
+            keyPassword = System.getenv("KEY_PASSWORD") ?: "healthtrackme123"
+        }
+    }
+
     defaultConfig {
         applicationId = "com.example.healthtrackme"
         minSdk = 26
@@ -30,7 +39,7 @@ android {
 
     buildTypes {
         release {
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.getByName("release")
         }
     }
 
