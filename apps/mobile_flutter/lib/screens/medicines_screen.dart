@@ -143,12 +143,12 @@ class MedicinesScreen extends StatefulWidget {
 
 class _MedicinesScreenState extends State<MedicinesScreen>
     with AutomaticKeepAliveClientMixin {
-  static const _background = Color(0xFF050608);
-  static const _surface = Color(0xFF0D0F14);
-  static const _surfaceSoft = Color(0xFF11141B);
-  static const _border = Color(0xFF242936);
-  static const _primaryText = Color(0xFFF7F8FA);
-  static const _mutedText = Color(0xFF8B93A7);
+  static const _background = Color(0xFF070B13);
+  static const _surface = Color(0xFF0F1624);
+  static const _surfaceSoft = Color(0xFF121B2C);
+  static const _border = Color(0xFF243047);
+  static const _primaryText = Color(0xFFF5F7FB);
+  static const _mutedText = Color(0xFF94A3B8);
   static const _accent = Color(0xFF5A8CFF);
   static const _success = Color(0xFF36D399);
   static const _danger = Color(0xFFFF5C7A);
@@ -315,23 +315,19 @@ class _MedicinesScreenState extends State<MedicinesScreen>
 
   Widget _buildTopBar() {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 10, 20, 12),
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
       child: Row(
         children: [
-          _iconButton(
-            icon: Icons.arrow_back_rounded,
-            onTap: _goBack,
-            tooltip: 'Back',
-          ),
-          const SizedBox(width: 12),
-          const Expanded(
+          _iconButton(icon: Icons.arrow_back, onTap: _goBack),
+          const SizedBox(width: 14),
+          Expanded(
             child: Text(
               'Medicines',
-              style: TextStyle(
-                color: _primaryText,
-                fontSize: 28,
-                fontWeight: FontWeight.w800,
-              ),
+              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                    color: _primaryText,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 0,
+                  ),
             ),
           ),
         ],
@@ -342,22 +338,21 @@ class _MedicinesScreenState extends State<MedicinesScreen>
   Widget _iconButton({
     required IconData icon,
     required VoidCallback onTap,
-    required String tooltip,
   }) {
-    return Tooltip(
-      message: tooltip,
+    return Material(
+      color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(14),
-        child: Container(
+        borderRadius: BorderRadius.circular(15),
+        child: Ink(
           width: 44,
           height: 44,
           decoration: BoxDecoration(
-            color: _surfaceSoft,
-            borderRadius: BorderRadius.circular(14),
+            color: _surface,
+            borderRadius: BorderRadius.circular(15),
             border: Border.all(color: _border),
           ),
-          child: Icon(icon, color: _primaryText, size: 22),
+          child: Icon(icon, color: _primaryText, size: 21),
         ),
       ),
     );
@@ -368,12 +363,12 @@ class _MedicinesScreenState extends State<MedicinesScreen>
     final taken = _takenToday.length;
 
     return Container(
-      margin: const EdgeInsets.fromLTRB(20, 0, 20, 18),
+      margin: const EdgeInsets.fromLTRB(20, 22, 20, 18),
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: _surface,
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: _border.withValues(alpha: 0.75)),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.28),
@@ -495,8 +490,8 @@ class _MedicinesScreenState extends State<MedicinesScreen>
         padding: const EdgeInsets.all(24),
         decoration: BoxDecoration(
           color: _surface,
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: _border.withValues(alpha: 0.75)),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
