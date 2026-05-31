@@ -120,6 +120,13 @@ class _DashboardScreenState extends State<DashboardScreen>
 
   Future<void> _refresh() => _loadAll();
 
+  Future<void> _openMedicines() async {
+    final result = await context.pushNamed('meds');
+    if (result == true && mounted) {
+      await _refresh();
+    }
+  }
+
   HealthEntry? _todayEntry() {
     final today = DateTime.now();
     final matches = _state.entries.where((e) =>
@@ -428,7 +435,7 @@ class _DashboardScreenState extends State<DashboardScreen>
         subtitle: firstMedicine?.name ?? 'Tap to update',
         icon: Icons.medication_outlined,
         accent: _orange,
-        onTap: () => context.pushNamed('meds'),
+        onTap: _openMedicines,
       ),
     ];
 
@@ -525,7 +532,7 @@ class _DashboardScreenState extends State<DashboardScreen>
               : 'No active medicines scheduled',
           icon: Icons.medication_liquid_outlined,
           accent: _orange,
-          onTap: () => context.pushNamed('meds'),
+          onTap: _openMedicines,
         ),
         _feedGap(),
         _feedCard(
