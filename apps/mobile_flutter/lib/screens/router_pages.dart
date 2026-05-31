@@ -1,4 +1,7 @@
+import 'dart:convert';
+
 import 'package:fl_chart/fl_chart.dart';
+import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
@@ -48,6 +51,13 @@ Future<_HealthSnapshot> _loadHealthSnapshot({DateTime? month}) async {
 
 String _formatDate(DateTime date) =>
     DateFormat('dd MMM yyyy').format(date.toLocal());
+
+bool _isValidSleepHoursValue(double? hours) {
+  if (hours == null) {
+    return false;
+  }
+  return hours > 0 && hours <= 16;
+}
 
 class HealthScreen extends StatelessWidget {
   const HealthScreen({super.key});
@@ -955,6 +965,7 @@ class _HealthVitalsPageState extends State<HealthVitalsPage> {
                                 chartData, readings, latestDisplay),
                             const SizedBox(height: 16),
                             _buildStatsSection(
+                              hasData: readings.isNotEmpty,
                               latestDisplay: latestDisplay,
                               averageDisplay: averageDisplay,
                               minMaxDisplay: minMaxDisplay,
@@ -1282,10 +1293,32 @@ class _HealthVitalsPageState extends State<HealthVitalsPage> {
   }
 
   Widget _buildStatsSection({
+    required bool hasData,
     required String latestDisplay,
     required String averageDisplay,
     required String minMaxDisplay,
   }) {
+    if (!hasData) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 22),
+        decoration: BoxDecoration(
+          color: _surface,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: _border.withValues(alpha: 0.75)),
+        ),
+        child: const Text(
+          'No sleep data for this period',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            color: _primaryText,
+            fontSize: 15,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+      );
+    }
+
     return Wrap(
       spacing: 12,
       runSpacing: 12,
@@ -2458,144 +2491,1351 @@ class HealthActivityPage extends StatelessWidget {
   }
 }
 
-class HealthSleepPage extends StatelessWidget {
+class HealthSleepPage extends StatefulWidget {
   const HealthSleepPage({super.key});
+
+  @override
+  State<HealthSleepPage> createState() => _HealthSleepPageState();
+}
+
+class _HealthSleepPageState extends State<HealthSleepPage> {
+  static const _bg = Color(0xFF070B13);
+  static const _surface = Color(0xFF0F1624);
+  static const _surfaceAlt = Color(0xFF121B2C);
+  static const _surfaceSoft = Color(0xFF11141B);
+  static const _border = Color(0xFF243047);
+  static const _primaryText = Color(0xFFF5F7FB);
+  static const _secondaryText = Color(0xFF94A3B8);
+  static const _accent = Color(0xFF5B8DEF);
+
+  final ApiService _api = ApiService.instance;
+
+  late Future<_HealthSnapshot> _snapshotFuture;
+  _SleepTimeRange _selectedTimeRange = _SleepTimeRange.week;
+
+  @override
+  void initState() {
+    super.initState();
+    _snapshotFuture = _loadHealthSnapshot();
+  }
+
+  void _retry() {
+    setState(() {
+      _snapshotFuture = _loadHealthSnapshot();
+    });
+  }
+
+  void _selectTimeRange(_SleepTimeRange range) {
+    if (_selectedTimeRange == range) {
+      return;
+    }
+    setState(() {
+      _selectedTimeRange = range;
+    });
+  }
+
+  Future<_HealthSnapshot> _refreshSleepData() {
+    final refreshed = _loadHealthSnapshot();
+    setState(() {
+      _snapshotFuture = refreshed;
+    });
+    return refreshed;
+  }
+
+  void _goBack() {
+    final navigator = Navigator.of(context);
+    if (navigator.canPop()) {
+      navigator.pop();
+      return;
+    }
+    context.goNamed('health');
+  }
+
+  Future<void> _openManualEntrySheet() async {
+    final result = await showModalBottomSheet<_SleepManualEntryResult>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) {
+        return _SleepManualEntrySheet(api: _api);
+      },
+    );
+
+    if (!mounted || result == null) {
+      return;
+    }
+
+    final refreshed = await _refreshSleepData();
+    if (!mounted) {
+      return;
+    }
+
+    final confirmed = _containsRefreshedSleepEntry(refreshed, result);
+    if (!confirmed) {
+      _showVitalsToast(
+        context,
+        message: 'Sleep saved, but not returned by refresh',
+        success: false,
+      );
+      return;
+    }
+
+    _showVitalsToast(
+      context,
+      message: 'Sleep added',
+      success: true,
+    );
+  }
+
+  bool _containsRefreshedSleepEntry(
+    _HealthSnapshot snapshot,
+    _SleepManualEntryResult result,
+  ) {
+    final created = result.entry;
+    return snapshot.entries.any((entry) {
+      if (entry.sleepHours == null) {
+        return false;
+      }
+
+      if (created.id != 0 && entry.id == created.id) {
+        return true;
+      }
+
+      final sameDate = _sameDate(entry.entryDate, result.entryDate);
+      final sameHours = created.sleepHours != null && entry.sleepHours != null
+          ? _sameValue(entry.sleepHours!, created.sleepHours!)
+          : false;
+      final sameBedtime =
+          _matchesOptionalString(entry.bedtime, created.bedtime);
+      final sameWakeTime =
+          _matchesOptionalString(entry.wakeTime, created.wakeTime);
+      final sameStars = _matchesOptionalInt(
+        entry.sleepQualityStars,
+        created.sleepQualityStars,
+      );
+
+      return sameDate && sameHours && sameBedtime && sameWakeTime && sameStars;
+    });
+  }
+
+  bool _sameDate(DateTime a, DateTime b) {
+    return a.year == b.year && a.month == b.month && a.day == b.day;
+  }
+
+  bool _sameValue(double a, double b) => (a - b).abs() < 0.01;
+
+  bool _matchesOptionalString(String? value, String? expected) {
+    final expectedText = expected?.trim();
+    if (expectedText == null || expectedText.isEmpty) {
+      return true;
+    }
+    final actualText = value?.trim();
+    return actualText != null &&
+        actualText.isNotEmpty &&
+        actualText == expectedText;
+  }
+
+  bool _matchesOptionalInt(int? value, int? expected) {
+    if (expected == null) {
+      return true;
+    }
+    return value == expected;
+  }
+
+  List<HealthEntry> _sleepEntriesForRange(
+    List<HealthEntry> entries,
+    _SleepTimeRange range,
+  ) {
+    final chronological = entries
+        .where((entry) => _isValidSleepHoursValue(entry.sleepHours))
+        .toList(growable: false)
+        .reversed
+        .toList(growable: false);
+
+    if (range == _SleepTimeRange.max) {
+      return chronological;
+    }
+
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+
+    if (range == _SleepTimeRange.day) {
+      return chronological
+          .where((entry) => _sameDate(entry.entryDate, today))
+          .toList(growable: false);
+    }
+
+    final days = range == _SleepTimeRange.week ? 7 : 30;
+    final start = today.subtract(Duration(days: days - 1));
+    final end = today.add(const Duration(days: 1));
+
+    return chronological.where((entry) {
+      final date = DateTime(
+        entry.entryDate.year,
+        entry.entryDate.month,
+        entry.entryDate.day,
+      );
+      return !date.isBefore(start) && date.isBefore(end);
+    }).toList(growable: false);
+  }
+
+  _SleepChartData _chartDataForEntries(List<HealthEntry> entries) {
+    final spots = <FlSpot>[];
+    final values = <double>[];
+
+    for (var i = 0; i < entries.length; i++) {
+      final hours = entries[i].sleepHours;
+      if (!_isValidSleepHoursValue(hours)) {
+        continue;
+      }
+
+      final validHours = hours!;
+      spots.add(FlSpot(spots.length.toDouble(), validHours));
+      values.add(validHours);
+    }
+
+    if (values.isEmpty) {
+      return const _SleepChartData(spots: [], minY: 0, maxY: 1);
+    }
+
+    final minValue = values.reduce((a, b) => a < b ? a : b);
+    final maxValue = values.reduce((a, b) => a > b ? a : b);
+    final range = (maxValue - minValue).abs();
+    final padding = range == 0 ? 1.0 : (range * 0.2).clamp(0.8, 2.0).toDouble();
+    final minY = (minValue - padding).clamp(0, double.infinity).toDouble();
+    final maxY = (maxValue + padding).toDouble();
+
+    return _SleepChartData(
+      spots: spots,
+      minY: minY == maxY ? maxY + 1 : minY,
+      maxY: minY == maxY ? maxY + 1 : maxY,
+    );
+  }
+
+  String _formatDuration(double hours) {
+    final totalMinutes = (hours * 60).round().clamp(0, 16 * 60);
+    final wholeHours = totalMinutes ~/ 60;
+    final minutes = totalMinutes % 60;
+    if (minutes == 0) {
+      return '${wholeHours}h';
+    }
+    return '${wholeHours}h ${minutes.toString().padLeft(2, '0')}m';
+  }
+
+  String _formatLatest(List<HealthEntry> entries) {
+    final values = _validSleepHours(entries);
+    if (values.isEmpty) {
+      return '—';
+    }
+    return _formatDuration(values.last);
+  }
+
+  String _formatAverage(List<HealthEntry> entries) {
+    final values = _validSleepHours(entries);
+    if (values.isEmpty) {
+      return '—';
+    }
+    final average = values.reduce((a, b) => a + b) / values.length;
+    return _formatDuration(average);
+  }
+
+  String _formatMinMax(List<HealthEntry> entries) {
+    final values = _validSleepHours(entries);
+    if (values.isEmpty) {
+      return '—';
+    }
+    final minValue = values.reduce((a, b) => a < b ? a : b);
+    final maxValue = values.reduce((a, b) => a > b ? a : b);
+    return 'Low ${_formatDuration(minValue)}\nHigh ${_formatDuration(maxValue)}';
+  }
+
+  List<double> _validSleepHours(List<HealthEntry> entries) {
+    return entries
+        .map((entry) => entry.sleepHours)
+        .where((hours) => _isValidSleepHoursValue(hours))
+        .cast<double>()
+        .toList(growable: false);
+  }
+
+  double _bottomTitleInterval(int readingCount) {
+    if (readingCount <= 7) {
+      return 1;
+    }
+    return ((readingCount / 4).ceil()).toDouble();
+  }
+
+  double _horizontalGridInterval(double minY, double maxY) {
+    final range = (maxY - minY).abs();
+    if (range <= 3) {
+      return 0.5;
+    }
+    if (range <= 6) {
+      return 1;
+    }
+    if (range <= 12) {
+      return 2;
+    }
+    return 4;
+  }
+
+  Widget _buildBackButton() {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: _goBack,
+        borderRadius: BorderRadius.circular(15),
+        child: Ink(
+          width: 44,
+          height: 44,
+          decoration: BoxDecoration(
+            color: _surface,
+            borderRadius: BorderRadius.circular(15),
+            border: Border.all(color: _border),
+          ),
+          child: const Icon(
+            Icons.arrow_back,
+            color: _primaryText,
+            size: 21,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTopBar() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+      child: Row(
+        children: [
+          _buildBackButton(),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Text(
+              'Sleep',
+              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                    color: _primaryText,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 0,
+                  ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTimeRangeSelector() {
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: _surface,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: _border.withValues(alpha: 0.75)),
+      ),
+      child: Row(
+        children: [
+          for (final range in _SleepTimeRange.values)
+            Expanded(
+              child: _buildTimeRangeSegment(range),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTimeRangeSegment(_SleepTimeRange range) {
+    final selected = range == _selectedTimeRange;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 2),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(14),
+        onTap: () => _selectTimeRange(range),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          height: 38,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: selected ? _accent.withValues(alpha: 0.18) : _surfaceAlt,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: selected ? _accent : Colors.transparent,
+            ),
+          ),
+          child: Text(
+            range.label,
+            style: TextStyle(
+              color: selected ? _primaryText : _secondaryText,
+              fontSize: 13,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildChartSection(
+    _SleepChartData chartData,
+    List<HealthEntry> entries,
+  ) {
+    final hasData = entries.isNotEmpty;
+    final spots = chartData.spots;
+
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: _surface,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: _border.withValues(alpha: 0.75)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Expanded(
+                child: Text(
+                  'Sleep',
+                  style: TextStyle(
+                    color: _primaryText,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+              _buildAddButton(),
+            ],
+          ),
+          const SizedBox(height: 16),
+          SizedBox(
+            height: 280,
+            child: hasData
+                ? LineChart(
+                    LineChartData(
+                      minX: 0,
+                      maxX:
+                          spots.length == 1 ? 1 : (spots.length - 1).toDouble(),
+                      minY: chartData.minY,
+                      maxY: chartData.maxY,
+                      gridData: FlGridData(
+                        show: true,
+                        drawVerticalLine: false,
+                        horizontalInterval: _horizontalGridInterval(
+                            chartData.minY, chartData.maxY),
+                        getDrawingHorizontalLine: (value) => FlLine(
+                          color: Colors.white.withValues(alpha: 0.06),
+                          strokeWidth: 1,
+                        ),
+                      ),
+                      borderData: FlBorderData(show: false),
+                      titlesData: FlTitlesData(
+                        show: true,
+                        topTitles: const AxisTitles(
+                          sideTitles: SideTitles(showTitles: false),
+                        ),
+                        rightTitles: const AxisTitles(
+                          sideTitles: SideTitles(showTitles: false),
+                        ),
+                        leftTitles: const AxisTitles(
+                          sideTitles: SideTitles(showTitles: false),
+                        ),
+                        bottomTitles: AxisTitles(
+                          sideTitles: SideTitles(
+                            showTitles: true,
+                            reservedSize: 30,
+                            interval: _bottomTitleInterval(entries.length),
+                            getTitlesWidget: (value, meta) {
+                              final index = value.round();
+                              if (index < 0 || index >= entries.length) {
+                                return const SizedBox.shrink();
+                              }
+                              return Padding(
+                                padding: const EdgeInsets.only(top: 8),
+                                child: Text(
+                                  DateFormat('d MMM')
+                                      .format(entries[index].entryDate),
+                                  style: const TextStyle(
+                                    color: _secondaryText,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                      ),
+                      lineBarsData: [
+                        LineChartBarData(
+                          isCurved: spots.length > 1,
+                          color: _accent,
+                          barWidth: 3,
+                          isStrokeCapRound: true,
+                          dotData: FlDotData(show: spots.length == 1),
+                          belowBarData: BarAreaData(
+                            show: spots.length > 1,
+                            color: _accent.withValues(alpha: 0.12),
+                          ),
+                          spots: spots,
+                        ),
+                      ],
+                    ),
+                  )
+                : _buildEmptyChartState(),
+          ),
+          const SizedBox(height: 14),
+          Text(
+            hasData
+                ? 'Sleep hours in the selected range.'
+                : 'No sleep data for this period',
+            style: const TextStyle(
+              color: _secondaryText,
+              fontSize: 13,
+              height: 1.35,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAddButton() {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: _openManualEntrySheet,
+        borderRadius: BorderRadius.circular(14),
+        child: Container(
+          width: 44,
+          height: 44,
+          decoration: BoxDecoration(
+            color: _surfaceSoft,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: _border),
+          ),
+          child: const Icon(
+            Icons.add_rounded,
+            color: _accent,
+            size: 22,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmptyChartState() {
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: _surfaceAlt,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: _border.withValues(alpha: 0.85)),
+      ),
+      child: const Center(
+        child: Padding(
+          padding: EdgeInsets.symmetric(vertical: 36, horizontal: 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.bedtime_rounded,
+                color: _secondaryText,
+                size: 34,
+              ),
+              SizedBox(height: 12),
+              Text(
+                'No sleep data for this period',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: _primaryText,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              SizedBox(height: 6),
+              Text(
+                'Tap + to add a sleep entry.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: _secondaryText,
+                  height: 1.35,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStatsSection({
+    required String latestDisplay,
+    required String averageDisplay,
+    required String minMaxDisplay,
+  }) {
+    return Wrap(
+      spacing: 12,
+      runSpacing: 12,
+      children: [
+        _buildStatCard('Latest', latestDisplay),
+        _buildStatCard('Average', averageDisplay),
+        _buildStatCard('Min / Max', minMaxDisplay, wide: true),
+      ],
+    );
+  }
+
+  Widget _buildStatCard(String label, String value, {bool wide = false}) {
+    final multiline = value.contains('\n');
+    return Container(
+      width: wide ? 190 : 148,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: _surface,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: _border.withValues(alpha: 0.75)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: const TextStyle(
+              color: _secondaryText,
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            value,
+            maxLines: multiline ? 3 : 2,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: _primaryText,
+              fontSize: multiline ? 15 : 18,
+              fontWeight: FontWeight.w900,
+              height: multiline ? 1.25 : 1.1,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLoadingState() {
+    return const Center(
+      child: CircularProgressIndicator(
+        color: _accent,
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     return FutureBuilder<_HealthSnapshot>(
-      future: _loadHealthSnapshot(),
+      future: _snapshotFuture,
       builder: (context, snapshot) {
-        final data = snapshot.data;
-        final sleepEntries = data?.entries
-                .where((entry) => entry.sleepHours != null)
-                .toList()
-                .reversed
-                .toList() ??
-            const <HealthEntry>[];
-        final averageSleep = data?.report.averageSleepHours ?? 0;
-        return Scaffold(
-          appBar: AppBar(title: const Text('Sleep')),
-          body: snapshot.connectionState == ConnectionState.waiting &&
-                  data == null
-              ? Center(
-                  child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: LoadingSkeleton.health(context)))
-              : ListView(
-                  padding: const EdgeInsets.all(16),
-                  children: [
-                    const SectionHeader(
-                        title: 'Sleep',
-                        subtitle: 'Track recovery and sleep consistency.'),
-                    const SizedBox(height: 12),
-                    _MetricCard(
-                        label: 'Average sleep',
-                        value: averageSleep > 0
-                            ? averageSleep.toStringAsFixed(1)
-                            : '—',
-                        suffix: 'hours',
-                        color: AppColors.sleep),
-                    const SizedBox(height: 12),
-                    Card(
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: SizedBox(
-                          height: 220,
-                          child: sleepEntries.isEmpty
-                              ? const Center(child: Text('No sleep data yet.'))
-                              : LineChart(
-                                  LineChartData(
-                                    minY: 0,
-                                    maxY: 12,
-                                    gridData: const FlGridData(show: false),
-                                    borderData: FlBorderData(show: false),
-                                    titlesData: FlTitlesData(
-                                      topTitles: const AxisTitles(
-                                          sideTitles:
-                                              SideTitles(showTitles: false)),
-                                      rightTitles: const AxisTitles(
-                                          sideTitles:
-                                              SideTitles(showTitles: false)),
-                                      leftTitles: const AxisTitles(
-                                          sideTitles:
-                                              SideTitles(showTitles: false)),
-                                      bottomTitles: AxisTitles(
-                                        sideTitles: SideTitles(
-                                          showTitles: true,
-                                          reservedSize: 26,
-                                          interval: 1,
-                                          getTitlesWidget: (value, meta) {
-                                            final index = value.toInt();
-                                            if (index < 0 ||
-                                                index >= sleepEntries.length) {
-                                              return const SizedBox.shrink();
-                                            }
-                                            return Padding(
-                                              padding:
-                                                  const EdgeInsets.only(top: 8),
-                                              child: Text(
-                                                  DateFormat('d').format(
-                                                      sleepEntries[index]
-                                                          .entryDate),
-                                                  style: const TextStyle(
-                                                      fontSize: 11)),
-                                            );
-                                          },
-                                        ),
-                                      ),
-                                    ),
-                                    lineBarsData: [
-                                      LineChartBarData(
-                                        isCurved: true,
-                                        color: AppColors.sleep,
-                                        barWidth: 3,
-                                        dotData: const FlDotData(show: true),
-                                        spots: [
-                                          for (var i = 0;
-                                              i < sleepEntries.length;
-                                              i++)
-                                            FlSpot(
-                                                i.toDouble(),
-                                                sleepEntries[i].sleepHours ??
-                                                    0),
-                                        ],
-                                      ),
-                                    ],
+        if (snapshot.hasError) {
+          return Scaffold(
+            backgroundColor: _bg,
+            body: SafeArea(
+              child: Column(
+                children: [
+                  _buildTopBar(),
+                  Expanded(
+                    child: Center(
+                      child: Container(
+                        constraints: const BoxConstraints(maxWidth: 420),
+                        margin: const EdgeInsets.all(20),
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(
+                          color: _surface,
+                          borderRadius: BorderRadius.circular(24),
+                          border:
+                              Border.all(color: _border.withValues(alpha: 0.9)),
+                        ),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.error_outline_rounded,
+                                color: _accent, size: 34),
+                            const SizedBox(height: 12),
+                            const Text(
+                              'Could not load sleep',
+                              style: TextStyle(
+                                color: _primaryText,
+                                fontSize: 18,
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            const Text(
+                              'Try again to load the latest sleep entries.',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                color: _secondaryText,
+                                height: 1.4,
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            SizedBox(
+                              width: double.infinity,
+                              child: FilledButton(
+                                onPressed: _retry,
+                                style: FilledButton.styleFrom(
+                                  backgroundColor: _accent,
+                                  foregroundColor: Colors.white,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(14),
                                   ),
                                 ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Card(
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text('RECENT SLEEP ENTRIES',
-                                style: Theme.of(context).textTheme.labelSmall),
-                            const SizedBox(height: 8),
-                            if (sleepEntries.isEmpty)
-                              const Text('No entries to show.')
-                            else
-                              ...sleepEntries.take(5).map(
-                                    (entry) => ListTile(
-                                      contentPadding: EdgeInsets.zero,
-                                      title: Text(_formatDate(entry.entryDate)),
-                                      subtitle: Text(
-                                          '${entry.sleepHours?.toStringAsFixed(1)} h · ${entry.sleepQuality ?? 'Unknown'}'),
-                                    ),
-                                  ),
+                                child: const Text('Retry'),
+                              ),
+                            ),
                           ],
                         ),
                       ),
                     ),
-                  ],
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+
+        final isLoading = snapshot.connectionState == ConnectionState.waiting &&
+            !snapshot.hasData;
+        final data = snapshot.data ??
+            _HealthSnapshot(
+              user: null,
+              entries: const [],
+              medicines: const [],
+              shield: null,
+              report: HealthReport.fromEntries(
+                month: DateTime.now(),
+                entries: const [],
+                medicines: const [],
+              ),
+            );
+        final sleepEntries =
+            _sleepEntriesForRange(data.entries, _selectedTimeRange);
+        final chartData = _chartDataForEntries(sleepEntries);
+        final latestDisplay = _formatLatest(sleepEntries);
+        final averageDisplay = _formatAverage(sleepEntries);
+        final minMaxDisplay = _formatMinMax(sleepEntries);
+
+        return Scaffold(
+          backgroundColor: _bg,
+          body: SafeArea(
+            child: Column(
+              children: [
+                _buildTopBar(),
+                Expanded(
+                  child: isLoading
+                      ? _buildLoadingState()
+                      : ListView(
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          padding: const EdgeInsets.fromLTRB(20, 22, 20, 24),
+                          children: [
+                            _buildTimeRangeSelector(),
+                            const SizedBox(height: 16),
+                            _buildChartSection(chartData, sleepEntries),
+                            const SizedBox(height: 16),
+                            _buildStatsSection(
+                              latestDisplay: latestDisplay,
+                              averageDisplay: averageDisplay,
+                              minMaxDisplay: minMaxDisplay,
+                            ),
+                          ],
+                        ),
                 ),
+              ],
+            ),
+          ),
         );
       },
+    );
+  }
+}
+
+enum _SleepTimeRange {
+  day('1D'),
+  week('1W'),
+  month('1M'),
+  max('Max');
+
+  final String label;
+
+  const _SleepTimeRange(this.label);
+}
+
+class _SleepChartData {
+  final List<FlSpot> spots;
+  final double minY;
+  final double maxY;
+
+  const _SleepChartData({
+    required this.spots,
+    required this.minY,
+    required this.maxY,
+  });
+}
+
+class _SleepManualEntryResult {
+  final HealthEntry entry;
+  final DateTime entryDate;
+
+  const _SleepManualEntryResult({
+    required this.entry,
+    required this.entryDate,
+  });
+}
+
+class _SleepManualEntrySheet extends StatefulWidget {
+  final ApiService api;
+
+  const _SleepManualEntrySheet({required this.api});
+
+  @override
+  State<_SleepManualEntrySheet> createState() => _SleepManualEntrySheetState();
+}
+
+class _SleepManualEntrySheetState extends State<_SleepManualEntrySheet> {
+  static const _surface = Color(0xFF0F1624);
+  static const _surfaceAlt = Color(0xFF121B2C);
+  static const _surfaceSoft = Color(0xFF11141B);
+  static const _border = Color(0xFF243047);
+  static const _primaryText = Color(0xFFF5F7FB);
+  static const _secondaryText = Color(0xFF94A3B8);
+  static const _accent = Color(0xFF5B8DEF);
+
+  late DateTime _selectedDate;
+  late TimeOfDay _bedtime;
+  late TimeOfDay _wakeTime;
+  bool _saving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final now = DateTime.now();
+    _selectedDate = DateTime(now.year, now.month, now.day);
+    _bedtime = const TimeOfDay(hour: 22, minute: 30);
+    _wakeTime = const TimeOfDay(hour: 6, minute: 30);
+  }
+
+  String get _dateLabel => DateFormat('dd MMM yyyy').format(_selectedDate);
+
+  String get _bedtimeLabel => _formatTimeOfDay(_bedtime);
+
+  String get _wakeTimeLabel => _formatTimeOfDay(_wakeTime);
+
+  int? get _sleepDurationMinutes {
+    final bedtimeMinutes = _bedtime.hour * 60 + _bedtime.minute;
+    final wakeMinutes = _wakeTime.hour * 60 + _wakeTime.minute;
+
+    if (wakeMinutes > bedtimeMinutes) {
+      return wakeMinutes - bedtimeMinutes;
+    }
+
+    return wakeMinutes + (24 * 60) - bedtimeMinutes;
+  }
+
+  Duration? get _sleepDuration {
+    final minutes = _sleepDurationMinutes;
+    if (minutes == null || minutes <= 0) {
+      return null;
+    }
+    return Duration(minutes: minutes);
+  }
+
+  double? get _sleepHours {
+    final duration = _sleepDuration;
+    if (duration == null) {
+      return null;
+    }
+    return double.parse((duration.inMinutes / 60).toStringAsFixed(2));
+  }
+
+  String get _durationLabel {
+    final duration = _sleepDuration;
+    if (duration == null) {
+      return '—';
+    }
+    final hours = duration.inHours;
+    final minutes = duration.inMinutes.remainder(60);
+    return '${hours}h ${minutes.toString().padLeft(2, '0')}m';
+  }
+
+  String _formatTimeOfDay(TimeOfDay timeOfDay) {
+    final hour = timeOfDay.hour.toString().padLeft(2, '0');
+    final minute = timeOfDay.minute.toString().padLeft(2, '0');
+    return '$hour:$minute';
+  }
+
+  ThemeData _pickerTheme(BuildContext context) {
+    return Theme.of(context).copyWith(
+      colorScheme: const ColorScheme.dark(
+        primary: _accent,
+        onPrimary: Colors.white,
+        surface: _surface,
+        onSurface: _primaryText,
+        secondary: _accent,
+      ),
+      dialogTheme: DialogThemeData(
+        backgroundColor: _surface,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(22),
+          side: const BorderSide(color: _border),
+        ),
+      ),
+      datePickerTheme: DatePickerThemeData(
+        backgroundColor: _surface,
+        surfaceTintColor: Colors.transparent,
+        headerBackgroundColor: _surfaceAlt,
+        headerForegroundColor: _primaryText,
+        todayForegroundColor: WidgetStateProperty.all(_accent),
+        todayBorder: const BorderSide(color: _accent),
+      ),
+      timePickerTheme: TimePickerThemeData(
+        backgroundColor: _surface,
+        dialBackgroundColor: _surfaceAlt,
+        dialHandColor: _accent,
+        dialTextColor: _primaryText,
+        entryModeIconColor: _secondaryText,
+        hourMinuteColor: _surfaceAlt,
+        hourMinuteTextColor: _primaryText,
+        dayPeriodColor: _surfaceAlt,
+        dayPeriodTextColor: _primaryText,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(22),
+          side: const BorderSide(color: _border),
+        ),
+      ),
+      textButtonTheme: TextButtonThemeData(
+        style: TextButton.styleFrom(foregroundColor: _accent),
+      ),
+    );
+  }
+
+  Future<void> _pickDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _selectedDate,
+      firstDate: DateTime(2000),
+      lastDate: DateTime.now().add(const Duration(days: 365)),
+      builder: (context, child) {
+        return Theme(
+          data: _pickerTheme(context),
+          child: child!,
+        );
+      },
+    );
+
+    if (picked == null || !mounted) {
+      return;
+    }
+
+    setState(() {
+      _selectedDate = DateTime(picked.year, picked.month, picked.day);
+    });
+  }
+
+  Future<void> _pickBedtime() async {
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: _bedtime,
+      builder: (context, child) {
+        return Theme(
+          data: _pickerTheme(context),
+          child: child!,
+        );
+      },
+    );
+
+    if (picked == null || !mounted) {
+      return;
+    }
+
+    setState(() {
+      _bedtime = picked;
+    });
+  }
+
+  Future<void> _pickWakeTime() async {
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: _wakeTime,
+      builder: (context, child) {
+        return Theme(
+          data: _pickerTheme(context),
+          child: child!,
+        );
+      },
+    );
+
+    if (picked == null || !mounted) {
+      return;
+    }
+
+    setState(() {
+      _wakeTime = picked;
+    });
+  }
+
+  String _timeFrom(TimeOfDay timeOfDay) => _formatTimeOfDay(timeOfDay);
+
+  Map<String, dynamic> _buildPayload() {
+    final entry = HealthEntry(
+      id: 0,
+      entryDate: _selectedDate,
+      wellbeingScore: 5,
+      symptoms: const [],
+      sleepHours: _sleepHours,
+      bedtime: _timeFrom(_bedtime),
+      wakeTime: _timeFrom(_wakeTime),
+    );
+    final payload = entry.toJson();
+    payload.remove('sleepQualityStars');
+    return payload;
+  }
+
+  Future<void> _save() async {
+    FocusScope.of(context).unfocus();
+    final sleepHours = _sleepHours;
+    if (sleepHours == null || sleepHours <= 0) {
+      _showVitalsToast(
+        context,
+        message: 'Sleep duration is invalid',
+        success: false,
+      );
+      return;
+    }
+
+    if (sleepHours > 16) {
+      _showVitalsToast(
+        context,
+        message:
+            'Sleep duration looks too long. Please check bedtime and wake time.',
+        success: false,
+      );
+      return;
+    }
+
+    setState(() {
+      _saving = true;
+    });
+
+    try {
+      final userId = await widget.api.ensureActiveUserId();
+      if (userId == null) {
+        throw StateError('No active user selected');
+      }
+
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('auth_token');
+      final headers = <String, String>{'Content-Type': 'application/json'};
+      if (token != null && token.isNotEmpty) {
+        headers['Authorization'] = 'Bearer $token';
+      }
+
+      final response = await http.post(
+        Uri.parse('${widget.api.baseUrl}/health-entries/users/$userId'),
+        headers: headers,
+        body: jsonEncode(_buildPayload()),
+      );
+
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        throw Exception('Could not save health entry');
+      }
+
+      if (!mounted) {
+        return;
+      }
+      Navigator.of(context).pop(
+        _SleepManualEntryResult(
+          entry: HealthEntry(
+            id: 0,
+            entryDate: _selectedDate,
+            wellbeingScore: 5,
+            symptoms: const [],
+            sleepHours: sleepHours,
+            bedtime: _timeFrom(_bedtime),
+            wakeTime: _timeFrom(_wakeTime),
+          ),
+          entryDate: _selectedDate,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _saving = false;
+      });
+      _showVitalsToast(
+        context,
+        message: 'Could not save sleep',
+        success: false,
+      );
+    }
+  }
+
+  Widget _buildPickerField({
+    required String label,
+    required String value,
+    required IconData icon,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(18),
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: _surfaceAlt,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: _border),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  color: _surfaceSoft,
+                  borderRadius: BorderRadius.circular(13),
+                  border: Border.all(color: _border),
+                ),
+                child: Icon(icon, color: _accent, size: 18),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      label,
+                      style: const TextStyle(
+                        color: _secondaryText,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      value,
+                      style: const TextStyle(
+                        color: _primaryText,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(
+                Icons.chevron_right_rounded,
+                color: _secondaryText,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDurationCard() {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: _surfaceAlt,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: _border),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+              color: _surfaceSoft,
+              borderRadius: BorderRadius.circular(13),
+              border: Border.all(color: _border),
+            ),
+            child:
+                const Icon(Icons.timelapse_rounded, color: _accent, size: 18),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Duration',
+                  style: TextStyle(
+                    color: _secondaryText,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  _durationLabel,
+                  style: const TextStyle(
+                    color: _primaryText,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildActionButtons() {
+    final canSave = !_saving && _sleepHours != null;
+    return Row(
+      children: [
+        Expanded(
+          child: TextButton(
+            onPressed: _saving ? null : () => Navigator.of(context).pop(),
+            style: TextButton.styleFrom(
+              foregroundColor: _secondaryText,
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+                side: BorderSide(color: _border.withValues(alpha: 0.9)),
+              ),
+            ),
+            child: const Text('Cancel'),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: FilledButton(
+            onPressed: canSave ? _save : null,
+            style: FilledButton.styleFrom(
+              backgroundColor: _accent,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+            ),
+            child: _saving
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2.2,
+                      color: Colors.white,
+                    ),
+                  )
+                : const Text('Save'),
+          ),
+        ),
+      ],
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding:
+          EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      child: Container(
+        decoration: BoxDecoration(
+          color: _surface,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+          border: Border.all(color: _border.withValues(alpha: 0.9)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.42),
+              blurRadius: 26,
+              offset: const Offset(0, -10),
+            ),
+          ],
+        ),
+        child: SafeArea(
+          top: false,
+          child: SingleChildScrollView(
+            physics: const BouncingScrollPhysics(),
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Center(
+                  child: Container(
+                    width: 44,
+                    height: 5,
+                    decoration: BoxDecoration(
+                      color: _secondaryText.withValues(alpha: 0.35),
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  'Add sleep',
+                  style: TextStyle(
+                    color: _primaryText,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                const Text(
+                  'Save bedtime and wake time. Sleep duration is calculated automatically.',
+                  style: TextStyle(
+                    color: _secondaryText,
+                    height: 1.35,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                _buildPickerField(
+                  label: 'Date',
+                  value: _dateLabel,
+                  icon: Icons.calendar_today_rounded,
+                  onTap: _pickDate,
+                ),
+                const SizedBox(height: 12),
+                _buildPickerField(
+                  label: 'Bedtime',
+                  value: _bedtimeLabel,
+                  icon: Icons.nightlight_round,
+                  onTap: _pickBedtime,
+                ),
+                const SizedBox(height: 12),
+                _buildPickerField(
+                  label: 'Wake time',
+                  value: _wakeTimeLabel,
+                  icon: Icons.wb_sunny_rounded,
+                  onTap: _pickWakeTime,
+                ),
+                const SizedBox(height: 12),
+                _buildDurationCard(),
+                const SizedBox(height: 12),
+                const Text(
+                  'Bedtime and wake time are stored when the API supports these fields.',
+                  style: TextStyle(
+                    color: _secondaryText,
+                    fontSize: 12,
+                    height: 1.35,
+                  ),
+                ),
+                const SizedBox(height: 18),
+                _buildActionButtons(),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

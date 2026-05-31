@@ -198,6 +198,12 @@ class _DashboardScreenState extends State<DashboardScreen>
     }
   }
 
+  Future<void> _openSleep() async {
+    await context.pushNamed('healthSleep');
+    if (!mounted) return;
+    await _refresh();
+  }
+
   Future<void> _openVitals() async {
     await context.pushNamed('healthVitals');
     if (!mounted) return;
@@ -482,16 +488,23 @@ class _DashboardScreenState extends State<DashboardScreen>
     }
   }
 
-  HealthEntry? _todayEntry() {
+  HealthEntry? _latestValidSleepEntryForToday() {
     final today = DateTime.now();
-    final matches = _state.entries.where((e) =>
-        e.entryDate.year == today.year &&
-        e.entryDate.month == today.month &&
-        e.entryDate.day == today.day);
-    return matches.isNotEmpty ? matches.first : null;
+    final matches = _state.entries.where((entry) {
+      return _sameDay(entry.entryDate, today) &&
+          _isValidSleepHours(entry.sleepHours);
+    }).toList(growable: false);
+
+    if (matches.isEmpty) {
+      return null;
+    }
+
+    matches.sort((a, b) => _entrySortKey(b).compareTo(_entrySortKey(a)));
+    return matches.first;
   }
 
-  double _todaySleepHours() => _todayEntry()?.effectiveSleepHours ?? 0.0;
+  double _todaySleepHours() =>
+      _latestValidSleepEntryForToday()?.sleepHours ?? 0.0;
 
   int _todaySteps() => _sumStepsForDay(DateTime.now());
 
@@ -562,7 +575,24 @@ class _DashboardScreenState extends State<DashboardScreen>
   }
 
   String _formatSleep(double value) {
-    return value > 0 ? value.toStringAsFixed(1) : 'No data';
+    if (!_isValidSleepHours(value)) {
+      return 'No data';
+    }
+    final totalMinutes = (value * 60).round();
+    final hours = totalMinutes ~/ 60;
+    final minutes = totalMinutes % 60;
+    if (minutes == 0) {
+      return '${hours}h';
+    }
+    return '${hours}h ${minutes.toString().padLeft(2, '0')}m';
+  }
+
+  bool _isValidSleepHours(double? value) {
+    return value != null && value > 0 && value <= 16;
+  }
+
+  DateTime _entrySortKey(HealthEntry entry) {
+    return entry.updatedAt ?? entry.createdAt ?? entry.entryDate;
   }
 
   bool _hasVitalsData(HealthEntry entry) {
@@ -834,14 +864,17 @@ class _DashboardScreenState extends State<DashboardScreen>
                 onTap: () => context.pushNamed('healthActivity'),
               );
             case 'sleep':
+              final sleepEntry = _latestValidSleepEntryForToday();
               return _favoriteCard(
                 title: option.label,
-                value: _formatSleep(_todaySleepHours()),
+                value: sleepEntry != null
+                    ? _formatSleep(sleepEntry.sleepHours ?? 0)
+                    : 'No data',
                 subtitle:
-                    _todaySleepHours() > 0 ? 'hours today' : 'Tap to update',
+                    sleepEntry != null ? 'Updated today' : 'Tap to update',
                 icon: Icons.bedtime_outlined,
                 accent: _accent,
-                onTap: () => context.pushNamed('healthSleep'),
+                onTap: _openSleep,
               );
             case 'vitals':
               return _favoriteCard(
@@ -935,7 +968,6 @@ class _DashboardScreenState extends State<DashboardScreen>
   Widget _buildFeed() {
     if (_loading) return _loadingCard(height: 420);
 
-    final entry = _todayEntry();
     final activeMeds = _activeMedicinesCount();
     final shield = _state.shield;
     final shieldProgress = shield?.progressPercent ?? 0;
@@ -961,11 +993,11 @@ class _DashboardScreenState extends State<DashboardScreen>
           title: 'Sleep',
           value: _formatSleep(_todaySleepHours()),
           subtitle: _todaySleepHours() > 0
-              ? entry?.sleepQuality ?? 'Sleep recorded'
+              ? 'Sleep logged today'
               : 'No sleep data for today',
           icon: Icons.nightlight_outlined,
           accent: _accent,
-          onTap: () => context.pushNamed('healthSleep'),
+          onTap: _openSleep,
         ),
         _feedGap(),
         _feedCard(
