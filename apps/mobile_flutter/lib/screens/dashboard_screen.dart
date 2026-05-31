@@ -1,8 +1,11 @@
 import 'dart:convert';
+import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
+import '../config/theme.dart';
 import '../models/models.dart';
 import '../services/api_service.dart';
 
@@ -29,6 +32,13 @@ class _DashboardStateModel {
   });
 }
 
+class _FavoriteOption {
+  final String key;
+  final String label;
+
+  const _FavoriteOption({required this.key, required this.label});
+}
+
 class _DashboardScreenState extends State<DashboardScreen>
     with AutomaticKeepAliveClientMixin {
   static const _bg = Color(0xFF070B13);
@@ -41,9 +51,26 @@ class _DashboardScreenState extends State<DashboardScreen>
   static const _green = Color(0xFF5FB878);
   static const _orange = Color(0xFFD4956A);
   static const _danger = Color(0xFFFF6B6B);
+  static const _prefsFavoriteKeys = 'dashboard_favorite_keys';
+  static const List<String> _defaultFavoriteKeys = [
+    'activity',
+    'sleep',
+    'vitals',
+    'medicines',
+  ];
+
+  static const List<_FavoriteOption> _favoriteOptions = [
+    _FavoriteOption(key: 'activity', label: 'Activity'),
+    _FavoriteOption(key: 'sleep', label: 'Sleep'),
+    _FavoriteOption(key: 'vitals', label: 'Vitals'),
+    _FavoriteOption(key: 'medicines', label: 'Medicines'),
+    _FavoriteOption(key: 'healthShield', label: 'Health Shield'),
+    _FavoriteOption(key: 'insights', label: 'Insights / Trends'),
+  ];
 
   final ApiService _api = ApiService.instance;
   _DashboardStateModel _state = const _DashboardStateModel();
+  List<String> _favoriteKeys = List<String>.from(_defaultFavoriteKeys);
   bool _loading = true;
 
   @override
@@ -52,7 +79,51 @@ class _DashboardScreenState extends State<DashboardScreen>
   @override
   void initState() {
     super.initState();
+    unawaited(_loadFavoriteKeys());
     _loadAll();
+  }
+
+  Future<void> _loadFavoriteKeys() async {
+    final prefs = await SharedPreferences.getInstance();
+    final storedKeys = prefs.getStringList(_prefsFavoriteKeys);
+    final validKeys = _normalizeFavoriteKeys(storedKeys);
+    final resolvedKeys =
+        validKeys.isEmpty ? List<String>.from(_defaultFavoriteKeys) : validKeys;
+
+    if (storedKeys == null || !_sameFavoriteKeys(storedKeys, resolvedKeys)) {
+      await prefs.setStringList(_prefsFavoriteKeys, resolvedKeys);
+    }
+
+    if (!mounted) return;
+    setState(() {
+      _favoriteKeys = resolvedKeys;
+    });
+  }
+
+  List<String> _normalizeFavoriteKeys(List<String>? keys) {
+    if (keys == null) return const [];
+    final normalized = <String>[];
+    for (final key in _favoriteOptions.map((option) => option.key)) {
+      if (keys.contains(key)) {
+        normalized.add(key);
+      }
+    }
+    return normalized;
+  }
+
+  bool _sameFavoriteKeys(List<String> a, List<String> b) {
+    if (a.length != b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      if (a[i] != b[i]) return false;
+    }
+    return true;
+  }
+
+  List<_FavoriteOption> get _selectedFavoriteOptions {
+    final selected = _favoriteKeys.toSet();
+    return _favoriteOptions
+        .where((option) => selected.contains(option.key))
+        .toList(growable: false);
   }
 
   Future<void> _loadAll() async {
@@ -124,6 +195,284 @@ class _DashboardScreenState extends State<DashboardScreen>
     final result = await context.pushNamed('meds');
     if (result == true && mounted) {
       await _refresh();
+    }
+  }
+
+  void _showFavoritesWarning(String message) {
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.clearSnackBars();
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(message),
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: _surfaceAlt,
+        margin: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(14),
+          side: BorderSide(color: _border.withValues(alpha: 0.9)),
+        ),
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
+  Future<void> _saveFavoriteKeys(List<String> keys) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList(_prefsFavoriteKeys, keys);
+  }
+
+  Future<void> _openEditFavoritesSheet() async {
+    final currentSelection = _favoriteKeys.toSet();
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) {
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            final selectedCount = currentSelection.length;
+            final navigator = Navigator.of(sheetContext);
+
+            void toggleFavorite(String key) {
+              setSheetState(() {
+                if (currentSelection.contains(key)) {
+                  currentSelection.remove(key);
+                } else {
+                  currentSelection.add(key);
+                }
+              });
+            }
+
+            Future<void> saveSelection() async {
+              if (currentSelection.isEmpty) {
+                _showFavoritesWarning('Select at least one favorite.');
+                return;
+              }
+
+              final normalizedSelection = _favoriteOptions
+                  .where((option) => currentSelection.contains(option.key))
+                  .map((option) => option.key)
+                  .toList(growable: false);
+
+              await _saveFavoriteKeys(normalizedSelection);
+              if (!mounted) return;
+              setState(() {
+                _favoriteKeys = normalizedSelection;
+              });
+              navigator.pop();
+            }
+
+            return SafeArea(
+              top: false,
+              child: Container(
+                decoration: BoxDecoration(
+                  color: _surface,
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(28),
+                  ),
+                  border: Border.all(
+                    color: _border.withValues(alpha: 0.85),
+                    width: 1,
+                  ),
+                ),
+                child: Padding(
+                  padding: EdgeInsets.only(
+                    left: 20,
+                    right: 20,
+                    top: 12,
+                    bottom: 20 + MediaQuery.of(context).padding.bottom,
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Center(
+                        child: Container(
+                          width: 44,
+                          height: 4,
+                          decoration: BoxDecoration(
+                            color: _secondaryText.withValues(alpha: 0.35),
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 18),
+                      Text(
+                        'Edit favorites',
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                              color: _primaryText,
+                              fontWeight: FontWeight.w900,
+                            ),
+                      ),
+                      const SizedBox(height: 8),
+                      const Text(
+                        'Choose the shortcuts shown on Home.',
+                        style: TextStyle(
+                          color: _secondaryText,
+                          height: 1.3,
+                        ),
+                      ),
+                      const SizedBox(height: 18),
+                      ConstrainedBox(
+                        constraints: BoxConstraints(
+                          maxHeight: MediaQuery.of(context).size.height * 0.56,
+                        ),
+                        child: ListView.separated(
+                          shrinkWrap: true,
+                          itemCount: _favoriteOptions.length,
+                          separatorBuilder: (_, __) =>
+                              const SizedBox(height: 10),
+                          itemBuilder: (context, index) {
+                            final option = _favoriteOptions[index];
+                            final selected =
+                                currentSelection.contains(option.key);
+                            return InkWell(
+                              borderRadius: BorderRadius.circular(16),
+                              onTap: () => toggleFavorite(option.key),
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 180),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 14,
+                                  vertical: 14,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: selected
+                                      ? _accent.withValues(alpha: 0.12)
+                                      : _surfaceAlt,
+                                  borderRadius: BorderRadius.circular(16),
+                                  border: Border.all(
+                                    color: selected
+                                        ? _accent.withValues(alpha: 0.9)
+                                        : _border.withValues(alpha: 0.85),
+                                    width: 1,
+                                  ),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      width: 40,
+                                      height: 40,
+                                      decoration: BoxDecoration(
+                                        color: selected
+                                            ? _accent.withValues(alpha: 0.16)
+                                            : Colors.white
+                                                .withValues(alpha: 0.04),
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      child: Icon(
+                                        _favoriteIconForKey(option.key),
+                                        color:
+                                            selected ? _accent : _secondaryText,
+                                        size: 20,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Text(
+                                        option.label,
+                                        style: TextStyle(
+                                          color: selected
+                                              ? _primaryText
+                                              : _secondaryText,
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w800,
+                                        ),
+                                      ),
+                                    ),
+                                    Checkbox(
+                                      value: selected,
+                                      onChanged: (_) =>
+                                          toggleFavorite(option.key),
+                                      activeColor: _accent,
+                                      checkColor: _bg,
+                                      side: BorderSide(
+                                        color: selected
+                                            ? _accent
+                                            : _secondaryText.withValues(
+                                                alpha: 0.5,
+                                              ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton(
+                              onPressed: () => Navigator.of(sheetContext).pop(),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: _primaryText,
+                                side: BorderSide(
+                                  color: _border.withValues(alpha: 0.95),
+                                ),
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 14),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                              ),
+                              child: const Text('Cancel'),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: ElevatedButton(
+                              onPressed: selectedCount == 0
+                                  ? () => _showFavoritesWarning(
+                                      'Select at least one favorite.')
+                                  : saveSelection,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: _accent,
+                                foregroundColor: _bg,
+                                disabledBackgroundColor:
+                                    _accent.withValues(alpha: 0.35),
+                                disabledForegroundColor:
+                                    _bg.withValues(alpha: 0.55),
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 14),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                              ),
+                              child: const Text('Save'),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  IconData _favoriteIconForKey(String key) {
+    switch (key) {
+      case 'activity':
+        return Icons.directions_walk;
+      case 'sleep':
+        return Icons.bedtime_outlined;
+      case 'vitals':
+        return Icons.monitor_heart_outlined;
+      case 'medicines':
+        return Icons.medication_outlined;
+      case 'healthShield':
+        return Icons.shield_outlined;
+      case 'insights':
+        return Icons.insights_outlined;
+      default:
+        return Icons.circle_outlined;
     }
   }
 
@@ -270,14 +619,15 @@ class _DashboardScreenState extends State<DashboardScreen>
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        Expanded(
+        const Expanded(
           child: Text(
-            'Summary',
-            style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                  color: _primaryText,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: 0,
-                ),
+            'HealthTrackMe',
+            style: TextStyle(
+              color: AppColors.primaryBlue,
+              fontSize: 24,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0,
+            ),
           ),
         ),
         const SizedBox(width: 16),
@@ -402,42 +752,80 @@ class _DashboardScreenState extends State<DashboardScreen>
         ? _state.medicines.firstWhere((m) => m.isActive)
         : null;
 
-    final cards = [
-      _favoriteCard(
-        title: 'Activity',
-        value: _formatInt(_todaySteps()),
-        subtitle: _todayActiveMinutes() > 0
-            ? '${_todayActiveMinutes()} active min'
-            : 'Tap to update',
-        icon: Icons.directions_walk,
-        accent: _green,
-        onTap: () => context.pushNamed('healthActivity'),
-      ),
-      _favoriteCard(
-        title: 'Sleep',
-        value: _formatSleep(_todaySleepHours()),
-        subtitle: _todaySleepHours() > 0 ? 'hours today' : 'Tap to update',
-        icon: Icons.bedtime_outlined,
-        accent: _accent,
-        onTap: () => context.pushNamed('healthSleep'),
-      ),
-      _favoriteCard(
-        title: 'Heart',
-        value: _formatHeart(entry),
-        subtitle: entry?.heartRate != null ? 'bpm' : 'Tap to update',
-        icon: Icons.favorite_outline,
-        accent: _danger,
-        onTap: () => context.pushNamed('healthVitals'),
-      ),
-      _favoriteCard(
-        title: 'Medicines',
-        value: activeMeds > 0 ? activeMeds.toString() : 'No data',
-        subtitle: firstMedicine?.name ?? 'Tap to update',
-        icon: Icons.medication_outlined,
-        accent: _orange,
-        onTap: _openMedicines,
-      ),
-    ];
+    final cards = _selectedFavoriteOptions
+        .map((option) {
+          switch (option.key) {
+            case 'activity':
+              return _favoriteCard(
+                title: option.label,
+                value: _formatInt(_todaySteps()),
+                subtitle: _todayActiveMinutes() > 0
+                    ? '${_todayActiveMinutes()} active min'
+                    : 'Tap to update',
+                icon: Icons.directions_walk,
+                accent: _green,
+                onTap: () => context.pushNamed('healthActivity'),
+              );
+            case 'sleep':
+              return _favoriteCard(
+                title: option.label,
+                value: _formatSleep(_todaySleepHours()),
+                subtitle:
+                    _todaySleepHours() > 0 ? 'hours today' : 'Tap to update',
+                icon: Icons.bedtime_outlined,
+                accent: _accent,
+                onTap: () => context.pushNamed('healthSleep'),
+              );
+            case 'vitals':
+              return _favoriteCard(
+                title: option.label,
+                value: _formatHeart(entry),
+                subtitle: _vitalsSubtitle(entry),
+                icon: Icons.monitor_heart_outlined,
+                accent: _danger,
+                onTap: () => context.pushNamed('healthVitals'),
+              );
+            case 'medicines':
+              return _favoriteCard(
+                title: option.label,
+                value: activeMeds > 0 ? activeMeds.toString() : 'No data',
+                subtitle: firstMedicine?.name ?? 'Tap to update',
+                icon: Icons.medication_outlined,
+                accent: _orange,
+                onTap: _openMedicines,
+              );
+            case 'healthShield':
+              return _favoriteCard(
+                title: option.label,
+                value: _state.shield?.level.toString() ?? 'No data',
+                subtitle: _state.shield?.levelName ?? 'Tap to update',
+                icon: Icons.shield_outlined,
+                accent: _accent,
+                onTap: () {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Health Shield details coming soon'),
+                    ),
+                  );
+                },
+              );
+            case 'insights':
+              return _favoriteCard(
+                title: option.label,
+                value: _state.entries.isNotEmpty ? 'History ready' : 'No data',
+                subtitle: _state.entries.isNotEmpty
+                    ? 'Review your recent health patterns'
+                    : 'Add module data to unlock trends',
+                icon: Icons.insights_outlined,
+                accent: _accent,
+                onTap: () => context.pushNamed('healthHistory'),
+              );
+            default:
+              return null;
+          }
+        })
+        .whereType<Widget>()
+        .toList(growable: false);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -455,25 +843,23 @@ class _DashboardScreenState extends State<DashboardScreen>
               ),
             ),
             TextButton(
-              onPressed: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                      content: Text('Favorites editing coming soon')),
-                );
-              },
+              onPressed: _openEditFavoritesSheet,
               child: const Text('Edit'),
             ),
           ],
         ),
         const SizedBox(height: 12),
-        GridView.count(
-          crossAxisCount: 2,
-          crossAxisSpacing: 12,
-          mainAxisSpacing: 12,
-          childAspectRatio: 1.28,
+        GridView.builder(
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 2,
+            crossAxisSpacing: 12,
+            mainAxisSpacing: 12,
+            childAspectRatio: 1.28,
+          ),
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
-          children: cards,
+          itemCount: cards.length,
+          itemBuilder: (context, index) => cards[index],
         ),
       ],
     );
