@@ -17,7 +17,8 @@ class ApiService {
   static const _prefsKeyActiveUserId = 'healthtrackme_active_user_id';
   static const _prefsKeyAuthToken = 'auth_token';
   static const String _webDefault = 'http://localhost:8080/api/v1';
-  static const String _androidDefault = 'https://healthtrackme-production.up.railway.app/api/v1';
+  static const String _androidDefault =
+      'https://healthtrackme-production.up.railway.app/api/v1';
 
   late SharedPreferences _prefs;
   String _baseUrl = _resolveDefaultBaseUrl();
