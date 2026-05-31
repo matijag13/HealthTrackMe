@@ -54,5 +54,15 @@ class WearableDeviceController(private val deviceService: WearableDeviceService)
             ResponseEntity.notFound().build()
         }
     }
+
+    @DeleteMapping("/{id}")
+    fun disconnectDevice(@PathVariable id: Long): ResponseEntity<ApiResponse<Void>> {
+        return try {
+            deviceService.disconnectDevice(id)
+            ResponseEntity.ok().body(ApiResponse(success = true, message = "Device disconnected", data = null))
+        } catch (e: Exception) {
+            ResponseEntity.notFound().build()
+        }
+    }
 }
 

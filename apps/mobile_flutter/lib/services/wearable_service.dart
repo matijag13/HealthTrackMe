@@ -278,28 +278,30 @@ class WearableService {
     }
   }
 
-  /// Upload synced data to backend
+  /// Upload synced data to backend as a health entry
   Future<void> _uploadSyncData(WearableSyncData data) async {
     try {
-      await _api.ensureActiveUserId();
+      final userId = await _api.ensureActiveUserId();
+      if (userId == null) throw Exception('No active user');
 
-      final endpoint =
-          _isIOS ? '/wearable/sync/apple-health' : '/wearable/sync/google-fit';
-
-      // Create health entry from synced data
-      final payload = {
-        'date': data.date.toIso8601String().split('T')[0],
-        'heartRate': data.heartRateAvg?.toInt(),
-        'sleepHours': data.sleepHours,
-        'sleepQuality': data.sleepQuality,
-        'waterIntakeMl': null, // Not available from wearables
-        'caloriesConsumed': data.calories,
-        'wellbeingScore': 5, // Default middle score
-        'notes': 'Synced from ${_isIOS ? 'Apple Health' : 'Google Fit'}',
+      final payload = <String, dynamic>{
+        'entryDate': data.date.toIso8601String().split('T')[0],
+        'wellbeingScore': 5,
+        'notes':
+            'Synced from ${_isIOS ? 'Apple Health' : 'Google Fit / Health Connect'}',
       };
+      if (data.heartRateAvg != null) {
+        payload['heartRate'] = data.heartRateAvg!.toInt();
+      }
+      if (data.sleepHours != null) {
+        payload['sleepHours'] = data.sleepHours;
+      }
+      if (data.calories != null) {
+        payload['caloriesConsumed'] = data.calories;
+      }
 
       final response = await http.post(
-        _uri(endpoint),
+        _uri('/health-entries/users/$userId'),
         headers: await _headers(extra: {'Content-Type': 'application/json'}),
         body: jsonEncode(payload),
       );
@@ -319,29 +321,20 @@ class WearableService {
   /// Get list of connected wearable devices
   Future<List<WearableDevice>> getConnectedDevices(int userId) async {
     try {
-      if (kIsWeb) {
-        return [];
-      }
-
-      await _api.ensureActiveUserId();
+      if (kIsWeb) return [];
 
       final response = await http.get(
-        _uri('/wearable/devices', queryParameters: {
-          'userId': userId.toString(),
-        }),
+        _uri('/wearable-devices/users/$userId'),
         headers: await _headers(),
       );
 
       final data = jsonDecode(response.body) as Map<String, dynamic>;
-
       if (data['success'] == true && data['data'] != null) {
-        final devices = (data['data'] as List)
+        return (data['data'] as List)
             .map(
                 (item) => WearableDevice.fromJson(item as Map<String, dynamic>))
             .toList();
-        return devices;
       }
-
       return [];
     } catch (e) {
       debugPrint('❌ Error fetching devices: $e');
@@ -356,26 +349,23 @@ class WearableService {
     WearableDeviceType type,
   ) async {
     try {
-      if (kIsWeb) {
-        throw UnsupportedError('Wearable devices are not supported on web');
-      }
+      if (kIsWeb) throw UnsupportedError('Not supported on web');
 
-      await _api.ensureActiveUserId();
-
+      final deviceId =
+          '${type.name}_${userId}_${DateTime.now().millisecondsSinceEpoch}';
       final payload = {
         'deviceName': name,
-        'deviceType': type.toString().split('.').last,
-        'userId': userId,
+        'deviceType': type.name.toUpperCase(),
+        'deviceId': deviceId,
       };
 
       final response = await http.post(
-        _uri('/wearable/devices'),
+        _uri('/wearable-devices/users/$userId'),
         headers: await _headers(extra: {'Content-Type': 'application/json'}),
         body: jsonEncode(payload),
       );
 
       final data = jsonDecode(response.body) as Map<String, dynamic>;
-
       if (data['success'] == true && data['data'] != null) {
         final device =
             WearableDevice.fromJson(data['data'] as Map<String, dynamic>);
@@ -383,7 +373,7 @@ class WearableService {
         return device;
       }
 
-      throw Exception('Failed to add device');
+      throw Exception(data['message'] ?? 'Failed to add device');
     } catch (e) {
       debugPrint('❌ Error adding device: $e');
       rethrow;
@@ -393,24 +383,18 @@ class WearableService {
   /// Disconnect device
   Future<bool> disconnectDevice(int deviceId) async {
     try {
-      if (kIsWeb) {
-        return false;
-      }
-
-      await _api.ensureActiveUserId();
+      if (kIsWeb) return false;
 
       final response = await http.delete(
-        _uri('/wearable/devices/$deviceId'),
+        _uri('/wearable-devices/$deviceId'),
         headers: await _headers(),
       );
 
       final data = jsonDecode(response.body) as Map<String, dynamic>;
-
       if (data['success'] == true) {
         debugPrint('✅ Device disconnected');
         return true;
       }
-
       return false;
     } catch (e) {
       debugPrint('❌ Error disconnecting device: $e');
@@ -418,32 +402,10 @@ class WearableService {
     }
   }
 
-  /// Get sync history
+  /// Get sync history — not yet supported by backend, returns empty
   Future<List<SyncEvent>> getSyncHistory(int userId) async {
     try {
-      if (kIsWeb) {
-        return [];
-      }
-
-      await _api.ensureActiveUserId();
-
-      final response = await http.get(
-        _uri('/wearable/sync-history', queryParameters: {
-          'userId': userId.toString(),
-          'limit': '20',
-        }),
-        headers: await _headers(),
-      );
-
-      final data = jsonDecode(response.body) as Map<String, dynamic>;
-
-      if (data['success'] == true && data['data'] != null) {
-        final events = (data['data'] as List)
-            .map((item) => SyncEvent.fromJson(item as Map<String, dynamic>))
-            .toList();
-        return events;
-      }
-
+      if (kIsWeb) return [];
       return [];
     } catch (e) {
       debugPrint('❌ Error fetching sync history: $e');
