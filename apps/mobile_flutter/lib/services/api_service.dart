@@ -181,74 +181,6 @@ class ApiService {
     return -1;
   }
 
-  List<String> _webFallbackBaseUrls() {
-    return [
-      'http://localhost:8080/api/v1',
-      'http://localhost:8080/api/v1',
-      'http://127.0.0.1:8080/api/v1',
-      'http://127.0.0.1:8080/api/v1',
-    ];
-  }
-
-  Future<bool> _canReachUrl(String baseUrl) async {
-    try {
-      final testUrl = '$baseUrl/users';
-      debugPrint('Attempting to reach: $testUrl');
-      final response = await http
-          .get(Uri.parse(testUrl))
-          .timeout(const Duration(seconds: 1));
-      final success = response.statusCode >= 200 && response.statusCode < 300;
-      if (!success) {
-        debugPrint('  Response code: ${response.statusCode}');
-      }
-      return success;
-    } catch (e) {
-      debugPrint('  Connection failed: $e');
-      return false;
-    }
-  }
-
-  Future<String> _resolveReachableBaseUrl(
-      {required String preferredBaseUrl}) async {
-    final candidates = <String>[];
-    candidates.add(preferredBaseUrl);
-
-    // Only add fallbacks if preferred is not reachable
-    if (kIsWeb) {
-      // Add web fallbacks
-      for (final fallback in _webFallbackBaseUrls()) {
-        if (!candidates.contains(fallback)) candidates.add(fallback);
-      }
-    } else {
-      // Add Android fallbacks only as secondary options
-      const androidFallbacks = [
-        'http://10.0.2.2:8081/api/v1',
-        'http://10.0.2.2:8080/api/v1',
-      ];
-      for (final fallback in androidFallbacks) {
-        if (!candidates.contains(fallback)) candidates.add(fallback);
-      }
-    }
-
-    // Try to reach the preferred URL with shorter timeout
-    for (final candidate in candidates.take(2)) {
-      // Only try first 2 candidates to avoid excessive delays
-      debugPrint('Testing API connectivity: $candidate');
-      try {
-        if (await _canReachUrl(candidate).timeout(const Duration(seconds: 1))) {
-          debugPrint('Connected to API at: $candidate');
-          return candidate;
-        }
-      } catch (e) {
-        debugPrint('Timeout testing $candidate: $e');
-      }
-    }
-
-    debugPrint(
-        'Could not reach any API candidate, using preferred: $preferredBaseUrl');
-    return preferredBaseUrl;
-  }
-
   Uri _uri(String path, {Map<String, String>? queryParameters}) {
     final cleanPath = path.startsWith('/') ? path : '/$path';
     final normalizedBase = _normalizeBaseUrl(_baseUrl);
@@ -431,7 +363,14 @@ class ApiService {
   }
 
   Future<bool> canReachBackend() async {
-    return _canReachUrl(baseUrl);
+    try {
+      final response = await http
+          .get(Uri.parse('$baseUrl/users'))
+          .timeout(const Duration(seconds: 3));
+      return response.statusCode >= 200 && response.statusCode < 300;
+    } catch (_) {
+      return false;
+    }
   }
 
   Future<List<User>> getUsers() async {
