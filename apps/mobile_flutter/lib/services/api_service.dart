@@ -58,36 +58,18 @@ class ApiService {
 
   Future<void> init() async {
     _prefs = await SharedPreferences.getInstance();
-    final stored = _prefs.getString(_prefsKeyBaseUrl);
 
-    final preferred = _normalizeBaseUrl(stored ?? _baseUrl);
-    if (stored != preferred) {
-      await _prefs.setString(_prefsKeyBaseUrl, preferred);
-    }
-
-    // Don't wait for reachable URL check - use preferred URL and check in background
+    // Always use the compiled-in default URL, ignoring any cached URL.
+    // This ensures the correct Railway URL is used after an APK update.
+    final preferred = _resolveDefaultBaseUrl();
     _baseUrl = preferred;
-    _validateAndUpdateBaseUrlInBackground();
+    await _prefs.setString(_prefsKeyBaseUrl, preferred);
 
     _activeUserId = _prefs.getInt(_prefsKeyActiveUserId);
     _authToken = _prefs.getString(_prefsKeyAuthToken);
 
     // Run reconciliation in background without blocking app startup
     _reconcileStoredActiveUserIdInBackground();
-  }
-
-  /// Check API connectivity in background without blocking initialization
-  Future<void> _validateAndUpdateBaseUrlInBackground() async {
-    try {
-      final reachable =
-          await _resolveReachableBaseUrl(preferredBaseUrl: _baseUrl);
-      if (reachable != _baseUrl) {
-        _baseUrl = reachable;
-        await _prefs.setString(_prefsKeyBaseUrl, reachable);
-      }
-    } catch (e) {
-      debugPrint('Background URL validation error: $e');
-    }
   }
 
   /// Reconcile active user in background without blocking app startup
@@ -197,74 +179,6 @@ class ApiService {
       }
     }
     return -1;
-  }
-
-  List<String> _webFallbackBaseUrls() {
-    return [
-      'http://localhost:8080/api/v1',
-      'http://localhost:8080/api/v1',
-      'http://127.0.0.1:8080/api/v1',
-      'http://127.0.0.1:8080/api/v1',
-    ];
-  }
-
-  Future<bool> _canReachUrl(String baseUrl) async {
-    try {
-      final testUrl = '$baseUrl/users';
-      debugPrint('Attempting to reach: $testUrl');
-      final response = await http
-          .get(Uri.parse(testUrl))
-          .timeout(const Duration(seconds: 1));
-      final success = response.statusCode >= 200 && response.statusCode < 300;
-      if (!success) {
-        debugPrint('  Response code: ${response.statusCode}');
-      }
-      return success;
-    } catch (e) {
-      debugPrint('  Connection failed: $e');
-      return false;
-    }
-  }
-
-  Future<String> _resolveReachableBaseUrl(
-      {required String preferredBaseUrl}) async {
-    final candidates = <String>[];
-    candidates.add(preferredBaseUrl);
-
-    // Only add fallbacks if preferred is not reachable
-    if (kIsWeb) {
-      // Add web fallbacks
-      for (final fallback in _webFallbackBaseUrls()) {
-        if (!candidates.contains(fallback)) candidates.add(fallback);
-      }
-    } else {
-      // Add Android fallbacks only as secondary options
-      const androidFallbacks = [
-        'http://10.0.2.2:8081/api/v1',
-        'http://10.0.2.2:8080/api/v1',
-      ];
-      for (final fallback in androidFallbacks) {
-        if (!candidates.contains(fallback)) candidates.add(fallback);
-      }
-    }
-
-    // Try to reach the preferred URL with shorter timeout
-    for (final candidate in candidates.take(2)) {
-      // Only try first 2 candidates to avoid excessive delays
-      debugPrint('Testing API connectivity: $candidate');
-      try {
-        if (await _canReachUrl(candidate).timeout(const Duration(seconds: 1))) {
-          debugPrint('Connected to API at: $candidate');
-          return candidate;
-        }
-      } catch (e) {
-        debugPrint('Timeout testing $candidate: $e');
-      }
-    }
-
-    debugPrint(
-        'Could not reach any API candidate, using preferred: $preferredBaseUrl');
-    return preferredBaseUrl;
   }
 
   Uri _uri(String path, {Map<String, String>? queryParameters}) {
@@ -449,7 +363,14 @@ class ApiService {
   }
 
   Future<bool> canReachBackend() async {
-    return _canReachUrl(baseUrl);
+    try {
+      final response = await http
+          .get(Uri.parse('$baseUrl/users'))
+          .timeout(const Duration(seconds: 3));
+      return response.statusCode >= 200 && response.statusCode < 300;
+    } catch (_) {
+      return false;
+    }
   }
 
   Future<List<User>> getUsers() async {

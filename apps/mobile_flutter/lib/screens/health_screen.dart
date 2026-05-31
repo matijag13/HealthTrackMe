@@ -8,7 +8,9 @@ import 'package:http/http.dart' as http;
 import '../utils/health_utils.dart';
 
 import '../models/models.dart';
+import '../models/wearable_device.dart';
 import '../services/api_service.dart';
+import '../services/wearable_service.dart';
 import '../widgets/widgets.dart';
 
 class HealthScreenTabbed extends StatefulWidget {
@@ -30,7 +32,7 @@ class _HealthScreenTabbedState extends State<HealthScreenTabbed>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 5, vsync: this);
+    _tabController = TabController(length: 6, vsync: this);
     _loadAll();
   }
 
@@ -113,6 +115,7 @@ class _HealthScreenTabbedState extends State<HealthScreenTabbed>
             Tab(text: 'Sleep'),
             Tab(text: 'Body'),
             Tab(text: 'History'),
+            Tab(text: 'Devices'),
           ],
         ),
       ),
@@ -126,6 +129,7 @@ class _HealthScreenTabbedState extends State<HealthScreenTabbed>
                 _sleepTab(context),
                 _bodyTab(context),
                 _historyTab(context),
+                const _DevicesTab(),
               ]),
             ),
     );
@@ -1058,5 +1062,275 @@ class VitalDetailPage extends StatelessWidget {
       if (v != null) list.add(v);
     }
     return list.reversed.toList().cast<double>();
+  }
+}
+
+class _DevicesTab extends StatefulWidget {
+  const _DevicesTab();
+
+  @override
+  State<_DevicesTab> createState() => _DevicesTabState();
+}
+
+class _DevicesTabState extends State<_DevicesTab> {
+  final WearableService _wearableService = WearableService();
+  final ApiService _api = ApiService.instance;
+
+  List<WearableDevice> _devices = [];
+  List<SyncEvent> _syncHistory = [];
+  bool _loading = true;
+  bool _syncing = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() => _loading = true);
+    try {
+      final userId = _api.activeUserId;
+      if (userId != null) {
+        final devices = await _wearableService.getConnectedDevices(userId);
+        final history = await _wearableService.getSyncHistory(userId);
+        if (mounted) {
+          setState(() {
+            _devices = devices;
+            _syncHistory = history;
+          });
+        }
+      }
+    } catch (_) {}
+    if (mounted) setState(() => _loading = false);
+  }
+
+  Future<void> _sync() async {
+    setState(() => _syncing = true);
+    try {
+      final userId = _api.activeUserId;
+      if (userId != null) {
+        final hasPermission = await _wearableService.hasPermissions();
+        if (!hasPermission) {
+          await _wearableService.requestPermissions();
+        }
+        await _wearableService.syncWearableData(
+          userId: userId,
+          startDate: DateTime.now().subtract(const Duration(days: 1)),
+        );
+        await _load();
+        if (mounted) {
+          WearableService.showSyncStatus(context, 'Sync complete', true);
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        WearableService.showSyncStatus(context, 'Sync failed', false);
+      }
+    }
+    if (mounted) setState(() => _syncing = false);
+  }
+
+  Future<void> _addDevice() async {
+    final nameController = TextEditingController();
+    WearableDeviceType selectedType = WearableDeviceType.fitbit;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Add device'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: nameController,
+              decoration: const InputDecoration(labelText: 'Device name'),
+            ),
+            const SizedBox(height: 12),
+            DropdownButtonFormField<WearableDeviceType>(
+              initialValue: selectedType,
+              decoration: const InputDecoration(labelText: 'Type'),
+              items: WearableDeviceType.values
+                  .map((t) => DropdownMenuItem(
+                        value: t,
+                        child: Text(t.name),
+                      ))
+                  .toList(),
+              onChanged: (v) {
+                if (v != null) selectedType = v;
+              },
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel')),
+          FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Add')),
+        ],
+      ),
+    );
+
+    if (confirmed == true && nameController.text.trim().isNotEmpty) {
+      try {
+        final userId = _api.activeUserId;
+        if (userId != null) {
+          await _wearableService.addDevice(
+              userId, nameController.text.trim(), selectedType);
+          await _load();
+        }
+      } catch (_) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Could not add device')));
+        }
+      }
+    }
+  }
+
+  Future<void> _removeDevice(WearableDevice device) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Remove device'),
+        content: Text('Remove ${device.name}?'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel')),
+          FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Remove')),
+        ],
+      ),
+    );
+    if (confirmed == true) {
+      await _wearableService.disconnectDevice(device.id);
+      await _load();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_loading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    return RefreshIndicator(
+      onRefresh: _load,
+      child: ListView(
+        padding: const EdgeInsets.all(12),
+        physics: const AlwaysScrollableScrollPhysics(),
+        children: [
+          const SectionHeader(
+            title: 'Wearable devices',
+            subtitle: 'Manage connected devices and sync health data',
+          ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              TextButton.icon(
+                icon: _syncing
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.sync_rounded, size: 18),
+                label: const Text('Sync'),
+                onPressed: _syncing ? null : _sync,
+              ),
+              TextButton.icon(
+                icon: const Icon(Icons.add_rounded, size: 18),
+                label: const Text('Add'),
+                onPressed: _addDevice,
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          if (_devices.isEmpty)
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  children: [
+                    const Icon(Icons.watch_outlined,
+                        size: 48, color: AppColors.muted),
+                    const SizedBox(height: 12),
+                    const Text('No devices connected',
+                        style: TextStyle(fontWeight: FontWeight.w600)),
+                    const SizedBox(height: 6),
+                    const Text(
+                      'Add your wearable to start syncing health data',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: AppColors.muted),
+                    ),
+                    const SizedBox(height: 16),
+                    FilledButton.icon(
+                      onPressed: _addDevice,
+                      icon: const Icon(Icons.add_rounded),
+                      label: const Text('Add device'),
+                    ),
+                  ],
+                ),
+              ),
+            )
+          else
+            ..._devices.map(
+              (device) => Card(
+                child: ListTile(
+                  leading: CircleAvatar(
+                    backgroundColor: AppColors.teal.withValues(alpha: 0.12),
+                    child:
+                        const Icon(Icons.watch_rounded, color: AppColors.teal),
+                  ),
+                  title: Text(device.name),
+                  subtitle: Text(device.type.name),
+                  trailing: IconButton(
+                    icon: const Icon(Icons.remove_circle_outline,
+                        color: AppColors.danger),
+                    onPressed: () => _removeDevice(device),
+                  ),
+                ),
+              ),
+            ),
+          const SizedBox(height: 16),
+          const SectionHeader(
+            title: 'Sync history',
+            subtitle: 'Recent data syncs from your devices',
+          ),
+          const SizedBox(height: 8),
+          if (_syncHistory.isEmpty)
+            const Card(
+              child: Padding(
+                padding: EdgeInsets.all(16),
+                child: Text(
+                    'No syncs yet — tap sync to pull data from your device'),
+              ),
+            )
+          else
+            ..._syncHistory.take(10).map(
+                  (event) => Card(
+                    child: ListTile(
+                      leading: Icon(
+                        event.success
+                            ? Icons.check_circle_rounded
+                            : Icons.error_outline_rounded,
+                        color: event.success
+                            ? AppColors.success
+                            : AppColors.danger,
+                      ),
+                      title: Text(event.deviceName),
+                      subtitle: Text(
+                        event.syncTime.toLocal().toString().split('.').first,
+                      ),
+                    ),
+                  ),
+                ),
+        ],
+      ),
+    );
   }
 }
