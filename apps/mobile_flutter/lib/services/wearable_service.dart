@@ -158,24 +158,24 @@ class WearableService {
     }
   }
 
+  /// Extract numeric value from a HealthDataPoint.
+  /// In health package 13+, values are wrapped in NumericHealthValue.
+  double _numericValue(HealthDataPoint point) {
+    final v = point.value;
+    if (v is NumericHealthValue) return v.numericValue.toDouble();
+    return 0;
+  }
+
   /// Get steps from health data
   Future<int?> _getSteps(DateTime startDate, DateTime endDate) async {
     try {
-      const types = [HealthDataType.STEPS];
       final data = await health.getHealthDataFromTypes(
-        types: types,
+        types: [HealthDataType.STEPS],
         startTime: startDate,
         endTime: endDate,
       );
-
-      int totalSteps = 0;
-      for (final point in data) {
-        if (point.value is int) {
-          totalSteps += point.value as int;
-        }
-      }
-
-      return totalSteps > 0 ? totalSteps : null;
+      final total = data.fold<double>(0, (s, p) => s + _numericValue(p));
+      return total > 0 ? total.toInt() : null;
     } catch (e) {
       debugPrint('⚠️ Error fetching steps: $e');
       return null;
@@ -188,31 +188,17 @@ class WearableService {
     DateTime endDate,
   ) async {
     try {
-      const types = [HealthDataType.HEART_RATE];
       final data = await health.getHealthDataFromTypes(
-        types: types,
+        types: [HealthDataType.HEART_RATE],
         startTime: startDate,
         endTime: endDate,
       );
-
       if (data.isEmpty) return null;
-
-      final values = data
-          .where((p) => p.value is num)
-          .map((p) => (p.value as num).toInt())
-          .toList();
-
-      if (values.isEmpty) return null;
-
+      final values = data.map(_numericValue).toList();
       final avg = values.reduce((a, b) => a + b) / values.length;
       final max = values.reduce((a, b) => a > b ? a : b);
       final min = values.reduce((a, b) => a < b ? a : b);
-
-      return {
-        'avg': avg,
-        'max': max,
-        'min': min,
-      };
+      return {'avg': avg, 'max': max.toInt(), 'min': min.toInt()};
     } catch (e) {
       debugPrint('⚠️ Error fetching heart rate: $e');
       return null;
@@ -225,41 +211,22 @@ class WearableService {
     DateTime endDate,
   ) async {
     try {
-      final types = [
-        _isAndroid ? HealthDataType.SLEEP_SESSION : HealthDataType.SLEEP_IN_BED
-      ];
+      final sleepType = _isAndroid
+          ? HealthDataType.SLEEP_SESSION
+          : HealthDataType.SLEEP_IN_BED;
       final data = await health.getHealthDataFromTypes(
-        types: types,
+        types: [sleepType],
         startTime: startDate,
         endTime: endDate,
       );
-
       if (data.isEmpty) return null;
-
-      double totalMinutes = 0;
-      for (final point in data) {
-        if (point.value is int) {
-          totalMinutes += (point.value as int).toDouble();
-        }
-      }
-
+      final totalMinutes = data.fold<double>(0, (s, p) => s + _numericValue(p));
       final hours = totalMinutes / 60;
-
       String quality = 'FAIR';
-      if (hours >= 7.5) {
-        quality = 'EXCELLENT';
-      }
-      if (hours >= 7) {
-        quality = 'GOOD';
-      }
-      if (hours < 5) {
-        quality = 'POOR';
-      }
-
-      return {
-        'hours': hours,
-        'quality': quality,
-      };
+      if (hours >= 7.5) quality = 'EXCELLENT';
+      if (hours >= 7) quality = 'GOOD';
+      if (hours < 5) quality = 'POOR';
+      return {'hours': hours, 'quality': quality};
     } catch (e) {
       debugPrint('⚠️ Error fetching sleep: $e');
       return null;
@@ -269,21 +236,13 @@ class WearableService {
   /// Get calories burned
   Future<int?> _getCalories(DateTime startDate, DateTime endDate) async {
     try {
-      const types = [HealthDataType.ACTIVE_ENERGY_BURNED];
       final data = await health.getHealthDataFromTypes(
-        types: types,
+        types: [HealthDataType.ACTIVE_ENERGY_BURNED],
         startTime: startDate,
         endTime: endDate,
       );
-
-      int totalCalories = 0;
-      for (final point in data) {
-        if (point.value is num) {
-          totalCalories += (point.value as num).toInt();
-        }
-      }
-
-      return totalCalories > 0 ? totalCalories : null;
+      final total = data.fold<double>(0, (s, p) => s + _numericValue(p));
+      return total > 0 ? total.toInt() : null;
     } catch (e) {
       debugPrint('⚠️ Error fetching calories: $e');
       return null;
