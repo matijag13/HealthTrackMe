@@ -19,6 +19,7 @@ data class SportActivityDto(
     val duration: Int?,
     val distance: Double?,
     val caloriesBurned: Int?,
+    val steps: Int?,
     val intensity: String?,
     val averageHeartRate: Int?,
     val notes: String?,
@@ -31,6 +32,7 @@ data class CreateSportActivityRequest(
     val duration: Int?,
     val distance: Double?,
     val caloriesBurned: Int?,
+    val steps: Int?,
     val intensity: String?,
     val averageHeartRate: Int?,
     val notes: String?

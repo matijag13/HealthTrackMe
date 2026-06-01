@@ -1,0 +1,1 @@
+ALTER TABLE sport_activities ADD COLUMN IF NOT EXISTS steps INTEGER;

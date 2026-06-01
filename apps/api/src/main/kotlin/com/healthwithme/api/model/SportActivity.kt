@@ -28,6 +28,9 @@ data class SportActivity(
     
     @Column(nullable = true)
     val caloriesBurned: Int? = null,
+
+    @Column(nullable = true)
+    val steps: Int? = null,
     
     @Column(nullable = true)
     val intensity: String? = null, // LOW, MODERATE, HIGH

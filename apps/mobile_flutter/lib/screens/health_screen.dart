@@ -329,17 +329,23 @@ class _HealthScreenTabbedState extends State<HealthScreenTabbed>
                     ]),
                     child: ListTile(
                       leading: const Icon(Icons.directions_run),
-                      title: Text(act['type']?.toString() ?? 'Activity'),
+                      title: Text(act['activityType']?.toString() ??
+                          act['type']?.toString() ??
+                          'Activity'),
                       subtitle: Text(
-                          '${act['durationMinutes'] ?? 0} min · ${act['distanceKm'] ?? '—'} km · ${act['calories'] ?? '—'} kcal'),
-                      trailing: Text(act['start'] != null
-                          ? DateTime.tryParse(act['start'].toString())
-                                  ?.toLocal()
-                                  .toIso8601String()
-                                  .split('T')
-                                  .first ??
-                              ''
-                          : ''),
+                          '${act['duration'] ?? act['durationMinutes'] ?? 0} min · ${act['distance'] ?? act['distanceKm'] ?? '—'} km · ${act['caloriesBurned'] ?? act['calories'] ?? '—'} kcal${(act['steps'] as int?) != null ? ' · ${act['steps']} steps' : ''}'),
+                      trailing: Text(
+                        (act['activityDate'] ?? act['start']) != null
+                            ? DateTime.tryParse(
+                                        (act['activityDate'] ?? act['start'])
+                                            .toString())
+                                    ?.toLocal()
+                                    .toIso8601String()
+                                    .split('T')
+                                    .first ??
+                                ''
+                            : '',
+                      ),
                     ),
                   )),
             const SizedBox(height: 20),
@@ -739,12 +745,20 @@ class _HealthScreenTabbedState extends State<HealthScreenTabbed>
         ]));
   }
 
+  /// Parse activity date from either 'activityDate' (backend DTO) or 'start' (legacy)
+  DateTime? _activityDate(Map<String, dynamic> a) {
+    final raw = a['activityDate']?.toString() ?? a['start']?.toString() ?? '';
+    return DateTime.tryParse(raw);
+  }
+
   int _sumStepsForDay(DateTime day) {
     var sum = 0;
     for (final a in _sportActivities) {
-      final t = DateTime.tryParse(a['start']?.toString() ?? '') ??
-          DateTime.fromMillisecondsSinceEpoch(0);
-      if (t.year == day.year && t.month == day.month && t.day == day.day) {
+      final t = _activityDate(a);
+      if (t != null &&
+          t.year == day.year &&
+          t.month == day.month &&
+          t.day == day.day) {
         sum += (a['steps'] as int?) ?? 0;
       }
     }
@@ -764,9 +778,9 @@ class _HealthScreenTabbedState extends State<HealthScreenTabbed>
           }
           // check whether a sport activity with same steps already exists for the same day to avoid double-counting
           final existsInSport = _sportActivities.any((a) {
-            final t = DateTime.tryParse(a['start']?.toString() ?? '') ??
-                DateTime.fromMillisecondsSinceEpoch(0);
-            return t.year == day.year &&
+            final t = _activityDate(a);
+            return t != null &&
+                t.year == day.year &&
                 t.month == day.month &&
                 t.day == day.day &&
                 ((a['steps'] as int?) ?? 0) == s;
@@ -801,9 +815,10 @@ class _HealthScreenTabbedState extends State<HealthScreenTabbed>
     // simple: longest consecutive days with steps>0 in sport activities
     final daysWithSteps = <DateTime>{};
     for (final a in _sportActivities) {
-      final t = DateTime.tryParse(a['start']?.toString() ?? '') ??
-          DateTime.fromMillisecondsSinceEpoch(0);
-      if ((a['steps'] as int?) != null && (a['steps'] as int) > 0) {
+      final t = _activityDate(a);
+      if (t != null &&
+          (a['steps'] as int?) != null &&
+          (a['steps'] as int) > 0) {
         daysWithSteps.add(DateTime(t.year, t.month, t.day));
       }
     }
