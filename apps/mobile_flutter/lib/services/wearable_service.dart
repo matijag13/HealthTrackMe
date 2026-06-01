@@ -147,6 +147,9 @@ class WearableService {
         sleepQuality: sleep != null ? sleep['quality'] as String? : null,
       );
 
+      debugPrint('📊 Sync data: steps=$steps, heartRate=$heartRate, '
+          'sleep=$sleep, calories=$calories');
+
       // Upload to backend
       await _uploadSyncData(syncData);
 
@@ -255,21 +258,22 @@ class WearableService {
       final userId = await _api.ensureActiveUserId();
       if (userId == null) throw Exception('No active user');
 
+      final source = _isIOS ? 'Apple Health' : 'Health Connect';
       final payload = <String, dynamic>{
         'entryDate': data.date.toIso8601String().split('T')[0],
         'wellbeingScore': 5,
-        'notes':
-            'Synced from ${_isIOS ? 'Apple Health' : 'Google Fit / Health Connect'}',
+        'notes': 'Synced from $source',
       };
+      if (data.steps != null) payload['steps'] = data.steps;
       if (data.heartRateAvg != null) {
         payload['heartRate'] = data.heartRateAvg!.toInt();
       }
-      if (data.sleepHours != null) {
-        payload['sleepHours'] = data.sleepHours;
-      }
-      if (data.calories != null) {
-        payload['caloriesConsumed'] = data.calories;
-      }
+      if (data.sleepHours != null) payload['sleepHours'] = data.sleepHours;
+      if (data.calories != null) payload['caloriesConsumed'] = data.calories;
+
+      debugPrint('📤 Uploading sync data: steps=${data.steps}, '
+          'hr=${data.heartRateAvg}, sleep=${data.sleepHours}, '
+          'calories=${data.calories}');
 
       final response = await http.post(
         _uri('/health-entries/users/$userId'),

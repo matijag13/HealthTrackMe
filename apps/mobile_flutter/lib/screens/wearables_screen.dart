@@ -59,12 +59,28 @@ class _WearablesScreenState extends State<WearablesScreen> {
             return;
           }
         }
-        await _wearableService.syncWearableData(
+        final result = await _wearableService.syncWearableData(
           userId: userId,
           startDate: DateTime.now().subtract(const Duration(days: 7)),
         );
         await _load();
-        if (mounted) _showStatus('Health data synced', true);
+        if (mounted) {
+          final parts = <String>[];
+          if (result.steps != null) parts.add('${result.steps} steps');
+          if (result.heartRateAvg != null) {
+            parts.add('HR ${result.heartRateAvg!.toInt()} bpm');
+          }
+          if (result.sleepHours != null) {
+            parts.add('${result.sleepHours!.toStringAsFixed(1)}h sleep');
+          }
+          if (result.calories != null) {
+            parts.add('${result.calories} kcal');
+          }
+          final msg = parts.isEmpty
+              ? 'Sync complete — no new data found'
+              : 'Synced: ${parts.join(', ')}';
+          _showStatus(msg, parts.isNotEmpty);
+        }
       }
     } catch (e) {
       if (mounted) _showStatus('Sync failed', false);
