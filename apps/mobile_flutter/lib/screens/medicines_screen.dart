@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:go_router/go_router.dart';
 import '../services/api_service.dart';
+import '../services/notification_service.dart';
 import '../models/models.dart';
 import 'router_pages.dart';
 
@@ -1346,6 +1348,7 @@ class _MedicineEditSheetState extends State<MedicineEditSheet> {
   final _sideEffects = TextEditingController();
   DateTime? _start;
   DateTime? _end;
+  TimeOfDay? _reminderTime;
   bool _saving = false;
 
   @override
@@ -1420,7 +1423,41 @@ class _MedicineEditSheetState extends State<MedicineEditSheet> {
       if (mounted) setState(() => _saving = false);
     }
 
+    // Schedule notification reminder if a time was set
+    if (_reminderTime != null) {
+      final id =
+          widget.medicine?.id ?? DateTime.now().millisecondsSinceEpoch % 100000;
+      await NotificationService.instance.scheduleMedicineReminder(
+        id: id,
+        medicineName: _name.text.trim(),
+        dosage: _dosage.text.trim().isEmpty ? 'your dose' : _dosage.text.trim(),
+        time: _reminderTime!,
+        repeat: RepeatInterval.daily,
+      );
+    }
+
     if (mounted) Navigator.pop(context, true);
+  }
+
+  Future<void> _pickReminderTime() async {
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: _reminderTime ?? const TimeOfDay(hour: 8, minute: 0),
+      builder: (context, child) => Theme(
+        data: Theme.of(context).copyWith(
+          colorScheme: const ColorScheme.dark(
+            primary: Color(0xFF5A8CFF),
+            onPrimary: Colors.white,
+            surface: Color(0xFF0D0F14),
+            onSurface: Color(0xFFF7F8FA),
+          ),
+        ),
+        child: child!,
+      ),
+    );
+    if (picked != null && mounted) {
+      setState(() => _reminderTime = picked);
+    }
   }
 
   Future<void> _pickDate(bool start) async {
@@ -1688,6 +1725,15 @@ class _MedicineEditSheetState extends State<MedicineEditSheet> {
                               child: Icon(Icons.notes_rounded),
                             ),
                           ),
+                        ),
+                        const SizedBox(height: 14),
+                        _DateButton(
+                          label: _reminderTime == null
+                              ? 'Set reminder (optional)'
+                              : 'Reminder at ${_reminderTime!.format(context)}',
+                          placeholder: _reminderTime == null,
+                          icon: Icons.notifications_outlined,
+                          onTap: _pickReminderTime,
                         ),
                         const SizedBox(height: 24),
                         Row(

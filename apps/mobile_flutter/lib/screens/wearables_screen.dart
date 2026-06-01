@@ -61,7 +61,7 @@ class _WearablesScreenState extends State<WearablesScreen> {
         }
         final result = await _wearableService.syncWearableData(
           userId: userId,
-          startDate: DateTime.now().subtract(const Duration(days: 7)),
+          startDate: DateTime.now().subtract(const Duration(days: 730)),
         );
         await _load();
         if (mounted) {

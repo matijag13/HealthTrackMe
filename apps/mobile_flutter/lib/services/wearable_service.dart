@@ -252,41 +252,57 @@ class WearableService {
     }
   }
 
-  /// Upload synced data to backend as a health entry
+  /// Upload synced data to backend.
+  /// Steps → sport activity (shows in Activity tab)
+  /// Vitals (HR, sleep, calories) → health entry
   Future<void> _uploadSyncData(WearableSyncData data) async {
     try {
       final userId = await _api.ensureActiveUserId();
       if (userId == null) throw Exception('No active user');
 
       final source = _isIOS ? 'Apple Health' : 'Health Connect';
-      final payload = <String, dynamic>{
-        'entryDate': data.date.toIso8601String().split('T')[0],
-        'wellbeingScore': 5,
-        'notes': 'Synced from $source',
-      };
-      if (data.steps != null) payload['steps'] = data.steps;
-      if (data.heartRateAvg != null) {
-        payload['heartRate'] = data.heartRateAvg!.toInt();
-      }
-      if (data.sleepHours != null) payload['sleepHours'] = data.sleepHours;
-      if (data.calories != null) payload['caloriesConsumed'] = data.calories;
+      final dateStr = data.date.toIso8601String().split('T')[0];
 
-      debugPrint('📤 Uploading sync data: steps=${data.steps}, '
+      debugPrint('📤 Uploading: steps=${data.steps}, '
           'hr=${data.heartRateAvg}, sleep=${data.sleepHours}, '
           'calories=${data.calories}');
 
-      final response = await http.post(
-        _uri('/health-entries/users/$userId'),
-        headers: await _headers(extra: {'Content-Type': 'application/json'}),
-        body: jsonEncode(payload),
-      );
-
-      final result = jsonDecode(response.body) as Map<String, dynamic>;
-      if (result['success'] == true) {
-        debugPrint('✅ Data uploaded to backend');
-      } else {
-        debugPrint('⚠️ Backend returned error: ${result['message']}');
+      // Save steps as a sport activity so they appear in the Activity tab
+      if (data.steps != null && data.steps! > 0) {
+        await _api.createSportActivity({
+          'activityType': 'WALKING',
+          'activityDate': dateStr,
+          'steps': data.steps,
+          'caloriesBurned': data.calories,
+          'notes': 'Synced from $source',
+        }, userId: userId);
       }
+
+      // Save vitals as a health entry
+      final hasVitals = data.heartRateAvg != null ||
+          data.sleepHours != null ||
+          data.calories != null;
+
+      if (hasVitals) {
+        final payload = <String, dynamic>{
+          'entryDate': dateStr,
+          'wellbeingScore': 5,
+          'notes': 'Synced from $source',
+        };
+        if (data.heartRateAvg != null) {
+          payload['heartRate'] = data.heartRateAvg!.toInt();
+        }
+        if (data.sleepHours != null) payload['sleepHours'] = data.sleepHours;
+        if (data.calories != null) payload['caloriesConsumed'] = data.calories;
+
+        await http.post(
+          _uri('/health-entries/users/$userId'),
+          headers: await _headers(extra: {'Content-Type': 'application/json'}),
+          body: jsonEncode(payload),
+        );
+      }
+
+      debugPrint('✅ Data uploaded to backend');
     } catch (e) {
       debugPrint('⚠️ Error uploading sync data: $e');
       rethrow;
