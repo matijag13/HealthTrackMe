@@ -246,7 +246,7 @@ class _HealthScreenTabbedState extends State<HealthScreenTabbed>
     final stepsPrevWeek = prevDays.map((d) => _sumStepsForDay(d)).toList();
 
     final totalSteps = _sportActivities.fold<int>(
-            0, (s, a) => s + ((a['steps'] as int?) ?? 0)) +
+            0, (s, a) => s + ((a['steps'] as num?)?.toInt() ?? 0)) +
         _stepsFromEntries;
     final activeDays = stepsThisWeek.where((s) => s > 0).length;
     final avg = totalSteps > 0 ? (totalSteps / 7).round() : 0;
@@ -333,7 +333,7 @@ class _HealthScreenTabbedState extends State<HealthScreenTabbed>
                           act['type']?.toString() ??
                           'Activity'),
                       subtitle: Text(
-                          '${act['duration'] ?? act['durationMinutes'] ?? 0} min · ${act['distance'] ?? act['distanceKm'] ?? '—'} km · ${act['caloriesBurned'] ?? act['calories'] ?? '—'} kcal${(act['steps'] as int?) != null ? ' · ${act['steps']} steps' : ''}'),
+                          '${act['duration'] ?? act['durationMinutes'] ?? 0} min · ${act['distance'] ?? act['distanceKm'] ?? '—'} km · ${act['caloriesBurned'] ?? act['calories'] ?? '—'} kcal${(act['steps'] as num?)?.toInt() != null ? ' · ${(act['steps'] as num).toInt()} steps' : ''}'),
                       trailing: Text(
                         (act['activityDate'] ?? act['start']) != null
                             ? DateTime.tryParse(
@@ -759,7 +759,7 @@ class _HealthScreenTabbedState extends State<HealthScreenTabbed>
           t.year == day.year &&
           t.month == day.month &&
           t.day == day.day) {
-        sum += (a['steps'] as int?) ?? 0;
+        sum += (a['steps'] as num?)?.toInt() ?? 0;
       }
     }
 
@@ -783,7 +783,7 @@ class _HealthScreenTabbedState extends State<HealthScreenTabbed>
                 t.year == day.year &&
                 t.month == day.month &&
                 t.day == day.day &&
-                ((a['steps'] as int?) ?? 0) == s;
+                ((a['steps'] as num?)?.toInt() ?? 0) == s;
           });
           if (!existsInSport) {
             sum += s;
@@ -816,9 +816,7 @@ class _HealthScreenTabbedState extends State<HealthScreenTabbed>
     final daysWithSteps = <DateTime>{};
     for (final a in _sportActivities) {
       final t = _activityDate(a);
-      if (t != null &&
-          (a['steps'] as int?) != null &&
-          (a['steps'] as int) > 0) {
+      if (t != null && ((a['steps'] as num?)?.toInt() ?? 0) > 0) {
         daysWithSteps.add(DateTime(t.year, t.month, t.day));
       }
     }
