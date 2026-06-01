@@ -598,9 +598,12 @@ class ApiService {
 
   // Medicine endpoints
   Future<List<Medicine>> getMedicines(
-      {int? userId, bool activeOnly = false}) async {
+      {int? userId, bool activeOnly = false, bool throwOnError = false}) async {
     final id = _effectiveUserId(userId: userId);
     if (id == null) {
+      if (throwOnError) {
+        throw StateError('No active user selected');
+      }
       return const [];
     }
     try {
@@ -613,8 +616,15 @@ class ApiService {
             (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
         return medicines;
       }
+      if (throwOnError) {
+        throw Exception(
+            _responseMessage(response) ?? 'Could not fetch medicines');
+      }
       return const [];
-    } catch (_) {
+    } catch (e) {
+      if (throwOnError) {
+        rethrow;
+      }
       return const [];
     }
   }
