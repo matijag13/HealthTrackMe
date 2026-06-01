@@ -196,6 +196,12 @@ class _DashboardScreenState extends State<DashboardScreen>
     await _refresh();
   }
 
+  Future<void> _openHealthShield() async {
+    await context.pushNamed('healthShield');
+    if (!mounted) return;
+    await _refresh();
+  }
+
   void _showFavoritesWarning(String message) {
     final messenger = ScaffoldMessenger.of(context);
     messenger.clearSnackBars();
@@ -868,13 +874,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                 subtitle: _state.shield?.levelName ?? 'Tap to update',
                 icon: Icons.shield_outlined,
                 accent: _accent,
-                onTap: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Health Shield details coming soon'),
-                    ),
-                  );
-                },
+                onTap: _openHealthShield,
               );
             case 'insights':
               return _favoriteCard(
@@ -1019,11 +1019,7 @@ class _DashboardScreenState extends State<DashboardScreen>
     final habits = shield?.completedHabitsCount ?? 0;
 
     return _premiumCard(
-      onTap: () {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Health Shield details coming soon')),
-        );
-      },
+      onTap: _openHealthShield,
       child: Row(
         children: [
           _iconTile(Icons.shield_outlined, _accent),

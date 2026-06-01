@@ -9,6 +9,7 @@ import '../screens/main_app.dart';
 import '../screens/reports_screen.dart';
 import '../screens/router_pages.dart';
 import '../screens/health_screen.dart';
+import '../screens/health_shield_screen.dart';
 import '../screens/onboarding_screen.dart';
 import '../screens/wearables_screen.dart';
 import '../services/api_service.dart';
@@ -165,6 +166,11 @@ GoRouter createAppRouter() {
         path: '/wearables',
         name: 'wearables',
         builder: (context, state) => const WearablesScreen(),
+      ),
+      GoRoute(
+        path: '/health-shield',
+        name: 'healthShield',
+        builder: (context, state) => const HealthShieldScreen(),
       ),
       GoRoute(
         path: '/diary/:date',
