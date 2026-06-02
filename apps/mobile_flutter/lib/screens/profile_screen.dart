@@ -480,7 +480,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   runSpacing: 8,
                   crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
-                    _Badge(text: user.userType),
                     TextButton(
                       onPressed: () => _openEditProfile(user),
                       style: TextButton.styleFrom(
@@ -667,34 +666,6 @@ class _ProfileAvatar extends StatelessWidget {
                 ),
               )
             : null,
-      ),
-    );
-  }
-}
-
-class _Badge extends StatelessWidget {
-  final String text;
-
-  const _Badge({required this.text});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: _ProfileScreenState._accent.withValues(alpha: 0.13),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(
-          color: _ProfileScreenState._accent.withValues(alpha: 0.3),
-        ),
-      ),
-      child: Text(
-        text,
-        style: const TextStyle(
-          color: _ProfileScreenState._primaryText,
-          fontSize: 11,
-          fontWeight: FontWeight.w900,
-        ),
       ),
     );
   }

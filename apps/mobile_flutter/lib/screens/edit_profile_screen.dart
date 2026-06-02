@@ -38,7 +38,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   late final TextEditingController _dobController;
   late final TextEditingController _medicalController;
   late final TextEditingController _allergiesController;
-  late String _userType;
   bool _isSaving = false;
 
   @override
@@ -53,7 +52,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         TextEditingController(text: widget.user.medicalConditions ?? '');
     _allergiesController =
         TextEditingController(text: widget.user.allergies ?? '');
-    _userType = widget.user.userType;
   }
 
   @override
@@ -78,7 +76,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         firstName: _firstNameController.text.trim(),
         lastName: _lastNameController.text.trim(),
         dateOfBirth: _dobController.text.trim(),
-        userType: _userType,
+        userType: widget.user.userType,
         medicalConditions: _medicalController.text.trim().isEmpty
             ? null
             : _medicalController.text.trim(),
@@ -225,8 +223,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                           return null;
                         },
                       ),
-                      const SizedBox(height: 12),
-                      _userTypeDropdown(),
                     ],
                   ),
                   const SizedBox(height: 24),
@@ -313,8 +309,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(color: _secondaryText, fontSize: 13),
                 ),
-                const SizedBox(height: 10),
-                _Badge(text: _userType),
               ],
             ),
           ),
@@ -416,32 +410,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         borderRadius: BorderRadius.circular(16),
         borderSide: const BorderSide(color: _danger, width: 1.4),
       ),
-    );
-  }
-
-  Widget _userTypeDropdown() {
-    return DropdownButtonFormField<String>(
-      initialValue: _userType,
-      dropdownColor: _surfaceAlt,
-      iconEnabledColor: _accent,
-      style: const TextStyle(color: _primaryText, fontWeight: FontWeight.w700),
-      decoration: _inputDecoration(
-        label: 'User type',
-        hint: 'Select user type',
-        icon: Icons.category_outlined,
-      ),
-      items: const [
-        DropdownMenuItem(value: 'PATIENT', child: Text('Patient')),
-        DropdownMenuItem(value: 'ATHLETE', child: Text('Athlete')),
-        DropdownMenuItem(value: 'ELDERLY', child: Text('Elderly')),
-        DropdownMenuItem(
-          value: 'HEALTHCARE_WORKER',
-          child: Text('Healthcare worker'),
-        ),
-      ],
-      onChanged: (value) {
-        if (value != null) setState(() => _userType = value);
-      },
     );
   }
 
@@ -567,34 +535,6 @@ class _Avatar extends StatelessWidget {
                 ),
               )
             : null,
-      ),
-    );
-  }
-}
-
-class _Badge extends StatelessWidget {
-  final String text;
-
-  const _Badge({required this.text});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: _EditProfileScreenState._accent.withValues(alpha: 0.13),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(
-          color: _EditProfileScreenState._accent.withValues(alpha: 0.3),
-        ),
-      ),
-      child: Text(
-        text,
-        style: const TextStyle(
-          color: _EditProfileScreenState._primaryText,
-          fontSize: 11,
-          fontWeight: FontWeight.w900,
-        ),
       ),
     );
   }

@@ -41,7 +41,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
   String? _authError;
-  String _selectedUserType = 'PATIENT';
+  static const _defaultUserType = 'PATIENT';
   DateTime? _selectedDateOfBirth;
 
   bool get _isDateOfBirthComplete => _selectedDateOfBirth != null;
@@ -116,7 +116,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         firstName: _firstNameController.text.trim(),
         lastName: _lastNameController.text.trim(),
         dateOfBirth: dateOfBirth,
-        userType: _selectedUserType,
+        userType: _defaultUserType,
       );
       await _api.setActiveUserId(user.id);
       if (!mounted) return;
@@ -772,41 +772,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           ),
                         ),
                       ],
-                      const SizedBox(height: 18),
-                      _fieldLabel('User type'),
-                      DropdownButtonFormField<String>(
-                        initialValue: _selectedUserType,
-                        dropdownColor: _field,
-                        style: const TextStyle(color: _primaryText),
-                        iconEnabledColor: _mutedText,
-                        items: const [
-                          DropdownMenuItem(
-                            value: 'PATIENT',
-                            child: Text('Patient'),
-                          ),
-                          DropdownMenuItem(
-                            value: 'ATHLETE',
-                            child: Text('Athlete'),
-                          ),
-                          DropdownMenuItem(
-                            value: 'ELDERLY',
-                            child: Text('Elderly'),
-                          ),
-                          DropdownMenuItem(
-                            value: 'HEALTHCARE_WORKER',
-                            child: Text('Healthcare worker'),
-                          ),
-                        ],
-                        onChanged: (value) {
-                          if (value != null) {
-                            setState(() => _selectedUserType = value);
-                          }
-                        },
-                        decoration: _inputDecoration(
-                          hintText: 'User type',
-                          prefixIcon: Icons.badge_outlined,
-                        ),
-                      ),
                       const SizedBox(height: 18),
                       _fieldLabel('Password'),
                       TextFormField(
