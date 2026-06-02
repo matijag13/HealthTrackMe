@@ -25,6 +25,7 @@ class HealthEntryService(
         val entry = HealthEntry(
             user = user,
             entryDate = LocalDate.parse(request.entryDate),
+            measuredAt = request.measuredAt?.let { LocalDateTime.parse(it) },
             wellbeingScore = request.wellbeingScore,
             symptoms = request.symptoms.joinToString(","),
             mood = request.mood,
@@ -76,6 +77,7 @@ class HealthEntryService(
             .orElseThrow { IllegalArgumentException("Health entry not found") }
         
         val updatedEntry = entry.copy(
+            measuredAt = request.measuredAt?.let { LocalDateTime.parse(it) } ?: entry.measuredAt,
             wellbeingScore = request.wellbeingScore ?: entry.wellbeingScore,
             symptoms = request.symptoms?.joinToString(",") ?: entry.symptoms,
             mood = request.mood ?: entry.mood,
@@ -130,6 +132,7 @@ class HealthEntryService(
         return HealthEntryDto(
             id = entry.id,
             entryDate = entry.entryDate.toString(),
+            measuredAt = entry.measuredAt?.toString(),
             wellbeingScore = entry.wellbeingScore,
             symptoms = entry.symptoms
                 ?.split(",")

@@ -1,0 +1,2 @@
+ALTER TABLE health_entries
+    ADD COLUMN IF NOT EXISTS measured_at TIMESTAMP NULL;

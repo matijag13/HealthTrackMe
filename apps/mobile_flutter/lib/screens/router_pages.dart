@@ -511,11 +511,15 @@ class _VitalsMetricDefinition {
 
 class _VitalsReading {
   final DateTime date;
+  final DateTime? measuredAt;
+  final DateTime? createdAt;
   final double primary;
   final double? secondary;
 
   const _VitalsReading({
     required this.date,
+    this.measuredAt,
+    this.createdAt,
     required this.primary,
     this.secondary,
   });
@@ -524,12 +528,16 @@ class _VitalsReading {
 class _VitalsChartData {
   final List<FlSpot> primary;
   final List<FlSpot> secondary;
+  final double minX;
+  final double maxX;
   final double minY;
   final double maxY;
 
   const _VitalsChartData({
     required this.primary,
     required this.secondary,
+    required this.minX,
+    required this.maxX,
     required this.minY,
     required this.maxY,
   });
@@ -731,6 +739,21 @@ class _HealthVitalsPageState extends State<HealthVitalsPage> {
 
   bool _sameValue(double a, double b) => (a - b).abs() < 0.01;
 
+  DateTime _readingDateForDayFilter(_VitalsReading reading) {
+    return reading.measuredAt ?? reading.date;
+  }
+
+  DateTime _readingTimestampForDayChart(_VitalsReading reading) {
+    return reading.measuredAt ?? reading.createdAt ?? reading.date;
+  }
+
+  double _hourOfDay(DateTime dateTime) {
+    return dateTime.hour +
+        (dateTime.minute / 60) +
+        (dateTime.second / 3600) +
+        (dateTime.millisecond / 3600000);
+  }
+
   _VitalsReading? _readingFromEntry(HealthEntry entry, _VitalsMetric metric) {
     switch (metric) {
       case _VitalsMetric.heartRate:
@@ -739,6 +762,8 @@ class _HealthVitalsPageState extends State<HealthVitalsPage> {
             ? null
             : _VitalsReading(
                 date: entry.entryDate,
+                measuredAt: entry.measuredAt,
+                createdAt: entry.createdAt,
                 primary: value.toDouble(),
               );
       case _VitalsMetric.stress:
@@ -747,6 +772,8 @@ class _HealthVitalsPageState extends State<HealthVitalsPage> {
             ? null
             : _VitalsReading(
                 date: entry.entryDate,
+                measuredAt: entry.measuredAt,
+                createdAt: entry.createdAt,
                 primary: value.toDouble(),
               );
       case _VitalsMetric.bloodPressure:
@@ -755,6 +782,8 @@ class _HealthVitalsPageState extends State<HealthVitalsPage> {
         }
         return _VitalsReading(
           date: entry.entryDate,
+          measuredAt: entry.measuredAt,
+          createdAt: entry.createdAt,
           primary: entry.systolicBp!.toDouble(),
           secondary: entry.diastolicBp!.toDouble(),
         );
@@ -764,6 +793,8 @@ class _HealthVitalsPageState extends State<HealthVitalsPage> {
             ? null
             : _VitalsReading(
                 date: entry.entryDate,
+                measuredAt: entry.measuredAt,
+                createdAt: entry.createdAt,
                 primary: value.toDouble(),
               );
       case _VitalsMetric.temperature:
@@ -772,6 +803,8 @@ class _HealthVitalsPageState extends State<HealthVitalsPage> {
             ? null
             : _VitalsReading(
                 date: entry.entryDate,
+                measuredAt: entry.measuredAt,
+                createdAt: entry.createdAt,
                 primary: value,
               );
       case _VitalsMetric.weight:
@@ -780,6 +813,8 @@ class _HealthVitalsPageState extends State<HealthVitalsPage> {
             ? null
             : _VitalsReading(
                 date: entry.entryDate,
+                measuredAt: entry.measuredAt,
+                createdAt: entry.createdAt,
                 primary: value,
               );
     }
@@ -933,9 +968,14 @@ class _HealthVitalsPageState extends State<HealthVitalsPage> {
         final allReadings = _readingsForMetric(data.entries, _selectedMetric);
         final readings =
             _filterReadingsForRange(allReadings, _selectedTimeRange);
-        final chartData = _chartDataForMetric(readings, _selectedMetric);
+        final chartData = _chartDataForMetric(
+          readings,
+          _selectedMetric,
+          _selectedTimeRange,
+        );
         final latestReading = readings.isNotEmpty ? readings.last : null;
-        final latestDisplay = _formatLatest(readings, _selectedMetric);
+        final latestDisplay =
+            _formatLatest(readings, _selectedMetric, _selectedTimeRange);
         final averageDisplay = _formatAverage(readings, _selectedMetric);
         final minMaxDisplay = _formatMinMax(readings, _selectedMetric);
         final latestDateLabel =
@@ -1140,10 +1180,8 @@ class _HealthVitalsPageState extends State<HealthVitalsPage> {
             child: hasData
                 ? LineChart(
                     LineChartData(
-                      minX: 0,
-                      maxX: chartData.primary.length == 1
-                          ? 1
-                          : (chartData.primary.length - 1).toDouble(),
+                      minX: chartData.minX,
+                      maxX: chartData.maxX,
                       minY: chartData.minY,
                       maxY: chartData.maxY,
                       gridData: FlGridData(
@@ -1169,10 +1207,29 @@ class _HealthVitalsPageState extends State<HealthVitalsPage> {
                           sideTitles: SideTitles(
                             showTitles: true,
                             reservedSize: 30,
-                            interval: readings.length <= 1
-                                ? 1
-                                : (readings.length - 1).toDouble(),
+                            interval: _selectedTimeRange == _VitalsTimeRange.day
+                                ? 6
+                                : readings.length <= 1
+                                    ? 1
+                                    : (readings.length - 1).toDouble(),
                             getTitlesWidget: (value, meta) {
+                              if (_selectedTimeRange == _VitalsTimeRange.day) {
+                                final hour = value.round();
+                                if (hour % 6 != 0 || hour < 0 || hour > 24) {
+                                  return const SizedBox.shrink();
+                                }
+                                return Padding(
+                                  padding: const EdgeInsets.only(top: 8),
+                                  child: Text(
+                                    '${hour}h',
+                                    style: const TextStyle(
+                                      color: _secondaryText,
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                );
+                              }
                               final index = value.round();
                               if (index < 0 || index >= readings.length) {
                                 return const SizedBox.shrink();
@@ -1461,6 +1518,8 @@ class _HealthVitalsPageState extends State<HealthVitalsPage> {
             readings.add(
               _VitalsReading(
                 date: entry.entryDate,
+                measuredAt: entry.measuredAt,
+                createdAt: entry.createdAt,
                 primary: entry.heartRate!.toDouble(),
               ),
             );
@@ -1471,6 +1530,8 @@ class _HealthVitalsPageState extends State<HealthVitalsPage> {
             readings.add(
               _VitalsReading(
                 date: entry.entryDate,
+                measuredAt: entry.measuredAt,
+                createdAt: entry.createdAt,
                 primary: entry.stressLevel!.toDouble(),
               ),
             );
@@ -1481,6 +1542,8 @@ class _HealthVitalsPageState extends State<HealthVitalsPage> {
             readings.add(
               _VitalsReading(
                 date: entry.entryDate,
+                measuredAt: entry.measuredAt,
+                createdAt: entry.createdAt,
                 primary: entry.systolicBp!.toDouble(),
                 secondary: entry.diastolicBp!.toDouble(),
               ),
@@ -1492,6 +1555,8 @@ class _HealthVitalsPageState extends State<HealthVitalsPage> {
             readings.add(
               _VitalsReading(
                 date: entry.entryDate,
+                measuredAt: entry.measuredAt,
+                createdAt: entry.createdAt,
                 primary: entry.spO2!.toDouble(),
               ),
             );
@@ -1502,6 +1567,8 @@ class _HealthVitalsPageState extends State<HealthVitalsPage> {
             readings.add(
               _VitalsReading(
                 date: entry.entryDate,
+                measuredAt: entry.measuredAt,
+                createdAt: entry.createdAt,
                 primary: entry.bodyTemperature!,
               ),
             );
@@ -1512,6 +1579,8 @@ class _HealthVitalsPageState extends State<HealthVitalsPage> {
             readings.add(
               _VitalsReading(
                 date: entry.entryDate,
+                measuredAt: entry.measuredAt,
+                createdAt: entry.createdAt,
                 primary: entry.weight!,
               ),
             );
@@ -1535,9 +1604,15 @@ class _HealthVitalsPageState extends State<HealthVitalsPage> {
     final today = DateTime(now.year, now.month, now.day);
 
     if (range == _VitalsTimeRange.day) {
-      return readings
-          .where((reading) => _sameDate(reading.date, today))
+      final dayReadings = readings
+          .where(
+              (reading) => _sameDate(_readingDateForDayFilter(reading), today))
           .toList(growable: false);
+      dayReadings.sort(
+        (a, b) => _readingTimestampForDayChart(a)
+            .compareTo(_readingTimestampForDayChart(b)),
+      );
+      return dayReadings;
     }
 
     final days = range == _VitalsTimeRange.week ? 7 : 30;
@@ -1557,25 +1632,32 @@ class _HealthVitalsPageState extends State<HealthVitalsPage> {
   _VitalsChartData _chartDataForMetric(
     List<_VitalsReading> readings,
     _VitalsMetric metric,
+    _VitalsTimeRange range,
   ) {
     final primary = <FlSpot>[];
     final secondary = <FlSpot>[];
     final values = <double>[];
+    final useTimeScale = range == _VitalsTimeRange.day;
 
     for (var i = 0; i < readings.length; i++) {
       final reading = readings[i];
-      primary.add(FlSpot(i.toDouble(), reading.primary));
+      final x = useTimeScale
+          ? _hourOfDay(_readingTimestampForDayChart(reading))
+          : i.toDouble();
+      primary.add(FlSpot(x, reading.primary));
       values.add(reading.primary);
       if (reading.secondary != null) {
-        secondary.add(FlSpot(i.toDouble(), reading.secondary!));
+        secondary.add(FlSpot(x, reading.secondary!));
         values.add(reading.secondary!);
       }
     }
 
     if (values.isEmpty) {
-      return const _VitalsChartData(
-        primary: [],
-        secondary: [],
+      return _VitalsChartData(
+        primary: const [],
+        secondary: const [],
+        minX: 0,
+        maxX: range == _VitalsTimeRange.day ? 24 : 1,
         minY: 0,
         maxY: 1,
       );
@@ -1583,16 +1665,16 @@ class _HealthVitalsPageState extends State<HealthVitalsPage> {
 
     final minValue = values.reduce((a, b) => a < b ? a : b);
     final maxValue = values.reduce((a, b) => a > b ? a : b);
-    final range = (maxValue - minValue).abs();
+    final valueRange = (maxValue - minValue).abs();
     double padding;
     if (metric == _VitalsMetric.bloodPressure) {
-      padding = range == 0 ? 12 : range * 0.18;
+      padding = valueRange == 0 ? 12 : valueRange * 0.18;
     } else if (metric == _VitalsMetric.temperature) {
-      padding = range == 0 ? 1.5 : range * 0.25;
+      padding = valueRange == 0 ? 1.5 : valueRange * 0.25;
     } else if (metric == _VitalsMetric.weight) {
-      padding = range == 0 ? 2 : range * 0.18;
+      padding = valueRange == 0 ? 2 : valueRange * 0.18;
     } else {
-      padding = range == 0 ? 8 : range * 0.2;
+      padding = valueRange == 0 ? 8 : valueRange * 0.2;
     }
 
     final minY = (minValue - padding).clamp(0, double.infinity).toDouble();
@@ -1600,6 +1682,10 @@ class _HealthVitalsPageState extends State<HealthVitalsPage> {
     return _VitalsChartData(
       primary: primary,
       secondary: secondary,
+      minX: 0,
+      maxX: useTimeScale
+          ? 24
+          : (primary.length == 1 ? 1 : (primary.length - 1).toDouble()),
       minY: minY == maxY ? maxY + 1 : minY,
       maxY: minY == maxY ? maxY + 1 : maxY,
     );
@@ -1682,11 +1768,22 @@ class _HealthVitalsPageState extends State<HealthVitalsPage> {
     return 10;
   }
 
-  String _formatLatest(List<_VitalsReading> readings, _VitalsMetric metric) {
+  String _formatLatest(
+    List<_VitalsReading> readings,
+    _VitalsMetric metric,
+    _VitalsTimeRange range,
+  ) {
     if (readings.isEmpty) {
       return '—';
     }
-    return _formatReading(readings.last, metric);
+    final latest = readings.last;
+    final value = _formatReading(latest, metric);
+    if (range != _VitalsTimeRange.day) {
+      return value;
+    }
+    final time =
+        DateFormat('HH:mm').format(_readingTimestampForDayChart(latest));
+    return '$value at $time';
   }
 
   String _formatAverage(List<_VitalsReading> readings, _VitalsMetric metric) {
@@ -1872,7 +1969,8 @@ class _VitalsManualEntrySheetState extends State<_VitalsManualEntrySheet> {
       case _VitalsMetric.heartRate:
         return HealthEntry(
           id: 0,
-          entryDate: selected,
+          entryDate: _selectedDate,
+          measuredAt: selected,
           wellbeingScore: 5,
           symptoms: const [],
           heartRate: int.parse(_primaryController.text.trim()),
@@ -1880,7 +1978,8 @@ class _VitalsManualEntrySheetState extends State<_VitalsManualEntrySheet> {
       case _VitalsMetric.stress:
         return HealthEntry(
           id: 0,
-          entryDate: selected,
+          entryDate: _selectedDate,
+          measuredAt: selected,
           wellbeingScore: 5,
           symptoms: const [],
           stressLevel: int.parse(_primaryController.text.trim()),
@@ -1888,7 +1987,8 @@ class _VitalsManualEntrySheetState extends State<_VitalsManualEntrySheet> {
       case _VitalsMetric.bloodPressure:
         return HealthEntry(
           id: 0,
-          entryDate: selected,
+          entryDate: _selectedDate,
+          measuredAt: selected,
           wellbeingScore: 5,
           symptoms: const [],
           systolicBp: int.parse(_primaryController.text.trim()),
@@ -1897,7 +1997,8 @@ class _VitalsManualEntrySheetState extends State<_VitalsManualEntrySheet> {
       case _VitalsMetric.spO2:
         return HealthEntry(
           id: 0,
-          entryDate: selected,
+          entryDate: _selectedDate,
+          measuredAt: selected,
           wellbeingScore: 5,
           symptoms: const [],
           spO2: int.parse(_primaryController.text.trim()),
@@ -1905,7 +2006,8 @@ class _VitalsManualEntrySheetState extends State<_VitalsManualEntrySheet> {
       case _VitalsMetric.temperature:
         return HealthEntry(
           id: 0,
-          entryDate: selected,
+          entryDate: _selectedDate,
+          measuredAt: selected,
           wellbeingScore: 5,
           symptoms: const [],
           bodyTemperature: double.parse(_primaryController.text.trim()),
@@ -1913,7 +2015,8 @@ class _VitalsManualEntrySheetState extends State<_VitalsManualEntrySheet> {
       case _VitalsMetric.weight:
         return HealthEntry(
           id: 0,
-          entryDate: selected,
+          entryDate: _selectedDate,
+          measuredAt: selected,
           wellbeingScore: 5,
           symptoms: const [],
           weight: double.parse(_primaryController.text.trim()),

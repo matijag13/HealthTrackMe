@@ -3,6 +3,7 @@ package com.healthwithme.api.dto
 data class HealthEntryDto(
     val id: Long,
     val entryDate: String,
+    val measuredAt: String? = null,
     val wellbeingScore: Int,
     val symptoms: List<String>,
     val mood: String?,
@@ -32,6 +33,7 @@ data class HealthEntryDto(
 
 data class CreateHealthEntryRequest(
     val entryDate: String,
+    val measuredAt: String? = null,
     val wellbeingScore: Int,
     val symptoms: List<String>,
     val mood: String?,
@@ -58,6 +60,7 @@ data class CreateHealthEntryRequest(
 )
 
 data class UpdateHealthEntryRequest(
+    val measuredAt: String? = null,
     val wellbeingScore: Int?,
     val symptoms: List<String>?,
     val mood: String?,

@@ -64,6 +64,7 @@ String _dateOnly(DateTime date) => date.toIso8601String().split('T').first;
 class HealthEntry {
   final int id;
   final DateTime entryDate;
+  final DateTime? measuredAt;
   final int? wellbeingScore;
   final List<String> symptoms;
   final String? mood;
@@ -94,6 +95,7 @@ class HealthEntry {
   const HealthEntry({
     required this.id,
     required this.entryDate,
+    this.measuredAt,
     this.wellbeingScore,
     required this.symptoms,
     this.mood,
@@ -139,6 +141,7 @@ class HealthEntry {
         (scoreValue > 10) ? (scoreValue / 10).round() : scoreValue;
     return {
       'entryDate': _dateOnly(entryDate),
+      if (measuredAt != null) 'measuredAt': measuredAt!.toIso8601String(),
       'wellbeingScore': scaledScore.clamp(0, 10),
       'symptoms': symptoms,
       'mood': mood,
@@ -173,6 +176,7 @@ class HealthEntry {
       id: _tryParseInt(map['id']) ?? 0,
       entryDate:
           _tryParseDate(map['entryDate'] ?? map['date']) ?? DateTime.now(),
+      measuredAt: _tryParseDate(map['measuredAt'] ?? map['measured_at']),
       wellbeingScore: _tryParseInt(map['wellbeingScore']),
       symptoms: _parseStringList(map['symptoms']),
       mood: map['mood']?.toString(),

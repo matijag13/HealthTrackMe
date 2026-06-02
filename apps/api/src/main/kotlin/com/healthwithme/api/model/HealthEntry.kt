@@ -21,6 +21,9 @@ data class HealthEntry(
     @Column(nullable = false)
     val entryDate: LocalDate = LocalDate.now(),
 
+    @Column(nullable = true)
+    val measuredAt: LocalDateTime? = null,
+
     @field:Min(1)
     @field:Max(10)
     @Column(nullable = false)
