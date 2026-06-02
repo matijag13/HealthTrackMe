@@ -644,6 +644,7 @@ class _HealthVitalsPageState extends State<HealthVitalsPage> {
         return _VitalsManualEntrySheet(
           metric: metric,
           api: _api,
+          onClose: (result) => Navigator.of(sheetContext).pop(result),
         );
       },
     );
@@ -1750,10 +1751,12 @@ class _HealthVitalsPageState extends State<HealthVitalsPage> {
 class _VitalsManualEntrySheet extends StatefulWidget {
   final _VitalsMetric metric;
   final ApiService api;
+  final ValueChanged<_VitalsManualEntryResult?> onClose;
 
   const _VitalsManualEntrySheet({
     required this.metric,
     required this.api,
+    required this.onClose,
   });
 
   @override
@@ -1837,7 +1840,7 @@ class _VitalsManualEntrySheetState extends State<_VitalsManualEntrySheet> {
       if (!mounted) {
         return;
       }
-      Navigator.of(context).pop(
+      widget.onClose(
         _VitalsManualEntryResult(
           entry: created,
           selectedDateTime: _selectedDateTime,
@@ -1860,7 +1863,7 @@ class _VitalsManualEntrySheetState extends State<_VitalsManualEntrySheet> {
   }
 
   void _cancel() {
-    Navigator.of(context).pop(false);
+    widget.onClose(null);
   }
 
   HealthEntry _buildEntry() {
@@ -2336,51 +2339,26 @@ class _VitalsManualEntrySheetState extends State<_VitalsManualEntrySheet> {
                         children: [
                           _buildPrimaryField(),
                           const SizedBox(height: 18),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: TextButton(
-                                  onPressed: _saving ? null : _cancel,
-                                  style: TextButton.styleFrom(
-                                    foregroundColor: _secondaryText,
-                                    padding: const EdgeInsets.symmetric(
-                                        vertical: 14),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(16),
-                                      side: BorderSide(
-                                        color: _border.withValues(alpha: 0.9),
-                                      ),
-                                    ),
-                                  ),
-                                  child: const Text('Cancel'),
-                                ),
+                          FilledButton(
+                            onPressed: _saving ? null : _save,
+                            style: FilledButton.styleFrom(
+                              backgroundColor: _accent,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16),
                               ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: FilledButton(
-                                  onPressed: _saving ? null : _save,
-                                  style: FilledButton.styleFrom(
-                                    backgroundColor: _accent,
-                                    foregroundColor: Colors.white,
-                                    padding: const EdgeInsets.symmetric(
-                                        vertical: 14),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(16),
+                            ),
+                            child: _saving
+                                ? const SizedBox(
+                                    width: 18,
+                                    height: 18,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2.2,
+                                      color: Colors.white,
                                     ),
-                                  ),
-                                  child: _saving
-                                      ? const SizedBox(
-                                          width: 18,
-                                          height: 18,
-                                          child: CircularProgressIndicator(
-                                            strokeWidth: 2.2,
-                                            color: Colors.white,
-                                          ),
-                                        )
-                                      : const Text('Save'),
-                                ),
-                              ),
-                            ],
+                                  )
+                                : const Text('Save'),
                           ),
                         ],
                       ),
