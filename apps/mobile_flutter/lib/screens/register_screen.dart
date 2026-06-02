@@ -22,6 +22,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
   static const _border = Color(0xFF242936);
   static const _mutedText = Color(0xFF8B93A7);
   static const _primaryText = Color(0xFFF7F8FA);
+  static const _toastSurface = Color(0xFF0F1624);
+  static const _successAccent = Color(0xFF36D399);
 
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
@@ -40,12 +42,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
   bool _obscureConfirmPassword = true;
   String? _authError;
   String _selectedUserType = 'PATIENT';
-  int? _selectedYear;
-  int? _selectedMonth;
-  int? _selectedDay;
+  DateTime? _selectedDateOfBirth;
 
-  bool get _isDateOfBirthComplete =>
-      _selectedYear != null && _selectedMonth != null && _selectedDay != null;
+  bool get _isDateOfBirthComplete => _selectedDateOfBirth != null;
 
   bool get _showDateOfBirthError => _submitted && !_isDateOfBirthComplete;
 
@@ -110,8 +109,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     }
     setState(() => _isLoading = true);
     try {
-      final dateOfBirth =
-          '$_selectedYear-${_selectedMonth.toString().padLeft(2, '0')}-${_selectedDay.toString().padLeft(2, '0')}';
+      final dateOfBirth = _formatDateForApi(_selectedDateOfBirth!);
       final user = await _api.createUser(
         email: _emailController.text.trim(),
         password: _passwordController.text.trim(),
@@ -122,12 +120,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       );
       await _api.setActiveUserId(user.id);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('✅ Account created successfully!'),
-          backgroundColor: AppColors.success,
-        ),
-      );
+      _showAuthToast(context, 'Account created successfully');
       context.goNamed('home');
     } catch (error) {
       if (!mounted) return;
@@ -228,6 +221,241 @@ class _RegisterScreenState extends State<RegisterScreen> {
     if (_authError != null) {
       setState(() => _authError = null);
     }
+  }
+
+  String _formatDateForApi(DateTime date) {
+    return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+  }
+
+  String _formatDateForField(DateTime date) {
+    return '${date.day.toString().padLeft(2, '0')}.${date.month.toString().padLeft(2, '0')}.${date.year}';
+  }
+
+  Future<void> _pickDateOfBirth() async {
+    final now = DateTime.now();
+    final picked = await showDialog<DateTime>(
+      context: context,
+      builder: (dialogContext) {
+        DateTime draft = _selectedDateOfBirth ?? DateTime(2000);
+        if (draft.isAfter(now)) {
+          draft = now;
+        }
+
+        return Theme(
+          data: Theme.of(dialogContext).copyWith(
+            colorScheme: const ColorScheme.dark(
+              primary: AppColors.primaryBlue,
+              onPrimary: Colors.white,
+              surface: _card,
+              onSurface: _primaryText,
+            ),
+            dialogTheme: const DialogThemeData(backgroundColor: _card),
+            datePickerTheme: DatePickerThemeData(
+              backgroundColor: _card,
+              surfaceTintColor: Colors.transparent,
+              headerBackgroundColor: _card,
+              headerForegroundColor: _primaryText,
+              dayForegroundColor: WidgetStateProperty.resolveWith((states) {
+                if (states.contains(WidgetState.disabled)) {
+                  return _mutedText.withValues(alpha: 0.35);
+                }
+                if (states.contains(WidgetState.selected)) {
+                  return Colors.white;
+                }
+                return _primaryText;
+              }),
+              dayBackgroundColor: WidgetStateProperty.resolveWith((states) {
+                if (states.contains(WidgetState.selected)) {
+                  return AppColors.primaryBlue;
+                }
+                return Colors.transparent;
+              }),
+              todayForegroundColor:
+                  WidgetStateProperty.all(AppColors.primaryBlue),
+              todayBorder:
+                  const BorderSide(color: AppColors.primaryBlue, width: 1.2),
+              yearForegroundColor: WidgetStateProperty.resolveWith((states) {
+                if (states.contains(WidgetState.selected)) {
+                  return Colors.white;
+                }
+                return _primaryText;
+              }),
+              yearBackgroundColor: WidgetStateProperty.resolveWith((states) {
+                if (states.contains(WidgetState.selected)) {
+                  return AppColors.primaryBlue;
+                }
+                return Colors.transparent;
+              }),
+              weekdayStyle: const TextStyle(color: _mutedText),
+              dividerColor: _border,
+            ),
+            textButtonTheme: TextButtonThemeData(
+              style: TextButton.styleFrom(
+                foregroundColor: AppColors.primaryBlue,
+                textStyle: const TextStyle(fontWeight: FontWeight.w800),
+              ),
+            ),
+          ),
+          child: Dialog(
+            backgroundColor: _card,
+            insetPadding:
+                const EdgeInsets.symmetric(horizontal: 18, vertical: 24),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(22),
+              side: BorderSide(color: Colors.white.withValues(alpha: 0.08)),
+            ),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 380),
+              child: StatefulBuilder(
+                builder: (context, setDialogState) {
+                  return Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 18, 16, 12),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Row(
+                          children: [
+                            Icon(
+                              Icons.calendar_month_outlined,
+                              color: AppColors.primaryBlue,
+                              size: 22,
+                            ),
+                            SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                'Date of birth',
+                                style: TextStyle(
+                                  color: _primaryText,
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        ConstrainedBox(
+                          constraints: const BoxConstraints(maxHeight: 360),
+                          child: CalendarDatePicker(
+                            initialDate: draft,
+                            firstDate: DateTime(1900),
+                            lastDate: now,
+                            currentDate: now,
+                            onDateChanged: (date) {
+                              setDialogState(() => draft = date);
+                            },
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            TextButton(
+                              onPressed: () =>
+                                  Navigator.of(context).pop<DateTime>(),
+                              child: const Text('Cancel'),
+                            ),
+                            const SizedBox(width: 8),
+                            TextButton(
+                              onPressed: () =>
+                                  Navigator.of(context).pop<DateTime>(draft),
+                              child: const Text('Confirm'),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ),
+          ),
+        );
+      },
+    );
+
+    if (picked == null || !mounted) return;
+    setState(() {
+      _selectedDateOfBirth = picked;
+      _authError = null;
+    });
+  }
+
+  void _showAuthToast(BuildContext context, String message) {
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.clearSnackBars();
+    messenger.showSnackBar(
+      SnackBar(
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        margin: const EdgeInsets.fromLTRB(16, 0, 16, 20),
+        padding: EdgeInsets.zero,
+        duration: const Duration(seconds: 3),
+        dismissDirection: DismissDirection.horizontal,
+        content: Container(
+          decoration: BoxDecoration(
+            color: _toastSurface,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(
+              color: _successAccent.withValues(alpha: 0.34),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.38),
+                blurRadius: 24,
+                offset: const Offset(0, 12),
+              ),
+            ],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(18),
+            child: Row(
+              children: [
+                Container(width: 4, height: 60, color: _successAccent),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 13, 16, 13),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 34,
+                          height: 34,
+                          decoration: BoxDecoration(
+                            color: _successAccent.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(11),
+                            border: Border.all(
+                              color: _successAccent.withValues(alpha: 0.22),
+                            ),
+                          ),
+                          child: const Icon(
+                            Icons.check_circle_rounded,
+                            color: _successAccent,
+                            size: 19,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            message,
+                            style: const TextStyle(
+                              color: _primaryText,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              height: 1.25,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   Widget _authErrorBanner(String message) {
@@ -507,109 +735,28 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       ),
                       const SizedBox(height: 18),
                       _fieldLabel('Date of birth'),
-                      LayoutBuilder(
-                        builder: (context, constraints) {
-                          final narrow = constraints.maxWidth < 430;
-
-                          final yearField = DropdownButtonFormField<int>(
-                            initialValue: _selectedYear,
-                            dropdownColor: _field,
-                            style: const TextStyle(color: _primaryText),
-                            iconEnabledColor: _mutedText,
-                            hint: const Text(
-                              'Year',
-                              style: TextStyle(color: _mutedText),
+                      TextFormField(
+                        key: ValueKey(
+                          _selectedDateOfBirth?.toIso8601String() ?? 'empty',
+                        ),
+                        readOnly: true,
+                        initialValue: _selectedDateOfBirth == null
+                            ? ''
+                            : _formatDateForField(_selectedDateOfBirth!),
+                        onTap: _pickDateOfBirth,
+                        style: const TextStyle(color: _primaryText),
+                        decoration: _inputDecoration(
+                          hintText: 'Select date',
+                          prefixIcon: Icons.calendar_today_outlined,
+                          suffixIcon: IconButton(
+                            onPressed: _pickDateOfBirth,
+                            icon: const Icon(
+                              Icons.expand_more_rounded,
+                              color: _mutedText,
                             ),
-                            items: List.generate(
-                              100,
-                              (i) => DateTime.now().year - 80 + i,
-                            )
-                                .map(
-                                  (y) => DropdownMenuItem(
-                                    value: y,
-                                    child: Text(y.toString()),
-                                  ),
-                                )
-                                .toList(),
-                            onChanged: (v) => setState(() => _selectedYear = v),
-                            decoration: _inputDecoration(
-                              hintText: 'Year',
-                              prefixIcon: Icons.calendar_today_outlined,
-                              hasError: _showDateOfBirthError,
-                            ),
-                          );
-                          final monthField = DropdownButtonFormField<int>(
-                            initialValue: _selectedMonth,
-                            dropdownColor: _field,
-                            style: const TextStyle(color: _primaryText),
-                            iconEnabledColor: _mutedText,
-                            hint: const Text(
-                              'Month',
-                              style: TextStyle(color: _mutedText),
-                            ),
-                            items: List.generate(12, (i) => i + 1)
-                                .map(
-                                  (m) => DropdownMenuItem(
-                                    value: m,
-                                    child: Text(m.toString().padLeft(2, '0')),
-                                  ),
-                                )
-                                .toList(),
-                            onChanged: (v) =>
-                                setState(() => _selectedMonth = v),
-                            decoration: _inputDecoration(
-                              hintText: 'Month',
-                              prefixIcon: Icons.calendar_month_outlined,
-                              hasError: _showDateOfBirthError,
-                            ),
-                          );
-                          final dayField = DropdownButtonFormField<int>(
-                            initialValue: _selectedDay,
-                            dropdownColor: _field,
-                            style: const TextStyle(color: _primaryText),
-                            iconEnabledColor: _mutedText,
-                            hint: const Text(
-                              'Day',
-                              style: TextStyle(color: _mutedText),
-                            ),
-                            items: List.generate(31, (i) => i + 1)
-                                .map(
-                                  (d) => DropdownMenuItem(
-                                    value: d,
-                                    child: Text(d.toString().padLeft(2, '0')),
-                                  ),
-                                )
-                                .toList(),
-                            onChanged: (v) => setState(() => _selectedDay = v),
-                            decoration: _inputDecoration(
-                              hintText: 'Day',
-                              prefixIcon: Icons.event_outlined,
-                              hasError: _showDateOfBirthError,
-                            ),
-                          );
-
-                          if (narrow) {
-                            return Column(
-                              children: [
-                                yearField,
-                                const SizedBox(height: 12),
-                                monthField,
-                                const SizedBox(height: 12),
-                                dayField,
-                              ],
-                            );
-                          }
-
-                          return Row(
-                            children: [
-                              Expanded(child: yearField),
-                              const SizedBox(width: 10),
-                              Expanded(child: monthField),
-                              const SizedBox(width: 10),
-                              Expanded(child: dayField),
-                            ],
-                          );
-                        },
+                          ),
+                          hasError: _showDateOfBirthError,
+                        ),
                       ),
                       if (_showDateOfBirthError) ...[
                         const SizedBox(height: 8),
