@@ -1,14 +1,17 @@
-import 'package:intl/intl.dart';
+import 'dart:convert';
+
 import 'package:fl_chart/fl_chart.dart';
+import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/models.dart';
 import '../services/api_service.dart';
-import '../utils/health_utils.dart';
 import '../widgets/widgets.dart';
+import '../utils/health_utils.dart';
 import 'edit_profile_screen.dart';
 
 class _HealthSnapshot {
@@ -48,114 +51,6 @@ Future<_HealthSnapshot> _loadHealthSnapshot({DateTime? month}) async {
 
 String _formatDate(DateTime date) =>
     DateFormat('dd MMM yyyy').format(date.toLocal());
-
-Widget _buildBottomSheetCloseButton(VoidCallback? onPressed) {
-  return Material(
-    color: Colors.transparent,
-    child: IconButton(
-      onPressed: onPressed,
-      icon: const Icon(
-        Icons.close_rounded,
-        color: Color(0xFFF5F7FB),
-      ),
-      style: IconButton.styleFrom(
-        backgroundColor: const Color(0xFF11141B),
-        side: const BorderSide(color: Color(0xFF243047)),
-      ),
-    ),
-  );
-}
-
-String _vitalsMetricHistoryLabel(_VitalsMetric metric) {
-  switch (metric) {
-    case _VitalsMetric.heartRate:
-      return 'heart rate';
-    case _VitalsMetric.stress:
-      return 'stress';
-    case _VitalsMetric.bloodPressure:
-      return 'blood pressure';
-    case _VitalsMetric.spO2:
-      return 'SpO2';
-    case _VitalsMetric.temperature:
-      return 'temperature';
-    case _VitalsMetric.weight:
-      return 'weight';
-  }
-}
-
-String _vitalsMetricTitleLabel(_VitalsMetric metric) {
-  switch (metric) {
-    case _VitalsMetric.heartRate:
-      return 'Heart Rate';
-    case _VitalsMetric.stress:
-      return 'Stress';
-    case _VitalsMetric.bloodPressure:
-      return 'Blood Pressure';
-    case _VitalsMetric.spO2:
-      return 'SpO2';
-    case _VitalsMetric.temperature:
-      return 'Temperature';
-    case _VitalsMetric.weight:
-      return 'Weight';
-  }
-}
-
-String _vitalsMetricHistoryTitle(_VitalsMetric metric, _VitalsTimeRange range) {
-  final label = _vitalsMetricTitleLabel(metric);
-  switch (range) {
-    case _VitalsTimeRange.day:
-      return '$label Today';
-    case _VitalsTimeRange.week:
-      return '$label This Week';
-    case _VitalsTimeRange.month:
-      return '$label This Month';
-    case _VitalsTimeRange.max:
-      return '$label All Time';
-  }
-}
-
-String _vitalsMetricEmptyMessage(_VitalsMetric metric) {
-  return 'No ${_vitalsMetricHistoryLabel(metric)} readings for this period';
-}
-
-String _formatCompactDecimal(double value) {
-  return value == value.truncateToDouble()
-      ? value.toStringAsFixed(0)
-      : value.toStringAsFixed(1);
-}
-
-String _vitalsMetricReadingValue(
-  _VitalsReading reading,
-  _VitalsMetric metric,
-) {
-  switch (metric) {
-    case _VitalsMetric.heartRate:
-      return '${reading.primary.round()} bpm';
-    case _VitalsMetric.stress:
-      return '${reading.primary.round()} / 10';
-    case _VitalsMetric.bloodPressure:
-      return '${reading.primary.round()}/${reading.secondary?.round() ?? 0} mmHg';
-    case _VitalsMetric.spO2:
-      return '${reading.primary.round()}%';
-    case _VitalsMetric.temperature:
-      return '${_formatCompactDecimal(reading.primary)} °C';
-    case _VitalsMetric.weight:
-      return '${_formatCompactDecimal(reading.primary)} kg';
-  }
-}
-
-String _vitalsMetricReadingDateLabel(_VitalsReading reading) {
-  final displayDate = reading.measuredAt ?? reading.date;
-  final dateLabel = _formatDate(displayDate);
-  if (reading.measuredAt == null) {
-    return dateLabel;
-  }
-  return '$dateLabel • ${DateFormat('HH:mm').format(reading.measuredAt!.toLocal())}';
-}
-
-String _vitalsMetricDetailTitle(_VitalsMetric metric) {
-  return '${_vitalsMetricToastLabel(metric)} details';
-}
 
 bool _isValidSleepHoursValue(double? hours) {
   if (hours == null) {
@@ -1078,16 +973,13 @@ class _HealthVitalsPageState extends State<HealthVitalsPage> {
           _selectedMetric,
           _selectedTimeRange,
         );
+        final latestReading = readings.isNotEmpty ? readings.last : null;
         final latestDisplay =
             _formatLatest(readings, _selectedMetric, _selectedTimeRange);
         final averageDisplay = _formatAverage(readings, _selectedMetric);
         final minMaxDisplay = _formatMinMax(readings, _selectedMetric);
-        final listReadings = List<_VitalsReading>.from(readings)
-          ..sort((a, b) {
-            final aDate = a.measuredAt ?? a.date;
-            final bDate = b.measuredAt ?? b.date;
-            return bDate.compareTo(aDate);
-          });
+        final latestDateLabel =
+            latestReading != null ? _formatDate(latestReading.date) : null;
 
         return Scaffold(
           backgroundColor: _bg,
@@ -1120,7 +1012,12 @@ class _HealthVitalsPageState extends State<HealthVitalsPage> {
                               minMaxDisplay: minMaxDisplay,
                             ),
                             const SizedBox(height: 16),
-                            _buildVitalsHistorySection(listReadings),
+                            if (latestReading != null)
+                              _buildLatestEntryCard(
+                                latestDateLabel: latestDateLabel!,
+                                latestDisplay: latestDisplay,
+                                readingCount: readings.length,
+                              ),
                           ],
                         ),
                 ),
@@ -1468,10 +1365,10 @@ class _HealthVitalsPageState extends State<HealthVitalsPage> {
           borderRadius: BorderRadius.circular(20),
           border: Border.all(color: _border.withValues(alpha: 0.75)),
         ),
-        child: Text(
-          _vitalsMetricEmptyMessage(_selectedMetric),
+        child: const Text(
+          'No sleep data for this period',
           textAlign: TextAlign.center,
-          style: const TextStyle(
+          style: TextStyle(
             color: _primaryText,
             fontSize: 15,
             fontWeight: FontWeight.w800,
@@ -1492,134 +1389,6 @@ class _HealthVitalsPageState extends State<HealthVitalsPage> {
           wide: _selectedMetric == _VitalsMetric.bloodPressure,
         ),
       ],
-    );
-  }
-
-  void _openVitalsDetails(_VitalsReading reading) {
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => _VitalsDetailsSheet(
-        title: _vitalsMetricDetailTitle(_selectedMetric),
-        metric: _selectedMetric,
-        reading: reading,
-      ),
-    );
-  }
-
-  Widget _buildVitalsHistorySection(List<_VitalsReading> readings) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          _vitalsMetricHistoryTitle(_selectedMetric, _selectedTimeRange),
-          style: const TextStyle(
-            color: _primaryText,
-            fontSize: 18,
-            fontWeight: FontWeight.w900,
-          ),
-        ),
-        const SizedBox(height: 14),
-        if (readings.isEmpty)
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(18),
-            decoration: BoxDecoration(
-              color: _surface,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: _border.withValues(alpha: 0.75)),
-            ),
-            child: Text(
-              _vitalsMetricEmptyMessage(_selectedMetric),
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                color: _secondaryText,
-                fontSize: 14,
-                fontWeight: FontWeight.w700,
-                height: 1.35,
-              ),
-            ),
-          )
-        else
-          Column(
-            children: [
-              for (var i = 0; i < readings.length; i++) ...[
-                _buildVitalsHistoryCard(readings[i]),
-                if (i < readings.length - 1) const SizedBox(height: 12),
-              ],
-            ],
-          ),
-      ],
-    );
-  }
-
-  Widget _buildVitalsHistoryCard(_VitalsReading reading) {
-    final title = _vitalsMetricToastLabel(_selectedMetric);
-    final value = _vitalsMetricReadingValue(reading, _selectedMetric);
-    final dateLabel = _vitalsMetricReadingDateLabel(reading);
-
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: () => _openVitalsDetails(reading),
-        borderRadius: BorderRadius.circular(20),
-        child: Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: _surface,
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: _border.withValues(alpha: 0.75)),
-          ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: const TextStyle(
-                        color: _primaryText,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      value,
-                      style: const TextStyle(
-                        color: _secondaryText,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                        height: 1.35,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      dateLabel,
-                      style: const TextStyle(
-                        color: _secondaryText,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 12),
-              const Icon(
-                Icons.chevron_right_rounded,
-                color: _secondaryText,
-                size: 24,
-              ),
-            ],
-          ),
-        ),
-      ),
     );
   }
 
@@ -1654,6 +1423,80 @@ class _HealthVitalsPageState extends State<HealthVitalsPage> {
               fontSize: multiline ? 15 : 18,
               fontWeight: FontWeight.w900,
               height: multiline ? 1.25 : 1.1,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLatestEntryCard({
+    required String latestDateLabel,
+    required String latestDisplay,
+    required int readingCount,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: _surface,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: _border.withValues(alpha: 0.75)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: _accent.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: const Icon(
+              Icons.history_rounded,
+              color: _accent,
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Latest entry',
+                  style: TextStyle(
+                    color: _primaryText,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  latestDateLabel,
+                  style: const TextStyle(
+                    color: _secondaryText,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  latestDisplay,
+                  style: const TextStyle(
+                    color: _primaryText,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  '$readingCount reading${readingCount == 1 ? '' : 's'} in range',
+                  style: const TextStyle(
+                    color: _secondaryText,
+                    fontSize: 12,
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -2554,8 +2397,10 @@ class _VitalsManualEntrySheetState extends State<_VitalsManualEntrySheet> {
                           ],
                         ),
                       ),
-                      _buildBottomSheetCloseButton(
-                        _saving ? null : _cancel,
+                      IconButton(
+                        onPressed: _saving ? null : _cancel,
+                        icon: const Icon(Icons.close_rounded),
+                        color: _secondaryText,
                       ),
                     ],
                   ),
@@ -2621,142 +2466,6 @@ class _VitalsManualEntrySheetState extends State<_VitalsManualEntrySheet> {
                         ],
                       ),
                     ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _VitalsDetailsSheet extends StatelessWidget {
-  static const _surface = Color(0xFF0F1624);
-  static const _surfaceAlt = Color(0xFF121B2C);
-  static const _border = Color(0xFF243047);
-  static const _primaryText = Color(0xFFF5F7FB);
-  static const _secondaryText = Color(0xFF94A3B8);
-
-  final String title;
-  final _VitalsMetric metric;
-  final _VitalsReading reading;
-
-  const _VitalsDetailsSheet({
-    required this.title,
-    required this.metric,
-    required this.reading,
-  });
-
-  Widget _detailRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 14),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label,
-            style: const TextStyle(
-              color: _secondaryText,
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            value,
-            style: const TextStyle(
-              color: _primaryText,
-              fontSize: 15,
-              fontWeight: FontWeight.w800,
-              height: 1.35,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final bottomPadding = MediaQuery.of(context).viewInsets.bottom;
-    final displayDate = reading.measuredAt ?? reading.date;
-    final timeLabel = reading.measuredAt == null
-        ? null
-        : DateFormat('HH:mm').format(reading.measuredAt!.toLocal());
-    final unit = _vitalsMetricUnit(metric);
-    final valueLabel = _vitalsMetricReadingValue(reading, metric);
-
-    return SafeArea(
-      top: false,
-      child: Container(
-        decoration: BoxDecoration(
-          color: _surface,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-          border: Border.all(color: _border.withValues(alpha: 0.85)),
-        ),
-        child: Padding(
-          padding: EdgeInsets.fromLTRB(20, 12, 20, 20 + bottomPadding),
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Center(
-                  child: Container(
-                    width: 44,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: _secondaryText.withValues(alpha: 0.35),
-                      borderRadius: BorderRadius.circular(999),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 18),
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        title,
-                        style: const TextStyle(
-                          color: _primaryText,
-                          fontSize: 22,
-                          fontWeight: FontWeight.w900,
-                        ),
-                      ),
-                    ),
-                    _buildBottomSheetCloseButton(
-                      () => Navigator.of(context).pop(),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 18),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(18),
-                  decoration: BoxDecoration(
-                    color: _surfaceAlt,
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: _border.withValues(alpha: 0.75)),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _detailRow('Date', _formatDate(displayDate)),
-                      if (timeLabel != null) _detailRow('Time', timeLabel),
-                      _detailRow('Metric', _vitalsMetricToastLabel(metric)),
-                      if (unit.isNotEmpty) _detailRow('Unit', unit),
-                      _detailRow('Value', valueLabel),
-                      if (metric == _VitalsMetric.bloodPressure) ...[
-                        _detailRow(
-                            'Systolic', '${reading.primary.round()} mmHg'),
-                        _detailRow(
-                          'Diastolic',
-                          '${reading.secondary?.round() ?? 0} mmHg',
-                        ),
-                      ],
-                    ],
                   ),
                 ),
               ],
@@ -4281,10 +3990,7 @@ class _HealthSleepPageState extends State<HealthSleepPage> {
       useSafeArea: true,
       backgroundColor: Colors.transparent,
       builder: (sheetContext) {
-        return _SleepManualEntrySheet(
-          api: _api,
-          onClose: (result) => Navigator.of(sheetContext).pop(result),
-        );
+        return _SleepManualEntrySheet(api: _api);
       },
     );
 
@@ -4491,19 +4197,6 @@ class _HealthSleepPageState extends State<HealthSleepPage> {
     return ((readingCount / 4).ceil()).toDouble();
   }
 
-  String _sleepHistoryTitle(_SleepTimeRange range) {
-    switch (range) {
-      case _SleepTimeRange.day:
-        return 'Sleep Today';
-      case _SleepTimeRange.week:
-        return 'Sleep This Week';
-      case _SleepTimeRange.month:
-        return 'Sleep This Month';
-      case _SleepTimeRange.max:
-        return 'Sleep All Time';
-    }
-  }
-
   double _horizontalGridInterval(double minY, double maxY) {
     final range = (maxY - minY).abs();
     if (range <= 3) {
@@ -4633,10 +4326,10 @@ class _HealthSleepPageState extends State<HealthSleepPage> {
         children: [
           Row(
             children: [
-              Expanded(
+              const Expanded(
                 child: Text(
-                  _sleepHistoryTitle(_selectedTimeRange),
-                  style: const TextStyle(
+                  'Sleep',
+                  style: TextStyle(
                     color: _primaryText,
                     fontSize: 18,
                     fontWeight: FontWeight.w900,
@@ -5033,12 +4726,8 @@ class _SleepManualEntryResult {
 
 class _SleepManualEntrySheet extends StatefulWidget {
   final ApiService api;
-  final ValueChanged<_SleepManualEntryResult?> onClose;
 
-  const _SleepManualEntrySheet({
-    required this.api,
-    required this.onClose,
-  });
+  const _SleepManualEntrySheet({required this.api});
 
   @override
   State<_SleepManualEntrySheet> createState() => _SleepManualEntrySheetState();
@@ -5056,7 +4745,6 @@ class _SleepManualEntrySheetState extends State<_SleepManualEntrySheet> {
   late DateTime _selectedDate;
   late TimeOfDay _bedtime;
   late TimeOfDay _wakeTime;
-  int _qualityStars = 4;
   bool _saving = false;
 
   @override
@@ -5229,8 +4917,8 @@ class _SleepManualEntrySheetState extends State<_SleepManualEntrySheet> {
 
   String _timeFrom(TimeOfDay timeOfDay) => _formatTimeOfDay(timeOfDay);
 
-  HealthEntry _buildEntry() {
-    return HealthEntry(
+  Map<String, dynamic> _buildPayload() {
+    final entry = HealthEntry(
       id: 0,
       entryDate: _selectedDate,
       wellbeingScore: 5,
@@ -5238,8 +4926,10 @@ class _SleepManualEntrySheetState extends State<_SleepManualEntrySheet> {
       sleepHours: _sleepHours,
       bedtime: _timeFrom(_bedtime),
       wakeTime: _timeFrom(_wakeTime),
-      sleepQualityStars: _qualityStars,
     );
+    final payload = entry.toJson();
+    payload.remove('sleepQualityStars');
+    return payload;
   }
 
   Future<void> _save() async {
@@ -5269,14 +4959,42 @@ class _SleepManualEntrySheetState extends State<_SleepManualEntrySheet> {
     });
 
     try {
-      final created = await widget.api.createHealthEntry(_buildEntry());
+      final userId = await widget.api.ensureActiveUserId();
+      if (userId == null) {
+        throw StateError('No active user selected');
+      }
+
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('auth_token');
+      final headers = <String, String>{'Content-Type': 'application/json'};
+      if (token != null && token.isNotEmpty) {
+        headers['Authorization'] = 'Bearer $token';
+      }
+
+      final response = await http.post(
+        Uri.parse('${widget.api.baseUrl}/health-entries/users/$userId'),
+        headers: headers,
+        body: jsonEncode(_buildPayload()),
+      );
+
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        throw Exception('Could not save health entry');
+      }
 
       if (!mounted) {
         return;
       }
-      widget.onClose(
+      Navigator.of(context).pop(
         _SleepManualEntryResult(
-          entry: created,
+          entry: HealthEntry(
+            id: 0,
+            entryDate: _selectedDate,
+            wellbeingScore: 5,
+            symptoms: const [],
+            sleepHours: sleepHours,
+            bedtime: _timeFrom(_bedtime),
+            wakeTime: _timeFrom(_wakeTime),
+          ),
           entryDate: _selectedDate,
         ),
       );
@@ -5304,7 +5022,7 @@ class _SleepManualEntrySheetState extends State<_SleepManualEntrySheet> {
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        onTap: _saving ? null : onTap,
+        onTap: onTap,
         borderRadius: BorderRadius.circular(18),
         child: Container(
           padding: const EdgeInsets.all(14),
@@ -5341,8 +5059,6 @@ class _SleepManualEntrySheetState extends State<_SleepManualEntrySheet> {
                     const SizedBox(height: 4),
                     Text(
                       value,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                         color: _primaryText,
                         fontSize: 15,
@@ -5414,207 +5130,139 @@ class _SleepManualEntrySheetState extends State<_SleepManualEntrySheet> {
     );
   }
 
-  Widget _buildQualitySelector() {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: _surfaceAlt,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: _border),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 38,
-            height: 38,
-            decoration: BoxDecoration(
-              color: _surfaceSoft,
-              borderRadius: BorderRadius.circular(13),
-              border: Border.all(color: _border),
-            ),
-            child: const Icon(Icons.star_rounded, color: _accent, size: 19),
-          ),
-          const SizedBox(width: 12),
-          const Expanded(
-            child: Text(
-              'Quality',
-              style: TextStyle(
-                color: _primaryText,
-                fontSize: 15,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-          ),
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              for (var star = 1; star <= 5; star++)
-                InkWell(
-                  borderRadius: BorderRadius.circular(999),
-                  onTap: _saving
-                      ? null
-                      : () => setState(() => _qualityStars = star),
-                  child: Padding(
-                    padding: const EdgeInsets.all(2),
-                    child: Icon(
-                      star <= _qualityStars
-                          ? Icons.star_rounded
-                          : Icons.star_border_rounded,
-                      color: star <= _qualityStars ? _accent : _secondaryText,
-                      size: 23,
-                    ),
-                  ),
-                ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildActionButtons() {
     final canSave = !_saving && _sleepHours != null;
-    return FilledButton(
-      onPressed: canSave ? _save : null,
-      style: FilledButton.styleFrom(
-        backgroundColor: _accent,
-        foregroundColor: Colors.white,
-        padding: const EdgeInsets.symmetric(vertical: 14),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
-      ),
-      child: _saving
-          ? const SizedBox(
-              width: 18,
-              height: 18,
-              child: CircularProgressIndicator(
-                strokeWidth: 2.2,
-                color: Colors.white,
+    return Row(
+      children: [
+        Expanded(
+          child: TextButton(
+            onPressed: _saving ? null : () => Navigator.of(context).pop(),
+            style: TextButton.styleFrom(
+              foregroundColor: _secondaryText,
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+                side: BorderSide(color: _border.withValues(alpha: 0.9)),
               ),
-            )
-          : const Text('Save'),
+            ),
+            child: const Text('Cancel'),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: FilledButton(
+            onPressed: canSave ? _save : null,
+            style: FilledButton.styleFrom(
+              backgroundColor: _accent,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+            ),
+            child: _saving
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2.2,
+                      color: Colors.white,
+                    ),
+                  )
+                : const Text('Save'),
+          ),
+        ),
+      ],
     );
-  }
-
-  void _cancel() {
-    widget.onClose(null);
   }
 
   @override
   Widget build(BuildContext context) {
-    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
-
-    return SafeArea(
-      top: false,
-      child: Align(
-        alignment: Alignment.bottomCenter,
-        child: AnimatedPadding(
-          duration: const Duration(milliseconds: 180),
-          curve: Curves.easeOut,
-          padding: EdgeInsets.only(bottom: bottomInset),
-          child: Container(
-            constraints: BoxConstraints(
-              maxHeight: MediaQuery.of(context).size.height * 0.92,
+    return Padding(
+      padding:
+          EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      child: Container(
+        decoration: BoxDecoration(
+          color: _surface,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+          border: Border.all(color: _border.withValues(alpha: 0.9)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.42),
+              blurRadius: 26,
+              offset: const Offset(0, -10),
             ),
-            decoration: BoxDecoration(
-              color: _surface,
-              borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(28),
-              ),
-              border: Border.all(color: _border.withValues(alpha: 0.9)),
-            ),
+          ],
+        ),
+        child: SafeArea(
+          top: false,
+          child: SingleChildScrollView(
+            physics: const BouncingScrollPhysics(),
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
             child: Column(
-              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const SizedBox(height: 10),
-                Container(
-                  width: 42,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: _secondaryText.withValues(alpha: 0.35),
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(18, 18, 12, 8),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Add sleep',
-                              style: TextStyle(
-                                color: _primaryText,
-                                fontSize: 20,
-                                fontWeight: FontWeight.w900,
-                              ),
-                            ),
-                            SizedBox(height: 6),
-                            Text(
-                              'Save bedtime, wake time, duration, and sleep quality.',
-                              style: TextStyle(
-                                color: _secondaryText,
-                                height: 1.35,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      _buildBottomSheetCloseButton(_saving ? null : _cancel),
-                    ],
-                  ),
-                ),
-                Flexible(
-                  child: SingleChildScrollView(
-                    padding: EdgeInsets.fromLTRB(18, 0, 18, 18 + bottomInset),
-                    keyboardDismissBehavior:
-                        ScrollViewKeyboardDismissBehavior.onDrag,
-                    physics: const BouncingScrollPhysics(),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        _buildPickerField(
-                          label: 'Date',
-                          value: _dateLabel,
-                          icon: Icons.calendar_today_rounded,
-                          onTap: _pickDate,
-                        ),
-                        const SizedBox(height: 12),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: _buildPickerField(
-                                label: 'Bedtime',
-                                value: _bedtimeLabel,
-                                icon: Icons.nightlight_round,
-                                onTap: _pickBedtime,
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: _buildPickerField(
-                                label: 'Wake time',
-                                value: _wakeTimeLabel,
-                                icon: Icons.wb_sunny_rounded,
-                                onTap: _pickWakeTime,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 12),
-                        _buildDurationCard(),
-                        const SizedBox(height: 12),
-                        _buildQualitySelector(),
-                        const SizedBox(height: 18),
-                        _buildActionButtons(),
-                      ],
+                Center(
+                  child: Container(
+                    width: 44,
+                    height: 5,
+                    decoration: BoxDecoration(
+                      color: _secondaryText.withValues(alpha: 0.35),
+                      borderRadius: BorderRadius.circular(999),
                     ),
                   ),
                 ),
+                const SizedBox(height: 16),
+                const Text(
+                  'Add sleep',
+                  style: TextStyle(
+                    color: _primaryText,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                const Text(
+                  'Save bedtime and wake time. Sleep duration is calculated automatically.',
+                  style: TextStyle(
+                    color: _secondaryText,
+                    height: 1.35,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                _buildPickerField(
+                  label: 'Date',
+                  value: _dateLabel,
+                  icon: Icons.calendar_today_rounded,
+                  onTap: _pickDate,
+                ),
+                const SizedBox(height: 12),
+                _buildPickerField(
+                  label: 'Bedtime',
+                  value: _bedtimeLabel,
+                  icon: Icons.nightlight_round,
+                  onTap: _pickBedtime,
+                ),
+                const SizedBox(height: 12),
+                _buildPickerField(
+                  label: 'Wake time',
+                  value: _wakeTimeLabel,
+                  icon: Icons.wb_sunny_rounded,
+                  onTap: _pickWakeTime,
+                ),
+                const SizedBox(height: 12),
+                _buildDurationCard(),
+                const SizedBox(height: 12),
+                const Text(
+                  'Bedtime and wake time are stored when the API supports these fields.',
+                  style: TextStyle(
+                    color: _secondaryText,
+                    fontSize: 12,
+                    height: 1.35,
+                  ),
+                ),
+                const SizedBox(height: 18),
+                _buildActionButtons(),
               ],
             ),
           ),
