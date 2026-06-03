@@ -53,6 +53,7 @@ class WearableService {
         HealthDataType.BLOOD_PRESSURE_SYSTOLIC,
         HealthDataType.BLOOD_PRESSURE_DIASTOLIC,
         HealthDataType.WORKOUT,
+        HealthDataType.DISTANCE_WALKING_RUNNING,
       ];
     }
     return [
@@ -63,6 +64,7 @@ class WearableService {
       HealthDataType.BLOOD_PRESSURE_SYSTOLIC,
       HealthDataType.BLOOD_PRESSURE_DIASTOLIC,
       HealthDataType.WORKOUT,
+      HealthDataType.DISTANCE_WALKING_RUNNING,
     ];
   }
 
@@ -136,6 +138,7 @@ class WearableService {
       final heartRate = await _getHeartRate(startDate, endDate);
       final sleep = await _getSleep(startDate, endDate);
       final calories = await _getCalories(startDate, endDate);
+      final distanceKm = await _getDistance(startDate, endDate);
       final workouts = await _getWorkouts(startDate, endDate);
 
       final syncData = WearableSyncData(
@@ -150,11 +153,13 @@ class WearableService {
         sleepQuality: sleep != null ? sleep['quality'] as String? : null,
       );
 
-      debugPrint('📊 Sync data: steps=$steps, heartRate=$heartRate, '
-          'sleep=$sleep, calories=$calories, workouts=${workouts.length}');
+      debugPrint('📊 Sync data: steps=$steps, distanceKm=$distanceKm, '
+          'heartRate=$heartRate, sleep=$sleep, calories=$calories, '
+          'workouts=${workouts.length}');
 
       // Upload to backend
-      await _uploadSyncData(syncData, workouts: workouts);
+      await _uploadSyncData(syncData,
+          workouts: workouts, distanceKm: distanceKm);
 
       debugPrint('✅ Health data synced successfully');
       return syncData;
@@ -255,6 +260,23 @@ class WearableService {
     }
   }
 
+  /// Get total walking/running distance in km.
+  Future<double?> _getDistance(DateTime startDate, DateTime endDate) async {
+    try {
+      final data = await health.getHealthDataFromTypes(
+        types: [HealthDataType.DISTANCE_WALKING_RUNNING],
+        startTime: startDate,
+        endTime: endDate,
+      );
+      // Values are in metres
+      final totalMetres = data.fold<double>(0, (s, p) => s + _numericValue(p));
+      return totalMetres > 0 ? totalMetres / 1000.0 : null;
+    } catch (e) {
+      debugPrint('⚠️ Error fetching distance: $e');
+      return null;
+    }
+  }
+
   /// Get workout/exercise sessions — each carries type, duration, calories, distance, steps.
   Future<List<Map<String, dynamic>>> _getWorkouts(
       DateTime startDate, DateTime endDate) async {
@@ -314,6 +336,7 @@ class WearableService {
   Future<void> _uploadSyncData(
     WearableSyncData data, {
     List<Map<String, dynamic>> workouts = const [],
+    double? distanceKm,
   }) async {
     try {
       final userId = await _api.ensureActiveUserId();
@@ -348,15 +371,20 @@ class WearableService {
       }
 
       // Save total daily steps as a WALKING entry only when no workout sessions
-      // were synced (avoids double-counting steps that are already in workouts)
+      // were synced (avoids double-counting steps that are already in workouts).
+      // Include distance when available from DISTANCE_WALKING_RUNNING.
       if (data.steps != null && data.steps! > 0 && workouts.isEmpty) {
-        await _api.createSportActivity({
+        final payload = <String, dynamic>{
           'activityType': 'WALKING',
           'activityDate': dateStr,
           'steps': data.steps,
           'caloriesBurned': data.calories,
           'notes': 'Synced from $source',
-        }, userId: userId);
+        };
+        if (distanceKm != null) {
+          payload['distance'] = distanceKm;
+        }
+        await _api.createSportActivity(payload, userId: userId);
       }
 
       // Save vitals as a health entry
