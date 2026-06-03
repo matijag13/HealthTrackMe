@@ -3283,18 +3283,39 @@ class _HealthActivityPageState extends State<HealthActivityPage> {
     final today = DateTime(now.year, now.month, now.day);
     const goal = 10000;
 
-    // Aggregate steps per day for the last 7 days
+    // Aggregate steps per day for the last 7 days.
+    //
+    // Two kinds of walking entries can exist:
+    //   • No duration  → a "daily total" synced from Health Connect.
+    //     Old syncs may have created duplicates of these, so we take the MAX
+    //     to avoid inflating the count.
+    //   • Has duration → an individual workout session.
+    //     Sum these because each is a distinct activity.
+    //
+    // Final value = max(best daily-total, sum of sessions).
     final days = List.generate(7, (i) => today.subtract(Duration(days: 6 - i)));
-    final stepsByDay = <DateTime, int>{};
+    final dailyMax = <DateTime, int>{}; // best "total" entry per day
+    final sessionSum = <DateTime, int>{}; // sum of session entries per day
     for (final a in allActivities) {
       if (_activityTypeLabel(a) != _ActivityType.walking.label) continue;
       final date = _activityDate(a);
       if (date == null) continue;
       final day = DateTime(date.year, date.month, date.day);
-      if (days.contains(day)) {
-        stepsByDay[day] = (stepsByDay[day] ?? 0) + _activitySteps(a);
+      if (!days.contains(day)) continue;
+      final steps = _activitySteps(a);
+      if (steps <= 0) continue;
+      if (_activityDuration(a) > 0) {
+        sessionSum[day] = (sessionSum[day] ?? 0) + steps;
+      } else {
+        dailyMax[day] =
+            steps > (dailyMax[day] ?? 0) ? steps : (dailyMax[day] ?? 0);
       }
     }
+    final stepsByDay = <DateTime, int>{
+      for (final d in days)
+        d: [dailyMax[d] ?? 0, sessionSum[d] ?? 0]
+            .fold(0, (a, b) => a > b ? a : b),
+    };
 
     final todaySteps = stepsByDay[today] ?? 0;
     final maxSteps =
