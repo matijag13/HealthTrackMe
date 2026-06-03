@@ -575,30 +575,30 @@ class _DashboardScreenState extends State<DashboardScreen>
   }
 
   HealthEntry? _latestVitalsEntry() {
-    for (final entry in _state.entries) {
-      if (_hasVitalsData(entry)) {
-        return entry;
-      }
-    }
-    return null;
+    final entries = _state.entries.where(_hasVitalsData).toList();
+    if (entries.isEmpty) return null;
+    entries.sort((a, b) => _entrySortKey(b).compareTo(_entrySortKey(a)));
+    return entries.first;
   }
 
   String _vitalsValue() {
     final entry = _latestVitalsEntry();
     if (entry == null) return 'No data';
-    if (_sameDay(entry.entryDate, DateTime.now())) {
+    final updatedDate = _entrySortKey(entry);
+    if (_sameDay(updatedDate, DateTime.now())) {
       return 'Updated today';
     }
-    return 'Last updated ${_shortDate(entry.entryDate)}';
+    return 'Last updated ${_shortDate(updatedDate)}';
   }
 
   String _favoriteVitalsValue() {
     final entry = _latestVitalsEntry();
     if (entry == null) return 'No data';
-    if (_sameDay(entry.entryDate, DateTime.now())) {
+    final updatedDate = _entrySortKey(entry);
+    if (_sameDay(updatedDate, DateTime.now())) {
       return 'Updated today';
     }
-    final date = _shortDate(entry.entryDate);
+    final date = _shortDate(updatedDate);
     final text = 'Updated $date';
     return text.length <= 14 ? text : date;
   }
