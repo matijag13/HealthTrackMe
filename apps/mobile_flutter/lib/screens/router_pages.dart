@@ -2725,20 +2725,23 @@ class _HealthActivityPageState extends State<HealthActivityPage> {
       final Map<DateTime, int> stepsByDay = {};
       for (final activity in activities) {
         final date = _activityDate(activity);
-        if (date == null || _activityTypeLabel(activity) != _selectedType.label) continue;
+        if (date == null || _activityTypeLabel(activity) != _selectedType.label)
+          continue;
         final steps = _activitySteps(activity);
         if (steps <= 0) continue;
         final day = DateTime(date.year, date.month, date.day);
         stepsByDay[day] = (stepsByDay[day] ?? 0) + steps;
       }
       final sortedDays = stepsByDay.keys.toList()..sort();
-      points = sortedDays.map((d) => _ActivityPoint(d, stepsByDay[d]!)).toList();
+      points =
+          sortedDays.map((d) => _ActivityPoint(d, stepsByDay[d]!)).toList();
     } else {
       // Other activity types: one point per session, ordered chronologically.
       points = [];
       for (final activity in activities.reversed) {
         final date = _activityDate(activity);
-        if (date == null || _activityTypeLabel(activity) != _selectedType.label) continue;
+        if (date == null || _activityTypeLabel(activity) != _selectedType.label)
+          continue;
         final duration = _activityDuration(activity);
         if (duration > 0) points.add(_ActivityPoint(date, duration));
       }
@@ -2835,7 +2838,8 @@ class _HealthActivityPageState extends State<HealthActivityPage> {
       final date = _activityDate(activity);
       final duration = _activityDuration(activity);
       final steps = _activitySteps(activity);
-      final hasData = _isWalkingTab ? (steps > 0 || duration > 0) : duration > 0;
+      final hasData =
+          _isWalkingTab ? (steps > 0 || duration > 0) : duration > 0;
       return _activityTypeLabel(activity) == _selectedType.label &&
           date != null &&
           hasData &&
@@ -3649,8 +3653,7 @@ class _ActivityDetailsSheet extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       _detailRow('Date', dateLabel),
-                      if (stepsLabel != null)
-                        _detailRow('Steps', stepsLabel!),
+                      if (stepsLabel != null) _detailRow('Steps', stepsLabel!),
                       _detailRow('Duration', durationLabel),
                       if (distanceLabel != null)
                         _detailRow('Distance', distanceLabel!),

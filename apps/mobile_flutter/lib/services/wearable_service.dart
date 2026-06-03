@@ -277,9 +277,8 @@ class WearableService {
           'durationMinutes': durationMinutes,
           'caloriesBurned': v.totalEnergyBurned,
           // Health Connect stores distance in metres; convert to km for backend
-          'distanceKm': v.totalDistance != null
-              ? (v.totalDistance! / 1000.0)
-              : null,
+          'distanceKm':
+              v.totalDistance != null ? (v.totalDistance! / 1000.0) : null,
           'steps': v.totalSteps,
         });
       }
@@ -336,7 +335,8 @@ class WearableService {
           'duration': w['durationMinutes'],
           'notes': 'Synced from $source',
         };
-        if (w['caloriesBurned'] != null) payload['caloriesBurned'] = w['caloriesBurned'];
+        if (w['caloriesBurned'] != null)
+          payload['caloriesBurned'] = w['caloriesBurned'];
         if (w['distanceKm'] != null) payload['distance'] = w['distanceKm'];
         if (w['steps'] != null) payload['steps'] = w['steps'];
         await _api.createSportActivity(payload, userId: userId);
