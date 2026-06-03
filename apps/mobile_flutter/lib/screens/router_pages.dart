@@ -5345,12 +5345,12 @@ class MedicineDetailPage extends StatelessWidget {
 
   const MedicineDetailPage({required this.medicineId, super.key});
 
-  static const _background = Color(0xFF050608);
-  static const _surface = Color(0xFF0D0F14);
-  static const _surfaceSoft = Color(0xFF11141B);
-  static const _border = Color(0xFF242936);
-  static const _primaryText = Color(0xFFF7F8FA);
-  static const _mutedText = Color(0xFF8B93A7);
+  static const _background = Color(0xFF070B13);
+  static const _surface = Color(0xFF0F1624);
+  static const _surfaceSoft = Color(0xFF121B2C);
+  static const _border = Color(0xFF243047);
+  static const _primaryText = Color(0xFFF5F7FB);
+  static const _mutedText = Color(0xFF94A3B8);
   static const _accent = Color(0xFF5A8CFF);
   static const _success = Color(0xFF36D399);
 
@@ -5470,36 +5470,6 @@ class MedicineDetailPage extends StatelessWidget {
                               _detailRow(Icons.event_rounded, 'End date',
                                   _date(medicine.endDate)),
                             ],
-                          ),
-                          const SizedBox(height: 18),
-                          SizedBox(
-                            width: double.infinity,
-                            height: 52,
-                            child: FilledButton.icon(
-                              onPressed: () {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: const Text(
-                                        'Dose logging API is not wired yet.'),
-                                    backgroundColor: _surface,
-                                    behavior: SnackBarBehavior.floating,
-                                    shape: RoundedRectangleBorder(
-                                        borderRadius:
-                                            BorderRadius.circular(14)),
-                                  ),
-                                );
-                              },
-                              style: FilledButton.styleFrom(
-                                backgroundColor: _accent,
-                                foregroundColor: Colors.white,
-                                shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(15)),
-                              ),
-                              icon: const Icon(Icons.add_circle_rounded),
-                              label: const Text('Log dose',
-                                  style:
-                                      TextStyle(fontWeight: FontWeight.w800)),
-                            ),
                           ),
                         ],
                       ),

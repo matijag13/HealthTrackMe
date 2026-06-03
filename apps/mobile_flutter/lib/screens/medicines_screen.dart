@@ -1258,7 +1258,7 @@ class _MedicinesListSectionState extends State<_MedicinesListSection> {
 
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFF0D0F14),
+        color: _MedicinesScreenState._surface,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
       ),
@@ -1542,7 +1542,7 @@ class _MedicineEditSheetState extends State<MedicineEditSheet> {
             ),
         inputDecorationTheme: InputDecorationTheme(
           filled: true,
-          fillColor: const Color(0xFF11141B),
+          fillColor: _MedicinesScreenState._surfaceSoft,
           labelStyle: const TextStyle(color: Color(0xFF8B93A7)),
           hintStyle: const TextStyle(color: Color(0xFF6F778A)),
           prefixIconColor: const Color(0xFF8B93A7),
@@ -1562,9 +1562,9 @@ class _MedicineEditSheetState extends State<MedicineEditSheet> {
       ),
       child: Container(
         decoration: const BoxDecoration(
-          color: Color(0xFF0D0F14),
+          color: _MedicinesScreenState._surface,
           borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-          border: Border(top: BorderSide(color: Color(0xFF242936))),
+          border: Border(top: BorderSide(color: _MedicinesScreenState._border)),
         ),
         constraints: BoxConstraints(
           maxHeight: MediaQuery.sizeOf(context).height * 0.92,
@@ -1624,23 +1624,23 @@ class _MedicineEditSheetState extends State<MedicineEditSheet> {
                               ),
                             ),
                             const SizedBox(width: 12),
-                            InkWell(
-                              onTap: () => Navigator.pop(context, false),
-                              borderRadius: BorderRadius.circular(14),
-                              child: Container(
-                                width: 42,
-                                height: 42,
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFF11141B),
-                                  borderRadius: BorderRadius.circular(14),
-                                  border: Border.all(
-                                    color: const Color(0xFF242936),
-                                  ),
-                                ),
-                                child: const Icon(
+                            Material(
+                              color: Colors.transparent,
+                              child: IconButton(
+                                onPressed: _saving
+                                    ? null
+                                    : () => Navigator.pop(context, false),
+                                icon: const Icon(
                                   Icons.close_rounded,
-                                  color: Color(0xFFF7F8FA),
-                                  size: 20,
+                                  color: _MedicinesScreenState._primaryText,
+                                ),
+                                style: IconButton.styleFrom(
+                                  backgroundColor:
+                                      _MedicinesScreenState._surfaceSoft,
+                                  side: BorderSide(
+                                    color: _MedicinesScreenState._border
+                                        .withValues(alpha: 0.95),
+                                  ),
                                 ),
                               ),
                             ),
@@ -1736,68 +1736,36 @@ class _MedicineEditSheetState extends State<MedicineEditSheet> {
                           onTap: _pickReminderTime,
                         ),
                         const SizedBox(height: 24),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: SizedBox(
-                                height: 52,
-                                child: OutlinedButton(
-                                  onPressed: _saving
-                                      ? null
-                                      : () => Navigator.pop(context, false),
-                                  style: OutlinedButton.styleFrom(
-                                    foregroundColor: const Color(0xFFF7F8FA),
-                                    side: const BorderSide(
-                                      color: Color(0xFF242936),
+                        SizedBox(
+                          width: double.infinity,
+                          height: 52,
+                          child: FilledButton(
+                            onPressed: _saving ? null : _save,
+                            style: FilledButton.styleFrom(
+                              backgroundColor: const Color(0xFF5A8CFF),
+                              foregroundColor: Colors.white,
+                              disabledBackgroundColor: const Color(0xFF263A66),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                            ),
+                            child: _saving
+                                ? const SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: Colors.white,
                                     ),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(14),
-                                    ),
-                                  ),
-                                  child: const Text(
-                                    'Cancel',
+                                  )
+                                : const Text(
+                                    'Save',
                                     style: TextStyle(
-                                      fontWeight: FontWeight.w700,
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w800,
                                     ),
                                   ),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: SizedBox(
-                                height: 52,
-                                child: FilledButton(
-                                  onPressed: _saving ? null : _save,
-                                  style: FilledButton.styleFrom(
-                                    backgroundColor: const Color(0xFF5A8CFF),
-                                    foregroundColor: Colors.white,
-                                    disabledBackgroundColor:
-                                        const Color(0xFF263A66),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(14),
-                                    ),
-                                  ),
-                                  child: _saving
-                                      ? const SizedBox(
-                                          width: 20,
-                                          height: 20,
-                                          child: CircularProgressIndicator(
-                                            strokeWidth: 2,
-                                            color: Colors.white,
-                                          ),
-                                        )
-                                      : const Text(
-                                          'Save',
-                                          style: TextStyle(
-                                            fontSize: 16,
-                                            fontWeight: FontWeight.w800,
-                                          ),
-                                        ),
-                                ),
-                              ),
-                            ),
-                          ],
+                          ),
                         ),
                       ],
                     ),
@@ -1832,7 +1800,7 @@ class _DateButton extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
         decoration: BoxDecoration(
-          color: const Color(0xFF11141B),
+          color: _MedicinesScreenState._surfaceSoft,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: const Color(0xFF242936)),
         ),
