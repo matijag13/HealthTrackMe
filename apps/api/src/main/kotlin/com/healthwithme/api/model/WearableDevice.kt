@@ -47,6 +47,14 @@ enum class DeviceType {
     BLOOD_PRESSURE_MONITOR,
     GLUCOSE_MONITOR,
     SLEEP_TRACKER,
-    OTHER
+    OTHER,
+    // Brand-specific values sent by the mobile app
+    APPLEWATCH,
+    FITBIT,
+    GARMIN,
+    OURA,
+    WHOOP,
+    SAMSUNG,
+    GOOGLEFIT
 }
 
