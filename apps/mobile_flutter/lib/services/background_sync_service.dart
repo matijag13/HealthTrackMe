@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:workmanager/workmanager.dart';
 import 'api_service.dart';
 import 'wearable_service.dart';
 
 const String _kTaskName = 'com.healthtrackme.health_sync';
+const String _kLastSyncKey = 'health_last_sync_ms';
 
 /// Entry point called by WorkManager in a separate isolate.
 /// Must be a top-level function annotated with vm:entry-point.
@@ -26,12 +28,17 @@ void callbackDispatcher() {
         return true;
       }
 
-      await service.syncWearableData(
-        userId: userId,
-        // Only pull the last 24 h to keep background tasks fast
-        startDate: DateTime.now().subtract(const Duration(hours: 24)),
-      );
+      // Only fetch data since the last successful sync to avoid creating
+      // duplicate sport-activity entries. Fall back to 24 h on first run.
+      final prefs = await SharedPreferences.getInstance();
+      final lastMs = prefs.getInt(_kLastSyncKey);
+      final startDate = lastMs != null
+          ? DateTime.fromMillisecondsSinceEpoch(lastMs)
+          : DateTime.now().subtract(const Duration(hours: 24));
 
+      await service.syncWearableData(userId: userId, startDate: startDate);
+
+      await prefs.setInt(_kLastSyncKey, DateTime.now().millisecondsSinceEpoch);
       debugPrint('✅ Background health sync complete');
       return true;
     } catch (e) {
@@ -46,10 +53,7 @@ class BackgroundSyncService {
 
   /// Initialise WorkManager. Call once from main() before runApp().
   static Future<void> init() async {
-    await Workmanager().initialize(
-      callbackDispatcher,
-      isInDebugMode: false,
-    );
+    await Workmanager().initialize(callbackDispatcher);
   }
 
   /// Register a periodic task that fires every 15 minutes (Android minimum).
@@ -61,7 +65,7 @@ class BackgroundSyncService {
       frequency: const Duration(minutes: 15),
       initialDelay: const Duration(minutes: 2),
       constraints: Constraints(networkType: NetworkType.connected),
-      existingWorkPolicy: ExistingWorkPolicy.keep,
+      existingWorkPolicy: ExistingPeriodicWorkPolicy.keep,
     );
     debugPrint('📅 Periodic health sync scheduled (every 15 min)');
   }

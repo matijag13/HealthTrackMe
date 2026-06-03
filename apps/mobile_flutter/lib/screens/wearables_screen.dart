@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/wearable_device.dart';
 import '../services/api_service.dart';
 import '../services/wearable_service.dart';
+
+const String _kLastSyncKey = 'health_last_sync_ms';
 
 class WearablesScreen extends StatefulWidget {
   const WearablesScreen({super.key});
@@ -59,10 +62,20 @@ class _WearablesScreenState extends State<WearablesScreen> {
             return;
           }
         }
+        // Use last-sync timestamp so we only pull new data and avoid
+        // creating duplicate entries. First sync falls back to 7 days.
+        final prefs = await SharedPreferences.getInstance();
+        final lastMs = prefs.getInt(_kLastSyncKey);
+        final startDate = lastMs != null
+            ? DateTime.fromMillisecondsSinceEpoch(lastMs)
+            : DateTime.now().subtract(const Duration(days: 7));
+
         final result = await _wearableService.syncWearableData(
           userId: userId,
-          startDate: DateTime.now().subtract(const Duration(days: 730)),
+          startDate: startDate,
         );
+        await prefs.setInt(
+            _kLastSyncKey, DateTime.now().millisecondsSinceEpoch);
         await _load();
         if (mounted) {
           final parts = <String>[];

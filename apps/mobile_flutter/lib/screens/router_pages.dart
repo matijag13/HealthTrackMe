@@ -2711,6 +2711,48 @@ class _HealthActivityPageState extends State<HealthActivityPage> {
     return (activity['steps'] as num?)?.toInt() ?? 0;
   }
 
+  IconData _typeIcon(_ActivityType type) {
+    switch (type) {
+      case _ActivityType.walking:
+        return Icons.directions_walk_rounded;
+      case _ActivityType.running:
+        return Icons.directions_run_rounded;
+      case _ActivityType.cycling:
+        return Icons.directions_bike_rounded;
+      case _ActivityType.workout:
+        return Icons.fitness_center_rounded;
+      case _ActivityType.swimming:
+        return Icons.pool_rounded;
+    }
+  }
+
+  Color _typeColor(_ActivityType type) {
+    switch (type) {
+      case _ActivityType.walking:
+        return const Color(0xFF36D399); // teal-green
+      case _ActivityType.running:
+        return const Color(0xFFFF6B6B); // coral-red
+      case _ActivityType.cycling:
+        return const Color(0xFF5B8DEF); // blue
+      case _ActivityType.workout:
+        return const Color(0xFFFFAB40); // amber
+      case _ActivityType.swimming:
+        return const Color(0xFF26C6DA); // cyan
+    }
+  }
+
+  /// Returns "Today", "Yesterday", or "d MMM" for older dates.
+  String _relativeDate(DateTime? date) {
+    if (date == null) return '-';
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final d = DateTime(date.year, date.month, date.day);
+    final diff = today.difference(d).inDays;
+    if (diff == 0) return 'Today';
+    if (diff == 1) return 'Yesterday';
+    return DateFormat('d MMM').format(date);
+  }
+
   String? _activityNotes(Map<String, dynamic> activity) {
     final raw = (activity['notes'] ?? '').toString().trim();
     return raw.isEmpty ? null : raw;
@@ -2868,24 +2910,6 @@ class _HealthActivityPageState extends State<HealthActivityPage> {
 
   String _formatCalories(int calories) => '$calories kcal';
 
-  String _formatActivitySummary(Map<String, dynamic> activity) {
-    final parts = <String>[];
-
-    final duration = _activityDuration(activity);
-    if (duration > 0) parts.add(_formatDuration(duration));
-
-    final distance = _activityDistance(activity);
-    if (distance != null) parts.add(_formatDistance(distance));
-
-    final calories = _activityCalories(activity);
-    if (calories != null) parts.add(_formatCalories(calories));
-
-    final steps = _activitySteps(activity);
-    if (steps > 0) parts.add('$steps steps');
-
-    return parts.isEmpty ? '-' : parts.join(' • ');
-  }
-
   String _formatActivityDate(DateTime? date) {
     if (date == null) {
       return '-';
@@ -2986,51 +3010,106 @@ class _HealthActivityPageState extends State<HealthActivityPage> {
   }
 
   Widget _buildActivityListCard(Map<String, dynamic> activity) {
-    final title = _activityTypeLabel(activity);
-    final summary = _formatActivitySummary(activity);
-    final dateLabel = _formatActivityDate(_activityDate(activity));
+    // Resolve activity type for icon/color (fall back to workout for unknowns)
+    final rawLabel = _activityTypeLabel(activity);
+    final matchedType = _ActivityType.values.firstWhere(
+      (t) => t.label == rawLabel,
+      orElse: () => _ActivityType.workout,
+    );
+    final color = _typeColor(matchedType);
+    final icon = _typeIcon(matchedType);
+
+    final duration = _activityDuration(activity);
+    final steps = _activitySteps(activity);
+    final calories = _activityCalories(activity);
+    final distance = _activityDistance(activity);
+    final isFromSync =
+        (_activityNotes(activity) ?? '').toLowerCase().contains('synced from');
 
     return Material(
       color: Colors.transparent,
       child: InkWell(
         onTap: () => _openActivityDetails(activity),
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(18),
         child: Container(
           width: double.infinity,
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
             color: _surface,
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.circular(18),
             border: Border.all(color: _border.withValues(alpha: 0.75)),
           ),
           child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
+              // Colored icon bubble
+              Container(
+                width: 46,
+                height: 46,
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Icon(icon, color: color, size: 22),
+              ),
+              const SizedBox(width: 14),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      title,
-                      style: const TextStyle(
-                        color: _primaryText,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w900,
-                      ),
+                    Row(
+                      children: [
+                        Text(
+                          rawLabel,
+                          style: const TextStyle(
+                            color: _primaryText,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        if (isFromSync) ...[
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: _accent.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: const Text(
+                              'Auto',
+                              style: TextStyle(
+                                color: _accent,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
-                    const SizedBox(height: 8),
-                    Text(
-                      summary,
-                      style: const TextStyle(
-                        color: _secondaryText,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                        height: 1.35,
-                      ),
+                    const SizedBox(height: 5),
+                    // Key stats row
+                    Wrap(
+                      spacing: 10,
+                      children: [
+                        if (duration > 0)
+                          _statChip(
+                              Icons.timer_outlined, _formatDuration(duration)),
+                        if (steps > 0)
+                          _statChip(
+                              Icons.directions_walk_rounded, '$steps steps'),
+                        if (distance != null)
+                          _statChip(Icons.straighten_rounded,
+                              _formatDistance(distance)),
+                        if (calories != null)
+                          _statChip(Icons.local_fire_department_rounded,
+                              _formatCalories(calories)),
+                      ],
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 5),
                     Text(
-                      dateLabel,
+                      _relativeDate(_activityDate(activity)),
                       style: const TextStyle(
                         color: _secondaryText,
                         fontSize: 12,
@@ -3050,6 +3129,24 @@ class _HealthActivityPageState extends State<HealthActivityPage> {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _statChip(IconData icon, String label) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 13, color: _secondaryText),
+        const SizedBox(width: 3),
+        Text(
+          label,
+          style: const TextStyle(
+            color: _secondaryText,
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ],
     );
   }
 
@@ -3180,6 +3277,153 @@ class _HealthActivityPageState extends State<HealthActivityPage> {
     );
   }
 
+  /// Build a bar-chart showing daily step totals for the last 7 days.
+  Widget _buildStepsBarChart(List<Map<String, dynamic>> allActivities) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    const goal = 10000;
+
+    // Aggregate steps per day for the last 7 days
+    final days = List.generate(7, (i) => today.subtract(Duration(days: 6 - i)));
+    final stepsByDay = <DateTime, int>{};
+    for (final a in allActivities) {
+      if (_activityTypeLabel(a) != _ActivityType.walking.label) continue;
+      final date = _activityDate(a);
+      if (date == null) continue;
+      final day = DateTime(date.year, date.month, date.day);
+      if (days.contains(day)) {
+        stepsByDay[day] = (stepsByDay[day] ?? 0) + _activitySteps(a);
+      }
+    }
+
+    final todaySteps = stepsByDay[today] ?? 0;
+    final maxSteps =
+        stepsByDay.values.fold(0, (m, v) => v > m ? v : m).clamp(goal, 999999);
+    final typeColor = _typeColor(_ActivityType.walking);
+
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: _surface,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: _border.withValues(alpha: 0.75)),
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          Expanded(
+            child:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              const Text(
+                'Steps',
+                style: TextStyle(
+                    color: _primaryText,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w900),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                'Today: $todaySteps / $goal',
+                style: TextStyle(
+                    color: typeColor,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700),
+              ),
+            ]),
+          ),
+          _addButton(),
+        ]),
+        const SizedBox(height: 20),
+        // Bar chart
+        SizedBox(
+          height: 160,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: days.map((day) {
+              final steps = stepsByDay[day] ?? 0;
+              final fraction = steps / maxSteps;
+              final isToday = day == today;
+              return Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 3),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      if (steps > 0)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 4),
+                          child: Text(
+                            steps >= 1000
+                                ? '${(steps / 1000).toStringAsFixed(1)}k'
+                                : '$steps',
+                            style: TextStyle(
+                              color: isToday ? typeColor : _secondaryText,
+                              fontSize: 9,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      Flexible(
+                        flex: (fraction * 100).round().clamp(1, 100),
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: isToday
+                                ? typeColor
+                                : typeColor.withValues(alpha: 0.35),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                        ),
+                      ),
+                      // Empty space below bar so zero-bars align
+                      if (steps == 0)
+                        Flexible(
+                          flex: 1,
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: _border.withValues(alpha: 0.4),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                          ),
+                        ),
+                      const SizedBox(height: 6),
+                      Text(
+                        DateFormat('E').format(day).substring(0, 2),
+                        style: TextStyle(
+                          color: isToday ? _primaryText : _secondaryText,
+                          fontSize: 11,
+                          fontWeight:
+                              isToday ? FontWeight.w800 : FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+        ),
+        const SizedBox(height: 12),
+        // Goal progress bar
+        ClipRRect(
+          borderRadius: BorderRadius.circular(4),
+          child: LinearProgressIndicator(
+            value: (todaySteps / goal).clamp(0.0, 1.0),
+            backgroundColor: _border.withValues(alpha: 0.5),
+            valueColor: AlwaysStoppedAnimation<Color>(typeColor),
+            minHeight: 4,
+          ),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          todaySteps >= goal
+              ? '🎉 Daily goal reached!'
+              : '${(goal - todaySteps).clamp(0, goal)} steps to daily goal',
+          style: const TextStyle(
+              color: _secondaryText, fontSize: 12, fontWeight: FontWeight.w600),
+        ),
+      ]),
+    );
+  }
+
   Widget _chartCard(_ActivityChartData chartData, List<_ActivityPoint> points) {
     final hasData = points.isNotEmpty;
     return Container(
@@ -3211,9 +3455,7 @@ class _HealthActivityPageState extends State<HealthActivityPage> {
         const SizedBox(height: 14),
         Text(
           hasData
-              ? (_isWalkingTab
-                  ? 'Step count in the selected range.'
-                  : 'Activity duration in the selected range.')
+              ? 'Activity duration in the selected range.'
               : 'No activity data for this period',
           style: const TextStyle(
             color: _secondaryText,
@@ -3425,11 +3667,17 @@ class _HealthActivityPageState extends State<HealthActivityPage> {
                         children: [
                           _activitySelector(),
                           const SizedBox(height: 16),
-                          _timeRangeSelector(),
-                          const SizedBox(height: 16),
-                          _chartCard(chartData, points),
-                          const SizedBox(height: 16),
-                          _stats(points),
+                          // Walking tab: always show 7-day step bar chart
+                          // Other tabs: show time-range selector + line chart
+                          if (_isWalkingTab)
+                            _buildStepsBarChart(activities)
+                          else ...[
+                            _timeRangeSelector(),
+                            const SizedBox(height: 16),
+                            _chartCard(chartData, points),
+                            const SizedBox(height: 16),
+                            _stats(points),
+                          ],
                           const SizedBox(height: 16),
                           _buildActivityListSection(filteredActivities),
                         ],
