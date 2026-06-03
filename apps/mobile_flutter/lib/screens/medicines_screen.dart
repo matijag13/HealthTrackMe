@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 import '../services/api_service.dart';
 import '../services/notification_service.dart';
 import '../models/models.dart';
@@ -1462,37 +1463,38 @@ class _MedicineEditSheetState extends State<MedicineEditSheet> {
 
   Future<void> _pickDate(bool start) async {
     final now = DateTime.now();
-    final picked = await showDatePicker(
+    final today = DateTime(now.year, now.month, now.day);
+    final selectedDate = start ? (_start ?? today) : (_end ?? today);
+    final initialDate = selectedDate.isAfter(today) ? today : selectedDate;
+    final picked = await showDialog<DateTime>(
       context: context,
-      initialDate: start ? (_start ?? now) : (_end ?? now),
-      firstDate: DateTime(2000),
-      lastDate: DateTime(2100),
-      builder: (context, child) {
+      builder: (dialogContext) {
         return Theme(
           data: Theme.of(context).copyWith(
             colorScheme: const ColorScheme.dark(
               primary: Color(0xFF5A8CFF),
               onPrimary: Colors.white,
-              surface: Color(0xFF0D0F14),
-              onSurface: Color(0xFFF7F8FA),
+              surface: _MedicinesScreenState._surface,
+              onSurface: _MedicinesScreenState._primaryText,
               secondary: Color(0xFF5A8CFF),
             ),
             dialogTheme: const DialogThemeData(
-              backgroundColor: Color(0xFF0D0F14),
+              backgroundColor: _MedicinesScreenState._surface,
             ),
             datePickerTheme: DatePickerThemeData(
-              backgroundColor: const Color(0xFF0D0F14),
+              backgroundColor: _MedicinesScreenState._surface,
               surfaceTintColor: Colors.transparent,
-              headerBackgroundColor: const Color(0xFF11141B),
-              headerForegroundColor: const Color(0xFFF7F8FA),
+              headerBackgroundColor: _MedicinesScreenState._surfaceSoft,
+              headerForegroundColor: _MedicinesScreenState._primaryText,
               dayForegroundColor: WidgetStateProperty.resolveWith((states) {
                 if (states.contains(WidgetState.selected)) {
                   return Colors.white;
                 }
                 if (states.contains(WidgetState.disabled)) {
-                  return const Color(0xFF555C6E);
+                  return _MedicinesScreenState._mutedText
+                      .withValues(alpha: 0.5);
                 }
-                return const Color(0xFFF7F8FA);
+                return _MedicinesScreenState._primaryText;
               }),
               dayBackgroundColor: WidgetStateProperty.resolveWith((states) {
                 if (states.contains(WidgetState.selected)) {
@@ -1504,7 +1506,7 @@ class _MedicineEditSheetState extends State<MedicineEditSheet> {
                   WidgetStateProperty.all(const Color(0xFF5A8CFF)),
               todayBorder: const BorderSide(color: Color(0xFF5A8CFF)),
               yearForegroundColor:
-                  WidgetStateProperty.all(const Color(0xFFF7F8FA)),
+                  WidgetStateProperty.all(_MedicinesScreenState._primaryText),
             ),
             textButtonTheme: TextButtonThemeData(
               style: TextButton.styleFrom(
@@ -1512,7 +1514,71 @@ class _MedicineEditSheetState extends State<MedicineEditSheet> {
               ),
             ),
           ),
-          child: child!,
+          child: Dialog(
+            backgroundColor: _MedicinesScreenState._surface,
+            insetPadding:
+                const EdgeInsets.symmetric(horizontal: 18, vertical: 24),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(22),
+              side: const BorderSide(color: _MedicinesScreenState._border),
+            ),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 380),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 18, 16, 16),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Row(
+                      children: [
+                        Icon(
+                          Icons.calendar_month_outlined,
+                          color: Color(0xFF5A8CFF),
+                          size: 22,
+                        ),
+                        SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            'Select date',
+                            style: TextStyle(
+                              color: _MedicinesScreenState._primaryText,
+                              fontSize: 18,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        DateFormat('EEE, MMM d, yyyy').format(initialDate),
+                        style: const TextStyle(
+                          color: _MedicinesScreenState._primaryText,
+                          fontSize: 28,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(maxHeight: 360),
+                      child: CalendarDatePicker(
+                        initialDate: initialDate,
+                        firstDate: DateTime(2000),
+                        lastDate: today,
+                        currentDate: today,
+                        onDateChanged: (date) {
+                          Navigator.of(dialogContext).pop<DateTime>(date);
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
         );
       },
     );

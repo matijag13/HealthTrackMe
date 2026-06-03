@@ -2025,15 +2025,79 @@ class _VitalsManualEntrySheetState extends State<_VitalsManualEntrySheet> {
   }
 
   Future<void> _pickDate() async {
-    final picked = await showDatePicker(
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final initialDate = _selectedDate.isAfter(today) ? today : _selectedDate;
+    final picked = await showDialog<DateTime>(
       context: context,
-      initialDate: _selectedDate,
-      firstDate: DateTime(2000),
-      lastDate: DateTime.now().add(const Duration(days: 365)),
-      builder: (context, child) {
+      builder: (dialogContext) {
         return Theme(
           data: _pickerTheme(context),
-          child: child!,
+          child: Dialog(
+            backgroundColor: _surface,
+            insetPadding:
+                const EdgeInsets.symmetric(horizontal: 18, vertical: 24),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(22),
+              side: const BorderSide(color: _border),
+            ),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 380),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 18, 16, 16),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Row(
+                      children: [
+                        Icon(
+                          Icons.calendar_month_outlined,
+                          color: _accent,
+                          size: 22,
+                        ),
+                        SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            'Select date',
+                            style: TextStyle(
+                              color: _primaryText,
+                              fontSize: 18,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        DateFormat('EEE, MMM d, yyyy').format(initialDate),
+                        style: const TextStyle(
+                          color: _primaryText,
+                          fontSize: 28,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(maxHeight: 360),
+                      child: CalendarDatePicker(
+                        initialDate: initialDate,
+                        firstDate: DateTime(2000),
+                        lastDate: today,
+                        currentDate: today,
+                        onDateChanged: (date) {
+                          Navigator.of(dialogContext).pop<DateTime>(date);
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
         );
       },
     );
@@ -3658,12 +3722,12 @@ class _ActivityManualEntrySheetState extends State<_ActivityManualEntrySheet> {
       const TextStyle(color: _primaryText, fontWeight: FontWeight.w700);
 
   Future<void> _pickDate() async {
-    final picked = await showDatePicker(
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final initialDate = _selectedDate.isAfter(today) ? today : _selectedDate;
+    final picked = await showDialog<DateTime>(
       context: context,
-      initialDate: _selectedDate,
-      firstDate: DateTime(2000),
-      lastDate: DateTime.now().add(const Duration(days: 1)),
-      builder: (context, child) => Theme(
+      builder: (dialogContext) => Theme(
         data: Theme.of(context).copyWith(
           colorScheme: const ColorScheme.dark(
             primary: _accent,
@@ -3691,7 +3755,71 @@ class _ActivityManualEntrySheetState extends State<_ActivityManualEntrySheet> {
             style: TextButton.styleFrom(foregroundColor: _accent),
           ),
         ),
-        child: child!,
+        child: Dialog(
+          backgroundColor: _surface,
+          insetPadding:
+              const EdgeInsets.symmetric(horizontal: 18, vertical: 24),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(22),
+            side: const BorderSide(color: _border),
+          ),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 380),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 18, 16, 16),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Row(
+                    children: [
+                      Icon(
+                        Icons.calendar_month_outlined,
+                        color: _accent,
+                        size: 22,
+                      ),
+                      SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          'Select date',
+                          style: TextStyle(
+                            color: _primaryText,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      DateFormat('EEE, MMM d, yyyy').format(initialDate),
+                      style: const TextStyle(
+                        color: _primaryText,
+                        fontSize: 28,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxHeight: 360),
+                    child: CalendarDatePicker(
+                      initialDate: initialDate,
+                      firstDate: DateTime(2000),
+                      lastDate: today,
+                      currentDate: today,
+                      onDateChanged: (date) {
+                        Navigator.of(dialogContext).pop<DateTime>(date);
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
       ),
     );
     if (picked != null) {
@@ -4851,15 +4979,79 @@ class _SleepManualEntrySheetState extends State<_SleepManualEntrySheet> {
   }
 
   Future<void> _pickDate() async {
-    final picked = await showDatePicker(
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final initialDate = _selectedDate.isAfter(today) ? today : _selectedDate;
+    final picked = await showDialog<DateTime>(
       context: context,
-      initialDate: _selectedDate,
-      firstDate: DateTime(2000),
-      lastDate: DateTime.now().add(const Duration(days: 365)),
-      builder: (context, child) {
+      builder: (dialogContext) {
         return Theme(
           data: _pickerTheme(context),
-          child: child!,
+          child: Dialog(
+            backgroundColor: _surface,
+            insetPadding:
+                const EdgeInsets.symmetric(horizontal: 18, vertical: 24),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(22),
+              side: const BorderSide(color: _border),
+            ),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 380),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 18, 16, 16),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Row(
+                      children: [
+                        Icon(
+                          Icons.calendar_month_outlined,
+                          color: _accent,
+                          size: 22,
+                        ),
+                        SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            'Select date',
+                            style: TextStyle(
+                              color: _primaryText,
+                              fontSize: 18,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        DateFormat('EEE, MMM d, yyyy').format(initialDate),
+                        style: const TextStyle(
+                          color: _primaryText,
+                          fontSize: 28,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(maxHeight: 360),
+                      child: CalendarDatePicker(
+                        initialDate: initialDate,
+                        firstDate: DateTime(2000),
+                        lastDate: today,
+                        currentDate: today,
+                        onDateChanged: (date) {
+                          Navigator.of(dialogContext).pop<DateTime>(date);
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
         );
       },
     );
