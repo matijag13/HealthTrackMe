@@ -16,12 +16,12 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  static const _background = Color(0xFF050608);
-  static const _card = Color(0xFF0D0F14);
-  static const _field = Color(0xFF11141B);
-  static const _border = Color(0xFF242936);
-  static const _mutedText = Color(0xFF8B93A7);
-  static const _primaryText = Color(0xFFF7F8FA);
+  static const _background = Color(0xFF070B13);
+  static const _card = Color(0xFF0F1624);
+  static const _field = Color(0xFF121B2C);
+  static const _border = Color(0xFF243047);
+  static const _mutedText = Color(0xFF94A3B8);
+  static const _primaryText = Color(0xFFF5F7FB);
 
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();

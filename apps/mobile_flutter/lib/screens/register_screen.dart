@@ -16,12 +16,12 @@ class RegisterScreen extends StatefulWidget {
 }
 
 class _RegisterScreenState extends State<RegisterScreen> {
-  static const _background = Color(0xFF050608);
-  static const _card = Color(0xFF0D0F14);
-  static const _field = Color(0xFF11141B);
-  static const _border = Color(0xFF242936);
-  static const _mutedText = Color(0xFF8B93A7);
-  static const _primaryText = Color(0xFFF7F8FA);
+  static const _background = Color(0xFF070B13);
+  static const _card = Color(0xFF0F1624);
+  static const _field = Color(0xFF121B2C);
+  static const _border = Color(0xFF243047);
+  static const _mutedText = Color(0xFF94A3B8);
+  static const _primaryText = Color(0xFFF5F7FB);
   static const _toastSurface = Color(0xFF0F1624);
   static const _successAccent = Color(0xFF36D399);
 
@@ -306,67 +306,46 @@ class _RegisterScreenState extends State<RegisterScreen> {
             ),
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 380),
-              child: StatefulBuilder(
-                builder: (context, setDialogState) {
-                  return Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 18, 16, 12),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 18, 16, 16),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Row(
                       children: [
-                        const Row(
-                          children: [
-                            Icon(
-                              Icons.calendar_month_outlined,
-                              color: AppColors.primaryBlue,
-                              size: 22,
-                            ),
-                            SizedBox(width: 10),
-                            Expanded(
-                              child: Text(
-                                'Date of birth',
-                                style: TextStyle(
-                                  color: _primaryText,
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w800,
-                                ),
-                              ),
-                            ),
-                          ],
+                        Icon(
+                          Icons.calendar_month_outlined,
+                          color: AppColors.primaryBlue,
+                          size: 22,
                         ),
-                        const SizedBox(height: 8),
-                        ConstrainedBox(
-                          constraints: const BoxConstraints(maxHeight: 360),
-                          child: CalendarDatePicker(
-                            initialDate: draft,
-                            firstDate: DateTime(1900),
-                            lastDate: now,
-                            currentDate: now,
-                            onDateChanged: (date) {
-                              setDialogState(() => draft = date);
-                            },
+                        SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            'Date of birth',
+                            style: TextStyle(
+                              color: _primaryText,
+                              fontSize: 18,
+                              fontWeight: FontWeight.w800,
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 4),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.end,
-                          children: [
-                            TextButton(
-                              onPressed: () =>
-                                  Navigator.of(context).pop<DateTime>(),
-                              child: const Text('Cancel'),
-                            ),
-                            const SizedBox(width: 8),
-                            TextButton(
-                              onPressed: () =>
-                                  Navigator.of(context).pop<DateTime>(draft),
-                              child: const Text('Confirm'),
-                            ),
-                          ],
                         ),
                       ],
                     ),
-                  );
-                },
+                    const SizedBox(height: 8),
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(maxHeight: 360),
+                      child: CalendarDatePicker(
+                        initialDate: draft,
+                        firstDate: DateTime(1900),
+                        lastDate: now,
+                        currentDate: now,
+                        onDateChanged: (date) {
+                          Navigator.of(dialogContext).pop<DateTime>(date);
+                        },
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
