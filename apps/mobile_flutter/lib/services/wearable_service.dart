@@ -335,10 +335,15 @@ class WearableService {
           'duration': w['durationMinutes'],
           'notes': 'Synced from $source',
         };
-        if (w['caloriesBurned'] != null)
+        if (w['caloriesBurned'] != null) {
           payload['caloriesBurned'] = w['caloriesBurned'];
-        if (w['distanceKm'] != null) payload['distance'] = w['distanceKm'];
-        if (w['steps'] != null) payload['steps'] = w['steps'];
+        }
+        if (w['distanceKm'] != null) {
+          payload['distance'] = w['distanceKm'];
+        }
+        if (w['steps'] != null) {
+          payload['steps'] = w['steps'];
+        }
         await _api.createSportActivity(payload, userId: userId);
       }
 
