@@ -52,6 +52,7 @@ class WearableService {
         HealthDataType.ACTIVE_ENERGY_BURNED,
         HealthDataType.BLOOD_PRESSURE_SYSTOLIC,
         HealthDataType.BLOOD_PRESSURE_DIASTOLIC,
+        HealthDataType.WORKOUT,
       ];
     }
     return [
@@ -61,6 +62,7 @@ class WearableService {
       HealthDataType.ACTIVE_ENERGY_BURNED,
       HealthDataType.BLOOD_PRESSURE_SYSTOLIC,
       HealthDataType.BLOOD_PRESSURE_DIASTOLIC,
+      HealthDataType.WORKOUT,
     ];
   }
 
@@ -134,11 +136,12 @@ class WearableService {
       final heartRate = await _getHeartRate(startDate, endDate);
       final sleep = await _getSleep(startDate, endDate);
       final calories = await _getCalories(startDate, endDate);
+      final workouts = await _getWorkouts(startDate, endDate);
 
       final syncData = WearableSyncData(
         date: DateTime.now(),
         steps: steps,
-        activeMinutes: null, // Can be calculated from other data
+        activeMinutes: null,
         calories: calories,
         heartRateAvg: heartRate != null ? heartRate['avg'] as double? : null,
         heartRateMax: heartRate != null ? heartRate['max'] as int? : null,
@@ -148,10 +151,10 @@ class WearableService {
       );
 
       debugPrint('📊 Sync data: steps=$steps, heartRate=$heartRate, '
-          'sleep=$sleep, calories=$calories');
+          'sleep=$sleep, calories=$calories, workouts=${workouts.length}');
 
       // Upload to backend
-      await _uploadSyncData(syncData);
+      await _uploadSyncData(syncData, workouts: workouts);
 
       debugPrint('✅ Health data synced successfully');
       return syncData;
@@ -252,10 +255,67 @@ class WearableService {
     }
   }
 
+  /// Get workout/exercise sessions — each carries type, duration, calories, distance, steps.
+  Future<List<Map<String, dynamic>>> _getWorkouts(
+      DateTime startDate, DateTime endDate) async {
+    try {
+      final data = await health.getHealthDataFromTypes(
+        types: [HealthDataType.WORKOUT],
+        startTime: startDate,
+        endTime: endDate,
+      );
+      final results = <Map<String, dynamic>>[];
+      for (final point in data) {
+        final v = point.value;
+        if (v is! WorkoutHealthValue) continue;
+        final durationMinutes =
+            point.dateTo.difference(point.dateFrom).inMinutes;
+        if (durationMinutes <= 0) continue;
+        results.add({
+          'activityType': _mapWorkoutType(v.workoutActivityType),
+          'date': point.dateFrom,
+          'durationMinutes': durationMinutes,
+          'caloriesBurned': v.totalEnergyBurned,
+          // Health Connect stores distance in metres; convert to km for backend
+          'distanceKm': v.totalDistance != null
+              ? (v.totalDistance! / 1000.0)
+              : null,
+          'steps': v.totalSteps,
+        });
+      }
+      debugPrint('🏋️ Found ${results.length} workout sessions');
+      return results;
+    } catch (e) {
+      debugPrint('⚠️ Error fetching workouts: $e');
+      return [];
+    }
+  }
+
+  String _mapWorkoutType(HealthWorkoutActivityType type) {
+    switch (type) {
+      case HealthWorkoutActivityType.WALKING:
+        return 'WALKING';
+      case HealthWorkoutActivityType.RUNNING:
+        return 'RUNNING';
+      case HealthWorkoutActivityType.BIKING:
+        return 'CYCLING';
+      case HealthWorkoutActivityType.SWIMMING:
+        return 'SWIMMING';
+      case HealthWorkoutActivityType.HIKING:
+        return 'WALKING';
+      default:
+        return 'WORKOUT';
+    }
+  }
+
   /// Upload synced data to backend.
-  /// Steps → sport activity (shows in Activity tab)
+  /// Workout sessions → individual sport activities with type, duration, calories, distance, steps
+  /// Daily steps total → WALKING sport activity (if no workout sessions were found)
   /// Vitals (HR, sleep, calories) → health entry
-  Future<void> _uploadSyncData(WearableSyncData data) async {
+  Future<void> _uploadSyncData(
+    WearableSyncData data, {
+    List<Map<String, dynamic>> workouts = const [],
+  }) async {
     try {
       final userId = await _api.ensureActiveUserId();
       if (userId == null) throw Exception('No active user');
@@ -265,10 +325,26 @@ class WearableService {
 
       debugPrint('📤 Uploading: steps=${data.steps}, '
           'hr=${data.heartRateAvg}, sleep=${data.sleepHours}, '
-          'calories=${data.calories}');
+          'calories=${data.calories}, workouts=${workouts.length}');
 
-      // Save steps as a sport activity so they appear in the Activity tab
-      if (data.steps != null && data.steps! > 0) {
+      // Save each workout session as its own sport activity (with duration, type, etc.)
+      for (final w in workouts) {
+        final wDate = (w['date'] as DateTime).toIso8601String().split('T')[0];
+        final payload = <String, dynamic>{
+          'activityType': w['activityType'],
+          'activityDate': wDate,
+          'duration': w['durationMinutes'],
+          'notes': 'Synced from $source',
+        };
+        if (w['caloriesBurned'] != null) payload['caloriesBurned'] = w['caloriesBurned'];
+        if (w['distanceKm'] != null) payload['distance'] = w['distanceKm'];
+        if (w['steps'] != null) payload['steps'] = w['steps'];
+        await _api.createSportActivity(payload, userId: userId);
+      }
+
+      // Save total daily steps as a WALKING entry only when no workout sessions
+      // were synced (avoids double-counting steps that are already in workouts)
+      if (data.steps != null && data.steps! > 0 && workouts.isEmpty) {
         await _api.createSportActivity({
           'activityType': 'WALKING',
           'activityDate': dateStr,

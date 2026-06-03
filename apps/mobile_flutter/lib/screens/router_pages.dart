@@ -2717,21 +2717,37 @@ class _HealthActivityPageState extends State<HealthActivityPage> {
   }
 
   List<_ActivityPoint> _pointsForRange(List<Map<String, dynamic>> activities) {
-    final points = <_ActivityPoint>[];
-    for (final activity in activities.reversed) {
-      final date = _activityDate(activity);
-      if (date == null) continue;
-      if (_activityTypeLabel(activity) != _selectedType.label) continue;
-      if (_isWalkingTab) {
+    List<_ActivityPoint> points;
+
+    if (_isWalkingTab) {
+      // Aggregate step counts per calendar day so multiple syncs / multiple
+      // walking sessions on the same day collapse into a single chart point.
+      final Map<DateTime, int> stepsByDay = {};
+      for (final activity in activities) {
+        final date = _activityDate(activity);
+        if (date == null || _activityTypeLabel(activity) != _selectedType.label) continue;
         final steps = _activitySteps(activity);
-        final duration = _activityDuration(activity);
-        final value = steps > 0 ? steps : duration;
-        if (value > 0) points.add(_ActivityPoint(date, value));
-      } else {
+        if (steps <= 0) continue;
+        final day = DateTime(date.year, date.month, date.day);
+        stepsByDay[day] = (stepsByDay[day] ?? 0) + steps;
+      }
+      final sortedDays = stepsByDay.keys.toList()..sort();
+      points = sortedDays.map((d) => _ActivityPoint(d, stepsByDay[d]!)).toList();
+    } else {
+      // Other activity types: one point per session, ordered chronologically.
+      points = [];
+      for (final activity in activities.reversed) {
+        final date = _activityDate(activity);
+        if (date == null || _activityTypeLabel(activity) != _selectedType.label) continue;
         final duration = _activityDuration(activity);
         if (duration > 0) points.add(_ActivityPoint(date, duration));
       }
     }
+
+    return _applyTimeRangeFilter(points);
+  }
+
+  List<_ActivityPoint> _applyTimeRangeFilter(List<_ActivityPoint> points) {
     if (_selectedTimeRange == _ActivityTimeRange.max) return points;
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
@@ -2742,8 +2758,8 @@ class _HealthActivityPageState extends State<HealthActivityPage> {
     final start = today.subtract(Duration(days: days - 1));
     final end = today.add(const Duration(days: 1));
     return points.where((p) {
-      final date = DateTime(p.date.year, p.date.month, p.date.day);
-      return !date.isBefore(start) && date.isBefore(end);
+      final d = DateTime(p.date.year, p.date.month, p.date.day);
+      return !d.isBefore(start) && d.isBefore(end);
     }).toList();
   }
 
