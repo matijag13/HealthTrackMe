@@ -2563,6 +2563,8 @@ class _HealthActivityPageState extends State<HealthActivityPage> {
   _ActivityType _selectedType = _ActivityType.walking;
   _ActivityTimeRange _selectedTimeRange = _ActivityTimeRange.week;
 
+  bool get _isWalkingTab => _selectedType == _ActivityType.walking;
+
   static const _activityTypes = [
     _ActivityTypeDefinition(
         _ActivityType.walking, 'Walking', Icons.directions_walk_rounded),
@@ -2705,6 +2707,10 @@ class _HealthActivityPageState extends State<HealthActivityPage> {
     );
   }
 
+  int _activitySteps(Map<String, dynamic> activity) {
+    return (activity['steps'] as num?)?.toInt() ?? 0;
+  }
+
   String? _activityNotes(Map<String, dynamic> activity) {
     final raw = (activity['notes'] ?? '').toString().trim();
     return raw.isEmpty ? null : raw;
@@ -2714,11 +2720,16 @@ class _HealthActivityPageState extends State<HealthActivityPage> {
     final points = <_ActivityPoint>[];
     for (final activity in activities.reversed) {
       final date = _activityDate(activity);
-      final duration = _activityDuration(activity);
-      if (_activityTypeLabel(activity) == _selectedType.label &&
-          date != null &&
-          duration > 0) {
-        points.add(_ActivityPoint(date, duration));
+      if (date == null) continue;
+      if (_activityTypeLabel(activity) != _selectedType.label) continue;
+      if (_isWalkingTab) {
+        final steps = _activitySteps(activity);
+        final duration = _activityDuration(activity);
+        final value = steps > 0 ? steps : duration;
+        if (value > 0) points.add(_ActivityPoint(date, value));
+      } else {
+        final duration = _activityDuration(activity);
+        if (duration > 0) points.add(_ActivityPoint(date, duration));
       }
     }
     if (_selectedTimeRange == _ActivityTimeRange.max) return points;
@@ -2743,7 +2754,7 @@ class _HealthActivityPageState extends State<HealthActivityPage> {
     final spots = <FlSpot>[];
     var maxValue = 0.0;
     for (var i = 0; i < points.length; i++) {
-      final value = points[i].duration.toDouble();
+      final value = points[i].value.toDouble();
       spots.add(FlSpot(i.toDouble(), value));
       if (value > maxValue) maxValue = value;
     }
@@ -2760,20 +2771,24 @@ class _HealthActivityPageState extends State<HealthActivityPage> {
     return '${hours}h ${remaining}m';
   }
 
-  String _latest(List<_ActivityPoint> points) =>
-      points.isEmpty ? '-' : _formatDuration(points.last.duration);
+  String _latest(List<_ActivityPoint> points) {
+    if (points.isEmpty) return '-';
+    return _isWalkingTab
+        ? '${points.last.value} steps'
+        : _formatDuration(points.last.value);
+  }
 
   String _average(List<_ActivityPoint> points) {
     if (points.isEmpty) return '-';
-    final total = points.fold<int>(0, (sum, point) => sum + point.duration);
-    return _formatDuration((total / points.length).round());
+    final total = points.fold<int>(0, (sum, point) => sum + point.value);
+    final avg = (total / points.length).round();
+    return _isWalkingTab ? '$avg steps' : _formatDuration(avg);
   }
 
   String _total(List<_ActivityPoint> points) {
     if (points.isEmpty) return '-';
-    return _formatDuration(
-      points.fold<int>(0, (sum, point) => sum + point.duration),
-    );
+    final sum = points.fold<int>(0, (sum, point) => sum + point.value);
+    return _isWalkingTab ? '$sum steps' : _formatDuration(sum);
   }
 
   bool _isActivityInSelectedRange(DateTime date) {
@@ -2803,9 +2818,11 @@ class _HealthActivityPageState extends State<HealthActivityPage> {
     final filtered = activities.where((activity) {
       final date = _activityDate(activity);
       final duration = _activityDuration(activity);
+      final steps = _activitySteps(activity);
+      final hasData = _isWalkingTab ? (steps > 0 || duration > 0) : duration > 0;
       return _activityTypeLabel(activity) == _selectedType.label &&
           date != null &&
-          duration > 0 &&
+          hasData &&
           _isActivityInSelectedRange(date);
     }).toList(growable: false);
 
@@ -2831,19 +2848,16 @@ class _HealthActivityPageState extends State<HealthActivityPage> {
     final parts = <String>[];
 
     final duration = _activityDuration(activity);
-    if (duration > 0) {
-      parts.add(_formatDuration(duration));
-    }
+    if (duration > 0) parts.add(_formatDuration(duration));
 
     final distance = _activityDistance(activity);
-    if (distance != null) {
-      parts.add(_formatDistance(distance));
-    }
+    if (distance != null) parts.add(_formatDistance(distance));
 
     final calories = _activityCalories(activity);
-    if (calories != null) {
-      parts.add(_formatCalories(calories));
-    }
+    if (calories != null) parts.add(_formatCalories(calories));
+
+    final steps = _activitySteps(activity);
+    if (steps > 0) parts.add('$steps steps');
 
     return parts.isEmpty ? '-' : parts.join(' • ');
   }
@@ -2875,6 +2889,7 @@ class _HealthActivityPageState extends State<HealthActivityPage> {
   void _openActivityDetails(Map<String, dynamic> activity) {
     final typeLabel = _activityTypeLabel(activity);
     final date = _activityDate(activity);
+    final steps = _activitySteps(activity);
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -2890,6 +2905,7 @@ class _HealthActivityPageState extends State<HealthActivityPage> {
         caloriesLabel: _activityCalories(activity) == null
             ? null
             : _formatCalories(_activityCalories(activity)!),
+        stepsLabel: steps > 0 ? '$steps steps' : null,
         notes: _activityNotes(activity),
       ),
     );
@@ -3171,7 +3187,9 @@ class _HealthActivityPageState extends State<HealthActivityPage> {
         const SizedBox(height: 14),
         Text(
           hasData
-              ? 'Activity duration in the selected range.'
+              ? (_isWalkingTab
+                  ? 'Step count in the selected range.'
+                  : 'Activity duration in the selected range.')
               : 'No activity data for this period',
           style: const TextStyle(
             color: _secondaryText,
@@ -3193,7 +3211,11 @@ class _HealthActivityPageState extends State<HealthActivityPage> {
         gridData: FlGridData(
           show: true,
           drawVerticalLine: false,
-          horizontalInterval: data.maxY <= 90 ? 15 : 60,
+          horizontalInterval: data.maxY <= 90
+              ? 15
+              : data.maxY <= 300
+                  ? 60
+                  : (data.maxY / 4).ceilToDouble(),
           getDrawingHorizontalLine: (value) => FlLine(
             color: Colors.white.withValues(alpha: 0.06),
             strokeWidth: 1,
@@ -3430,9 +3452,9 @@ class _ActivityTypeDefinition {
 
 class _ActivityPoint {
   final DateTime date;
-  final int duration;
+  final int value;
 
-  const _ActivityPoint(this.date, this.duration);
+  const _ActivityPoint(this.date, this.value);
 }
 
 class _ActivityChartData {
@@ -3474,6 +3496,7 @@ class _ActivityDetailsSheet extends StatelessWidget {
   final String durationLabel;
   final String? distanceLabel;
   final String? caloriesLabel;
+  final String? stepsLabel;
   final String? notes;
 
   const _ActivityDetailsSheet({
@@ -3482,6 +3505,7 @@ class _ActivityDetailsSheet extends StatelessWidget {
     required this.durationLabel,
     required this.distanceLabel,
     required this.caloriesLabel,
+    required this.stepsLabel,
     required this.notes,
   });
 
@@ -3609,6 +3633,8 @@ class _ActivityDetailsSheet extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       _detailRow('Date', dateLabel),
+                      if (stepsLabel != null)
+                        _detailRow('Steps', stepsLabel!),
                       _detailRow('Duration', durationLabel),
                       if (distanceLabel != null)
                         _detailRow('Distance', distanceLabel!),
