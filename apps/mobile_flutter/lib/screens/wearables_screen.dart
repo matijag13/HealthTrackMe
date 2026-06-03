@@ -150,14 +150,89 @@ class _WearablesScreenState extends State<WearablesScreen> {
   }
 
   void _showStatus(String message, bool success) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      backgroundColor: success ? _green : _danger,
-      content: Text(message,
-          style: const TextStyle(
-              color: Colors.white, fontWeight: FontWeight.w600)),
-      behavior: SnackBarBehavior.floating,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-    ));
+    final accent = success ? _green : _danger;
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.clearSnackBars();
+    messenger.showSnackBar(
+      SnackBar(
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        margin: const EdgeInsets.fromLTRB(16, 0, 16, 20),
+        padding: EdgeInsets.zero,
+        duration: const Duration(seconds: 3),
+        dismissDirection: DismissDirection.horizontal,
+        content: Container(
+          decoration: BoxDecoration(
+            color: _surface,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: accent.withValues(alpha: 0.34)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.38),
+                blurRadius: 24,
+                offset: const Offset(0, 12),
+              ),
+            ],
+          ),
+          child: Stack(
+            children: [
+              Positioned(
+                left: 0,
+                top: 0,
+                bottom: 0,
+                child: Container(
+                  width: 4,
+                  decoration: BoxDecoration(
+                    color: accent,
+                    borderRadius: const BorderRadius.horizontal(
+                      left: Radius.circular(18),
+                    ),
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 13, 16, 13),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 34,
+                      height: 34,
+                      decoration: BoxDecoration(
+                        color: accent.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(11),
+                        border: Border.all(
+                          color: accent.withValues(alpha: 0.22),
+                        ),
+                      ),
+                      child: Icon(
+                        success
+                            ? Icons.check_circle_rounded
+                            : Icons.error_outline_rounded,
+                        color: accent,
+                        size: 19,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        message,
+                        style: const TextStyle(
+                          color: _primaryText,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          height: 1.25,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   @override
@@ -178,13 +253,6 @@ class _WearablesScreenState extends State<WearablesScreen> {
             fontWeight: FontWeight.w800,
           ),
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.add_rounded, color: _accent),
-            onPressed: _addDevice,
-            tooltip: 'Add device',
-          ),
-        ],
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator(color: _accent))
@@ -348,6 +416,25 @@ class _EmptyDevices extends StatelessWidget {
   }
 }
 
+IconData _wearableDeviceIcon(WearableDeviceType type) {
+  switch (type) {
+    case WearableDeviceType.appleWatch:
+    case WearableDeviceType.garmin:
+    case WearableDeviceType.samsung:
+      return Icons.watch_outlined;
+    case WearableDeviceType.fitbit:
+      return Icons.smartphone_rounded;
+    case WearableDeviceType.oura:
+      return Icons.circle_outlined;
+    case WearableDeviceType.whoop:
+      return Icons.sensors_rounded;
+    case WearableDeviceType.googleFit:
+      return Icons.bar_chart_rounded;
+    case WearableDeviceType.other:
+      return Icons.devices_other_rounded;
+  }
+}
+
 class _DeviceCard extends StatelessWidget {
   final WearableDevice device;
   final VoidCallback onRemove;
@@ -381,8 +468,11 @@ class _DeviceCard extends StatelessWidget {
               border: Border.all(color: _accent.withValues(alpha: 0.2)),
             ),
             child: Center(
-              child:
-                  Text(device.type.emoji, style: const TextStyle(fontSize: 22)),
+              child: Icon(
+                _wearableDeviceIcon(device.type),
+                color: _accent,
+                size: 22,
+              ),
             ),
           ),
           const SizedBox(width: 14),
@@ -469,7 +559,11 @@ class _AddDeviceSheet extends StatelessWidget {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text(type.emoji, style: const TextStyle(fontSize: 18)),
+                      Icon(
+                        _wearableDeviceIcon(type),
+                        color: _primaryText,
+                        size: 18,
+                      ),
                       const SizedBox(width: 8),
                       Text(type.displayName,
                           style: const TextStyle(
