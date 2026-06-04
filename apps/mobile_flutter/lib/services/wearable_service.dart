@@ -84,30 +84,39 @@ class WearableService {
         }
       }
 
-      // Request health permissions through Health package
-      final authorized = await health.requestAuthorization(_requestedDataTypes);
+      // Request all types. Even if optional types (distance, workout) are
+      // denied, we still consider the overall request successful as long as
+      // the core types are granted.
+      await health.requestAuthorization(_requestedDataTypes);
+      final coreGranted =
+          (await health.hasPermissions(_coreDataTypes)) ?? false;
 
-      if (authorized) {
-        debugPrint('✅ Health permissions granted');
+      if (coreGranted) {
+        debugPrint('✅ Core health permissions granted');
       } else {
-        debugPrint('❌ Health permissions denied');
+        debugPrint('❌ Core health permissions denied');
       }
 
-      return authorized;
+      return coreGranted;
     } catch (e) {
       debugPrint('❌ Error requesting permissions: $e');
       return false;
     }
   }
 
-  /// Check if app has permission to read health data
+  /// Core types that must be granted for a sync to be worth running.
+  /// Optional types (distance, workout, etc.) are fetched best-effort and
+  /// won't block syncing if not yet granted.
+  static const _coreDataTypes = [
+    HealthDataType.STEPS,
+    HealthDataType.HEART_RATE,
+  ];
+
+  /// Check if the minimum required permissions are granted.
   Future<bool> hasPermissions() async {
     try {
-      if (kIsWeb) {
-        return false;
-      }
-
-      final authorized = await health.hasPermissions(_requestedDataTypes);
+      if (kIsWeb) return false;
+      final authorized = await health.hasPermissions(_coreDataTypes);
       return authorized ?? false;
     } catch (e) {
       debugPrint('❌ Error checking permissions: $e');
