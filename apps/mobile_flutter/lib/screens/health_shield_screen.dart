@@ -24,6 +24,7 @@ class _HealthShieldScreenState extends State<HealthShieldScreen> {
   static const _green = Color(0xFF5FB878);
   static const _orange = Color(0xFFD4956A);
   static const _pink = Color(0xFFEE6C9D);
+  static const _bonus = Color(0xFFA78BFA);
 
   final ApiService _api = ApiService.instance;
   bool _loading = true;
@@ -246,12 +247,6 @@ class _HealthShieldScreenState extends State<HealthShieldScreen> {
       medicineGoal: medicineGoal,
     );
     final streakInfo = _streakInfo(dailySummaries);
-    final badges = _badges(
-      summaries: dailySummaries,
-      entries: entries,
-      activities: activities,
-      bestStreak: streakInfo.bestRecentStreak,
-    );
     final recentEvents = _recentXpEvents(
       goals: goals,
       completedCount: completedCount,
@@ -259,14 +254,17 @@ class _HealthShieldScreenState extends State<HealthShieldScreen> {
           completedCount == applicableGoals.length,
     );
 
-    // MVP note: when backend total XP is unavailable, total XP is frontend-computed
-    // from recent logged habits so the gamification screen can ship without backend changes.
-    final totalXp = backendShield?.totalConsistencyPoints ??
-        _computedRecentXp(
-          entries: entries,
-          activities: activities,
-          medicineApplicable: activeMedicines.isNotEmpty,
-        );
+    // MVP note: total XP can come from the backend or from recent local data.
+    // Use the higher value so stale backend totals do not hide earned XP.
+    final computedTotalXp = _computedRecentXp(
+      entries: entries,
+      activities: activities,
+      medicineApplicable: activeMedicines.isNotEmpty,
+    );
+    final totalXp = [
+      backendShield?.totalConsistencyPoints ?? 0,
+      computedTotalXp,
+    ].reduce((a, b) => a > b ? a : b);
 
     return _ShieldSnapshot(
       goals: goals,
@@ -275,11 +273,12 @@ class _HealthShieldScreenState extends State<HealthShieldScreen> {
       shieldStrength: strength,
       status: _statusFor(strength),
       level: _levelFor(totalXp),
+      levelProgressPercent: _levelProgressPercent(totalXp),
+      xpToNextLevel: _xpToNextLevel(totalXp),
       totalXp: totalXp,
       streak: streakInfo.currentStreak,
       weeklyProgress: weeklyProgress,
       streakInfo: streakInfo,
-      badges: badges,
       recentEvents: recentEvents,
       hasAnyData: entries.isNotEmpty || activities.isNotEmpty,
     );
@@ -432,64 +431,6 @@ class _HealthShieldScreenState extends State<HealthShieldScreen> {
     );
   }
 
-  List<_Badge> _badges({
-    required List<_DailyShieldSummary> summaries,
-    required List<HealthEntry> entries,
-    required List<Map<String, dynamic>> activities,
-    required int bestStreak,
-  }) {
-    final completedDays =
-        summaries.where((day) => day.categoryCount >= 3).length;
-    final sleepEntryDays = entries
-        .where((entry) => (entry.sleepHours ?? 0) > 0)
-        .map((entry) => _dateKey(entry.entryDate))
-        .toSet()
-        .length;
-    final vitalDays = entries
-        .where(_hasAnyVital)
-        .map((entry) => _dateKey(entry.entryDate))
-        .toSet()
-        .length;
-
-    return [
-      _Badge(
-        title: 'First Shield',
-        description: 'Complete your first daily shield.',
-        unlocked: completedDays >= 1,
-      ),
-      _Badge(
-        title: '3-Day Streak',
-        description: 'Keep your shield active for 3 days.',
-        unlocked: bestStreak >= 3,
-      ),
-      _Badge(
-        title: '7-Day Streak',
-        description: 'Build a full week of consistency.',
-        unlocked: bestStreak >= 7,
-      ),
-      _Badge(
-        title: 'First Activity',
-        description: 'Log your first activity.',
-        unlocked: activities.isNotEmpty,
-      ),
-      _Badge(
-        title: 'Sleep Logger',
-        description: 'Log sleep on 3 different days.',
-        unlocked: sleepEntryDays >= 3,
-      ),
-      _Badge(
-        title: 'Vitals Tracker',
-        description: 'Log vitals on 3 different days.',
-        unlocked: vitalDays >= 3,
-      ),
-      _Badge(
-        title: 'Routine Builder',
-        description: 'Complete 5 daily shields.',
-        unlocked: completedDays >= 5,
-      ),
-    ];
-  }
-
   List<_XpEvent> _recentXpEvents({
     required List<_GoalScore> goals,
     required int completedCount,
@@ -500,27 +441,27 @@ class _HealthShieldScreenState extends State<HealthShieldScreen> {
       if (!goal.completed || !goal.applicable) continue;
       switch (goal.type) {
         case _GoalType.sleep:
-          events.add(const _XpEvent('Sleep logged', 20));
+          events.add(const _XpEvent('Sleep logged', 20, _accent));
           if (goal.xp > 20) {
-            events.add(const _XpEvent('Sleep bonus', 10));
+            events.add(const _XpEvent('Sleep bonus', 10, _accent));
           }
           break;
         case _GoalType.activity:
-          events.add(const _XpEvent('Activity completed', 30));
+          events.add(const _XpEvent('Activity completed', 30, _green));
           break;
         case _GoalType.vitals:
-          events.add(const _XpEvent('Vitals logged', 10));
+          events.add(const _XpEvent('Vitals logged', 10, _pink));
           break;
         case _GoalType.medicine:
-          events.add(const _XpEvent('Medicine tracked', 15));
+          events.add(const _XpEvent('Medicine tracked', 15, _orange));
           break;
       }
     }
     if (completedCount >= 3) {
-      events.add(const _XpEvent('Daily shield bonus', 25));
+      events.add(const _XpEvent('Daily shield bonus', 25, _bonus));
     }
     if (allApplicableCompleted) {
-      events.add(const _XpEvent('Complete shield bonus', 25));
+      events.add(const _XpEvent('Complete shield bonus', 25, _bonus));
     }
     return events;
   }
@@ -571,6 +512,50 @@ class _HealthShieldScreenState extends State<HealthShieldScreen> {
     return 1;
   }
 
+  int _levelStartXp(int level) {
+    switch (level) {
+      case 5:
+        return 2000;
+      case 4:
+        return 1000;
+      case 3:
+        return 500;
+      case 2:
+        return 200;
+      default:
+        return 0;
+    }
+  }
+
+  int _nextLevelXp(int level) {
+    switch (level) {
+      case 1:
+        return 200;
+      case 2:
+        return 500;
+      case 3:
+        return 1000;
+      case 4:
+        return 2000;
+      default:
+        return 2000;
+    }
+  }
+
+  int _levelProgressPercent(int totalXp) {
+    final level = _levelFor(totalXp);
+    if (level >= 5) return 100;
+    final start = _levelStartXp(level);
+    final next = _nextLevelXp(level);
+    return (((totalXp - start) / (next - start)) * 100).round().clamp(0, 100);
+  }
+
+  int _xpToNextLevel(int totalXp) {
+    final level = _levelFor(totalXp);
+    if (level >= 5) return 0;
+    return (_nextLevelXp(level) - totalXp).clamp(0, 2000);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -596,8 +581,6 @@ class _HealthShieldScreenState extends State<HealthShieldScreen> {
                     ..._snapshot.goals.map(_buildGoalCard),
                     const SizedBox(height: 10),
                     _buildWeeklyProgressSection(),
-                    const SizedBox(height: 22),
-                    _buildBadgesSection(),
                     const SizedBox(height: 22),
                     _buildRecentXpSection(),
                     if (!_snapshot.hasAnyData) ...[
@@ -668,7 +651,10 @@ class _HealthShieldScreenState extends State<HealthShieldScreen> {
   }
 
   Widget _buildHeroCard() {
-    final progress = (_snapshot.shieldStrength / 100).clamp(0.0, 1.0);
+    final progress = (_snapshot.levelProgressPercent / 100).clamp(0.0, 1.0);
+    final nextLevelLabel = _snapshot.xpToNextLevel == 0
+        ? 'Max level'
+        : '${_snapshot.xpToNextLevel} XP left';
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -690,22 +676,23 @@ class _HealthShieldScreenState extends State<HealthShieldScreen> {
             children: [
               _iconTile(Icons.shield_outlined, _accent, size: 50),
               const SizedBox(width: 14),
-              const Expanded(
+              Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      'Shield strength',
+                    const Text(
+                      'Level progress',
                       style: TextStyle(
                         color: _secondaryText,
                         fontSize: 13,
                         fontWeight: FontWeight.w800,
                       ),
                     ),
-                    SizedBox(height: 4),
+                    const SizedBox(height: 4),
                     Text(
-                      'Keep your streak alive',
-                      style: TextStyle(color: _secondaryText, height: 1.25),
+                      '${_snapshot.totalXp} total XP',
+                      style:
+                          const TextStyle(color: _secondaryText, height: 1.25),
                     ),
                   ],
                 ),
@@ -717,7 +704,7 @@ class _HealthShieldScreenState extends State<HealthShieldScreen> {
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(
-                '${_snapshot.shieldStrength}%',
+                '${_snapshot.levelProgressPercent}%',
                 style: const TextStyle(
                   color: _primaryText,
                   fontSize: 48,
@@ -729,7 +716,7 @@ class _HealthShieldScreenState extends State<HealthShieldScreen> {
               const SizedBox(width: 12),
               Padding(
                 padding: const EdgeInsets.only(bottom: 5),
-                child: _statusPill(_snapshot.status),
+                child: _statusPill(nextLevelLabel),
               ),
             ],
           ),
@@ -752,8 +739,8 @@ class _HealthShieldScreenState extends State<HealthShieldScreen> {
               const SizedBox(width: 10),
               Expanded(
                 child: _heroStat(
-                  '${_snapshot.streak} day streak',
-                  'Streak',
+                  nextLevelLabel,
+                  'Next level',
                 ),
               ),
               const SizedBox(width: 10),
@@ -1020,147 +1007,159 @@ class _HealthShieldScreenState extends State<HealthShieldScreen> {
     );
   }
 
-  Widget _buildBadgesSection() {
+  Widget _buildRecentXpSection() {
+    final recentTotal =
+        _snapshot.recentEvents.fold<int>(0, (sum, event) => sum + event.xp);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _sectionTitle('Badges'),
-        const SizedBox(height: 12),
-        GridView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          itemCount: _snapshot.badges.length,
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 2,
-            crossAxisSpacing: 12,
-            mainAxisSpacing: 12,
-            childAspectRatio: 1.08,
-          ),
-          itemBuilder: (context, index) {
-            final badge = _snapshot.badges[index];
-            return _buildBadgeCard(badge);
-          },
-        ),
-      ],
-    );
-  }
-
-  Widget _buildBadgeCard(_Badge badge) {
-    final color = badge.unlocked ? _accent : _secondaryText;
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: badge.unlocked ? _surface : _surfaceAlt,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(
-          color: badge.unlocked
-              ? _accent.withValues(alpha: 0.32)
-              : _border.withValues(alpha: 0.75),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(
-                badge.unlocked
-                    ? Icons.workspace_premium_outlined
-                    : Icons.lock_outline_rounded,
-                color: color,
-                size: 22,
-              ),
-              const Spacer(),
-              Text(
-                badge.unlocked ? 'Unlocked' : 'Locked',
-                style: TextStyle(
-                  color: color,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w900,
+        Row(
+          children: [
+            Expanded(child: _sectionTitle('Recent XP')),
+            if (_snapshot.recentEvents.isNotEmpty)
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: _bonus.withValues(alpha: 0.13),
+                  borderRadius: BorderRadius.circular(999),
+                  border: Border.all(color: _bonus.withValues(alpha: 0.28)),
+                ),
+                child: Text(
+                  '+$recentTotal XP',
+                  style: const TextStyle(
+                    color: _bonus,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w900,
+                  ),
                 ),
               ),
-            ],
-          ),
-          const Spacer(),
-          Text(
-            badge.title,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: _primaryText,
-              fontWeight: FontWeight.w900,
-              fontSize: 15,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            badge.description,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: _secondaryText,
-              fontSize: 12,
-              height: 1.25,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildRecentXpSection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _sectionTitle('Recent XP'),
+          ],
+        ),
         const SizedBox(height: 12),
         Container(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
             color: _surface,
             borderRadius: BorderRadius.circular(20),
             border: Border.all(color: _border.withValues(alpha: 0.8)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.18),
+                blurRadius: 24,
+                offset: const Offset(0, 14),
+              ),
+            ],
           ),
           child: _snapshot.recentEvents.isEmpty
-              ? const Text(
-                  'Log today\'s habits to earn XP.',
-                  style: TextStyle(color: _secondaryText, height: 1.35),
+              ? Container(
+                  width: double.infinity,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                  decoration: BoxDecoration(
+                    color: _surfaceAlt,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: _border.withValues(alpha: 0.65)),
+                  ),
+                  child: const Text(
+                    'Log today\'s habits to earn XP.',
+                    style: TextStyle(
+                      color: _secondaryText,
+                      height: 1.35,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
                 )
               : Column(
                   children: List.generate(_snapshot.recentEvents.length, (i) {
                     final event = _snapshot.recentEvents[i];
                     final isLast = i == _snapshot.recentEvents.length - 1;
-                    return Padding(
-                      padding: EdgeInsets.only(bottom: isLast ? 0 : 10),
-                      child: Row(
-                        children: [
-                          const Icon(
-                            Icons.bolt_rounded,
-                            color: _orange,
-                            size: 18,
+                    final color = event.color;
+                    return Column(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 12,
                           ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Text(
-                              event.title,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                color: _primaryText,
-                                fontWeight: FontWeight.w800,
+                          decoration: BoxDecoration(
+                            color: i == 0
+                                ? color.withValues(alpha: 0.08)
+                                : _surfaceAlt.withValues(alpha: 0.72),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                              color: i == 0
+                                  ? color.withValues(alpha: 0.24)
+                                  : _border.withValues(alpha: 0.52),
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 4,
+                                height: 36,
+                                decoration: BoxDecoration(
+                                  color: color,
+                                  borderRadius: BorderRadius.circular(999),
+                                ),
                               ),
-                            ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      event.title,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(
+                                        color: _primaryText,
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.w900,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    const Text(
+                                      'Added to today\'s shield',
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        color: _secondaryText,
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 7,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: color.withValues(alpha: 0.12),
+                                  borderRadius: BorderRadius.circular(999),
+                                  border: Border.all(
+                                    color: color.withValues(alpha: 0.28),
+                                  ),
+                                ),
+                                child: Text(
+                                  '+${event.xp} XP',
+                                  style: TextStyle(
+                                    color: color,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w900,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
-                          const SizedBox(width: 8),
-                          Text(
-                            '+${event.xp} XP',
-                            style: const TextStyle(
-                              color: _green,
-                              fontWeight: FontWeight.w900,
-                            ),
-                          ),
-                        ],
-                      ),
+                        ),
+                        if (!isLast) const SizedBox(height: 10),
+                      ],
                     );
                   }),
                 ),
@@ -1397,23 +1396,12 @@ class _StreakInfo {
   }
 }
 
-class _Badge {
-  final String title;
-  final String description;
-  final bool unlocked;
-
-  const _Badge({
-    required this.title,
-    required this.description,
-    required this.unlocked,
-  });
-}
-
 class _XpEvent {
   final String title;
   final int xp;
+  final Color color;
 
-  const _XpEvent(this.title, this.xp);
+  const _XpEvent(this.title, this.xp, this.color);
 }
 
 class _ShieldSnapshot {
@@ -1423,11 +1411,12 @@ class _ShieldSnapshot {
   final int shieldStrength;
   final String status;
   final int level;
+  final int levelProgressPercent;
+  final int xpToNextLevel;
   final int totalXp;
   final int streak;
   final _WeeklyProgress weeklyProgress;
   final _StreakInfo streakInfo;
-  final List<_Badge> badges;
   final List<_XpEvent> recentEvents;
   final bool hasAnyData;
 
@@ -1438,11 +1427,12 @@ class _ShieldSnapshot {
     required this.shieldStrength,
     required this.status,
     required this.level,
+    required this.levelProgressPercent,
+    required this.xpToNextLevel,
     required this.totalXp,
     required this.streak,
     required this.weeklyProgress,
     required this.streakInfo,
-    required this.badges,
     required this.recentEvents,
     required this.hasAnyData,
   });
@@ -1455,11 +1445,12 @@ class _ShieldSnapshot {
       shieldStrength: 0,
       status: 'Low',
       level: 1,
+      levelProgressPercent: 0,
+      xpToNextLevel: 200,
       totalXp: 0,
       streak: 0,
       weeklyProgress: _WeeklyProgress.empty(),
       streakInfo: _StreakInfo.empty(),
-      badges: [],
       recentEvents: [],
       hasAnyData: false,
     );

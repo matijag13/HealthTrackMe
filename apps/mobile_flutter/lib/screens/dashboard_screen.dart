@@ -21,6 +21,7 @@ class _DashboardStateModel {
   final List<HealthEntry> entries;
   final List<Medicine> medicines;
   final HealthShield? shield;
+  final _HomeShieldSnapshot homeShield;
   final List<Map<String, dynamic>> sportActivities;
 
   const _DashboardStateModel({
@@ -28,8 +29,69 @@ class _DashboardStateModel {
     this.entries = const [],
     this.medicines = const [],
     this.shield,
+    this.homeShield = const _HomeShieldSnapshot.empty(),
     this.sportActivities = const [],
   });
+}
+
+class _HomeGoal {
+  final bool completed;
+  final bool applicable;
+  final int xp;
+  final int maxXp;
+
+  const _HomeGoal({
+    required this.completed,
+    required this.applicable,
+    required this.xp,
+    required this.maxXp,
+  });
+}
+
+class _HomeMedicineGoal {
+  final bool completed;
+  final bool applicable;
+  final int xp;
+  final int maxXp;
+
+  const _HomeMedicineGoal({
+    required this.completed,
+    required this.applicable,
+    required this.xp,
+    required this.maxXp,
+  });
+}
+
+class _HomeShieldSnapshot {
+  final int level;
+  final String levelName;
+  final int progressPercent;
+  final int todayXp;
+  final int maxTodayXp;
+  final int xpToNextLevel;
+  final int completedHabits;
+  final String status;
+
+  const _HomeShieldSnapshot({
+    required this.level,
+    required this.levelName,
+    required this.progressPercent,
+    required this.todayXp,
+    required this.maxTodayXp,
+    required this.xpToNextLevel,
+    required this.completedHabits,
+    required this.status,
+  });
+
+  const _HomeShieldSnapshot.empty()
+      : level = 1,
+        levelName = 'Basic Shield',
+        progressPercent = 0,
+        todayXp = 0,
+        maxTodayXp = 0,
+        xpToNextLevel = 200,
+        completedHabits = 0,
+        status = 'Low';
 }
 
 class _FavoriteOption {
@@ -146,13 +208,24 @@ class _DashboardScreenState extends State<DashboardScreen>
       final sportActivities = (results[4] as List)
           .map((e) => Map<String, dynamic>.from(e as Map))
           .toList();
+      final activeMedicines = medicines.where((m) => m.isActive).toList();
+      final medicineGoal = await _buildHomeMedicineGoal(activeMedicines);
+      final homeShield = _buildHomeShieldSnapshot(
+        entries: entries,
+        activities: sportActivities,
+        activeMedicines: activeMedicines,
+        medicineGoal: medicineGoal,
+        backendShield: shield,
+      );
 
+      if (!mounted) return;
       setState(() {
         _state = _DashboardStateModel(
           user: user,
           entries: entries,
           medicines: medicines,
           shield: shield,
+          homeShield: homeShield,
           sportActivities: sportActivities,
         );
         _loading = false;
@@ -164,6 +237,146 @@ class _DashboardScreenState extends State<DashboardScreen>
   }
 
   Future<void> _refresh() => _loadAll();
+
+  Future<_HomeMedicineGoal> _buildHomeMedicineGoal(
+    List<Medicine> activeMedicines,
+  ) async {
+    if (activeMedicines.isEmpty) {
+      return const _HomeMedicineGoal(
+        completed: false,
+        applicable: false,
+        xp: 0,
+        maxXp: 0,
+      );
+    }
+
+    var adherenceReliable = false;
+    var takenToday = false;
+    final todayKey = _dateKey(DateTime.now());
+
+    for (final medicine in activeMedicines) {
+      try {
+        final adherence = await _api.getMedicineAdherence(medicine.id, days: 1);
+        adherenceReliable = true;
+        final breakdown = adherence['dailyBreakdown'];
+        if (breakdown is List) {
+          takenToday = takenToday ||
+              breakdown.any((point) {
+                if (point is! Map) return false;
+                final status = point['status']?.toString().toUpperCase();
+                return point['date']?.toString() == todayKey &&
+                    (status == 'TAKEN' || status == 'TRACKED');
+              });
+        } else {
+          final rate = num.tryParse(
+            (adherence['adherenceRate'] ?? adherence['percentage'] ?? '')
+                .toString(),
+          );
+          takenToday = takenToday || (rate != null && rate > 0);
+        }
+      } catch (_) {}
+    }
+
+    if (!adherenceReliable) {
+      return const _HomeMedicineGoal(
+        completed: true,
+        applicable: true,
+        xp: 15,
+        maxXp: 15,
+      );
+    }
+
+    return _HomeMedicineGoal(
+      completed: takenToday,
+      applicable: true,
+      xp: takenToday ? 15 : 0,
+      maxXp: 15,
+    );
+  }
+
+  _HomeShieldSnapshot _buildHomeShieldSnapshot({
+    required List<HealthEntry> entries,
+    required List<Map<String, dynamic>> activities,
+    required List<Medicine> activeMedicines,
+    required _HomeMedicineGoal medicineGoal,
+    required HealthShield? backendShield,
+  }) {
+    final today = DateTime.now();
+    final todaysEntries =
+        entries.where((entry) => _sameDay(entry.entryDate, today)).toList();
+    final sleepHours = todaysEntries
+        .map((entry) => entry.sleepHours ?? 0)
+        .fold<double>(0, (best, value) => value > best ? value : best);
+    final sleepCompleted = sleepHours > 0;
+    final sleepXp =
+        sleepCompleted ? 20 + (sleepHours >= 6 && sleepHours <= 9 ? 10 : 0) : 0;
+    final activityCompleted = activities.any((activity) {
+      final date = _sportActivityDate(activity);
+      return date != null &&
+          _sameDay(date, today) &&
+          _sportActivityDuration(activity) > 0;
+    });
+    final vitalsCompleted = todaysEntries.any(_hasVitalsData);
+
+    final goals = [
+      _HomeGoal(
+          completed: sleepCompleted, applicable: true, xp: sleepXp, maxXp: 30),
+      _HomeGoal(
+        completed: activityCompleted,
+        applicable: true,
+        xp: activityCompleted ? 30 : 0,
+        maxXp: 30,
+      ),
+      _HomeGoal(
+        completed: vitalsCompleted,
+        applicable: true,
+        xp: vitalsCompleted ? 10 : 0,
+        maxXp: 10,
+      ),
+      _HomeGoal(
+        completed: medicineGoal.completed,
+        applicable: medicineGoal.applicable,
+        xp: medicineGoal.xp,
+        maxXp: medicineGoal.maxXp,
+      ),
+    ];
+
+    final applicableGoals = goals.where((goal) => goal.applicable).toList();
+    final completedCount =
+        applicableGoals.where((goal) => goal.completed).length;
+    final baseXp = goals.fold<int>(0, (sum, goal) => sum + goal.xp);
+    final maxBaseXp = goals.fold<int>(0, (sum, goal) => sum + goal.maxXp);
+    final threeCategoryBonus = completedCount >= 3 ? 25 : 0;
+    final allApplicableBonus =
+        applicableGoals.isNotEmpty && completedCount == applicableGoals.length
+            ? 25
+            : 0;
+    final todayXp = baseXp + threeCategoryBonus + allApplicableBonus;
+    final maxApplicableXp = maxBaseXp + 50;
+    final dailyProgress = maxApplicableXp == 0
+        ? 0
+        : ((todayXp / maxApplicableXp) * 100).round().clamp(0, 100);
+    final computedTotalXp = _computedHomeRecentXp(
+      entries: entries,
+      activities: activities,
+      medicineApplicable: activeMedicines.isNotEmpty,
+    );
+    final totalXp = [
+      backendShield?.totalConsistencyPoints ?? 0,
+      computedTotalXp,
+    ].reduce((a, b) => a > b ? a : b);
+
+    return _HomeShieldSnapshot(
+      level: _levelForShieldXp(totalXp),
+      levelName: backendShield?.levelName ?? _levelNameForShieldXp(totalXp),
+      progressPercent: _levelProgressPercent(totalXp),
+      todayXp: todayXp,
+      maxTodayXp: maxApplicableXp,
+      xpToNextLevel: _xpToNextLevel(totalXp),
+      completedHabits: completedCount,
+      status: _shieldStatusFor(dailyProgress),
+    );
+  }
 
   Future<void> _openMedicines() async {
     final result = await context.pushNamed('meds');
@@ -508,6 +721,36 @@ class _DashboardScreenState extends State<DashboardScreen>
     });
   }
 
+  int _computedHomeRecentXp({
+    required List<HealthEntry> entries,
+    required List<Map<String, dynamic>> activities,
+    required bool medicineApplicable,
+  }) {
+    final today = DateTime.now();
+    var total = 0;
+    for (var i = 0; i < 30; i++) {
+      final day = today.subtract(Duration(days: i));
+      final dayEntries =
+          entries.where((entry) => _sameDay(entry.entryDate, day)).toList();
+      final sleep = dayEntries
+          .map((entry) => entry.sleepHours ?? 0)
+          .fold<double>(0, (best, value) => value > best ? value : best);
+      if (sleep > 0) total += 20;
+      if (sleep >= 6 && sleep <= 9) total += 10;
+      if (dayEntries.any(_hasVitalsData)) total += 10;
+      if (activities.any((activity) {
+        final date = _sportActivityDate(activity);
+        return date != null &&
+            _sameDay(date, day) &&
+            _sportActivityDuration(activity) > 0;
+      })) {
+        total += 30;
+      }
+      if (medicineApplicable && i == 0) total += 15;
+    }
+    return total;
+  }
+
   DateTime? _sportActivityDate(Map<String, dynamic> activity) {
     final raw = activity['activityDate'] ?? activity['start'];
     return raw == null ? null : DateTime.tryParse(raw.toString());
@@ -523,6 +766,85 @@ class _DashboardScreenState extends State<DashboardScreen>
 
   bool _sameDay(DateTime a, DateTime b) {
     return a.year == b.year && a.month == b.month && a.day == b.day;
+  }
+
+  static String _dateKey(DateTime date) {
+    return date.toIso8601String().split('T').first;
+  }
+
+  int _levelForShieldXp(int totalXp) {
+    if (totalXp >= 2000) return 5;
+    if (totalXp >= 1000) return 4;
+    if (totalXp >= 500) return 3;
+    if (totalXp >= 200) return 2;
+    return 1;
+  }
+
+  int _levelStartXp(int level) {
+    switch (level) {
+      case 5:
+        return 2000;
+      case 4:
+        return 1000;
+      case 3:
+        return 500;
+      case 2:
+        return 200;
+      default:
+        return 0;
+    }
+  }
+
+  int _nextLevelXp(int level) {
+    switch (level) {
+      case 1:
+        return 200;
+      case 2:
+        return 500;
+      case 3:
+        return 1000;
+      case 4:
+        return 2000;
+      default:
+        return 2000;
+    }
+  }
+
+  int _levelProgressPercent(int totalXp) {
+    final level = _levelForShieldXp(totalXp);
+    if (level >= 5) return 100;
+    final start = _levelStartXp(level);
+    final next = _nextLevelXp(level);
+    return (((totalXp - start) / (next - start)) * 100).round().clamp(0, 100);
+  }
+
+  int _xpToNextLevel(int totalXp) {
+    final level = _levelForShieldXp(totalXp);
+    if (level >= 5) return 0;
+    return (_nextLevelXp(level) - totalXp).clamp(0, 2000);
+  }
+
+  String _levelNameForShieldXp(int totalXp) {
+    final level = _levelForShieldXp(totalXp);
+    switch (level) {
+      case 5:
+        return 'Elite Shield';
+      case 4:
+        return 'Advanced Shield';
+      case 3:
+        return 'Strong Shield';
+      case 2:
+        return 'Rising Shield';
+      default:
+        return 'Basic Shield';
+    }
+  }
+
+  String _shieldStatusFor(int progress) {
+    if (progress <= 25) return 'Low';
+    if (progress <= 60) return 'Building';
+    if (progress <= 85) return 'Strong';
+    return 'Excellent';
   }
 
   int _activeMedicinesCount() {
@@ -868,10 +1190,14 @@ class _DashboardScreenState extends State<DashboardScreen>
                 onTap: _openMedicines,
               );
             case 'healthShield':
+              final homeShield = _state.homeShield;
               return _favoriteCard(
                 title: option.label,
-                value: _state.shield?.level.toString() ?? 'No data',
-                subtitle: _state.shield?.levelName ?? 'Tap to update',
+                value:
+                    'Level ${homeShield.level} • ${homeShield.progressPercent}%',
+                subtitle: homeShield.xpToNextLevel == 0
+                    ? '${homeShield.levelName} • max level'
+                    : '${homeShield.xpToNextLevel} XP to next • ${homeShield.todayXp}/${homeShield.maxTodayXp} today',
                 icon: Icons.shield_outlined,
                 accent: _accent,
                 onTap: _openHealthShield,
@@ -936,14 +1262,13 @@ class _DashboardScreenState extends State<DashboardScreen>
     if (_loading) return _loadingCard(height: 420);
 
     final activeMeds = _activeMedicinesCount();
-    final shield = _state.shield;
-    final shieldProgress = shield?.progressPercent ?? 0;
+    final homeShield = _state.homeShield;
     final activeMinutes = _todayActiveMinutes();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _healthShieldFeedCard(shield, shieldProgress),
+        _healthShieldFeedCard(homeShield),
         _feedGap(),
         _feedCard(
           title: 'Activity',
@@ -1012,12 +1337,7 @@ class _DashboardScreenState extends State<DashboardScreen>
     );
   }
 
-  Widget _healthShieldFeedCard(HealthShield? shield, int progress) {
-    final level = shield?.level.toString() ?? 'No data';
-    final levelName = shield?.levelName ?? 'Tap to update';
-    final todayPoints = shield?.todayPoints ?? 0;
-    final habits = shield?.completedHabitsCount ?? 0;
-
+  Widget _healthShieldFeedCard(_HomeShieldSnapshot shield) {
     return _premiumCard(
       onTap: _openHealthShield,
       child: Row(
@@ -1031,7 +1351,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                 const _CardTitle('Health Shield'),
                 const SizedBox(height: 6),
                 Text(
-                  shield == null ? 'No data' : 'Level $level • $progress%',
+                  'Level ${shield.level} • ${shield.progressPercent}%',
                   style: const TextStyle(
                     color: _primaryText,
                     fontSize: 17,
@@ -1040,9 +1360,9 @@ class _DashboardScreenState extends State<DashboardScreen>
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  shield == null
-                      ? levelName
-                      : '$levelName • $todayPoints pts today • $habits habits',
+                  shield.xpToNextLevel == 0
+                      ? '${shield.status} • max level • ${shield.todayXp} pts today'
+                      : '${shield.status} • ${shield.xpToNextLevel} XP to next • ${shield.todayXp} pts today',
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(color: _secondaryText, height: 1.3),
@@ -1052,7 +1372,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                   borderRadius: BorderRadius.circular(999),
                   child: LinearProgressIndicator(
                     minHeight: 6,
-                    value: (progress / 100).clamp(0.0, 1.0),
+                    value: (shield.progressPercent / 100).clamp(0.0, 1.0),
                     backgroundColor: Colors.white.withValues(alpha: 0.07),
                     valueColor: const AlwaysStoppedAnimation<Color>(_accent),
                   ),
