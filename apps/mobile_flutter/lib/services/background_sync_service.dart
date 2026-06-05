@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:workmanager/workmanager.dart';
@@ -11,6 +12,8 @@ const String _kLastSyncKey = 'health_last_sync_ms';
 /// Must be a top-level function annotated with vm:entry-point.
 @pragma('vm:entry-point')
 void callbackDispatcher() {
+  if (kIsWeb) return;
+
   Workmanager().executeTask((task, inputData) async {
     try {
       WidgetsFlutterBinding.ensureInitialized();
@@ -53,12 +56,16 @@ class BackgroundSyncService {
 
   /// Initialise WorkManager. Call once from main() before runApp().
   static Future<void> init() async {
+    if (kIsWeb) return;
+
     await Workmanager().initialize(callbackDispatcher);
   }
 
   /// Register a periodic task that fires every 15 minutes (Android minimum).
   /// Uses [ExistingWorkPolicy.keep] so re-launches don't reset the timer.
   static Future<void> schedulePeriodicSync() async {
+    if (kIsWeb) return;
+
     await Workmanager().registerPeriodicTask(
       _periodicTaskId,
       _kTaskName,
@@ -72,6 +79,8 @@ class BackgroundSyncService {
 
   /// Trigger an immediate one-off sync — call this when the app resumes.
   static Future<void> syncNow() async {
+    if (kIsWeb) return;
+
     await Workmanager().registerOneOffTask(
       '${_kTaskName}_immediate',
       _kTaskName,
@@ -83,6 +92,8 @@ class BackgroundSyncService {
 
   /// Cancel the periodic task (e.g. on logout).
   static Future<void> cancel() async {
+    if (kIsWeb) return;
+
     await Workmanager().cancelByUniqueName(_periodicTaskId);
   }
 }

@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 import '../models/models.dart';
 import '../services/api_service.dart';
@@ -109,19 +110,25 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   Future<void> _selectDateOfBirth() async {
     try {
       final current = DateTime.tryParse(_dobController.text);
-      final picked = await showDatePicker(
+      final today = DateTime.now();
+      final lastDate = DateTime(today.year, today.month, today.day);
+      final firstDate = DateTime(1940);
+      final initialDate = current == null ||
+              current.isAfter(lastDate) ||
+              current.isBefore(firstDate)
+          ? DateTime(today.year - 30, today.month, today.day)
+          : DateTime(current.year, current.month, current.day);
+      final picked = await showDialog<DateTime>(
         context: context,
-        initialDate:
-            current ?? DateTime.now().subtract(const Duration(days: 365 * 30)),
-        firstDate: DateTime(1940),
-        lastDate: DateTime.now(),
-        builder: (context, child) {
+        builder: (dialogContext) {
           return Theme(
             data: Theme.of(context).copyWith(
               colorScheme: const ColorScheme.dark(
                 primary: _accent,
+                onPrimary: Colors.white,
                 surface: _surface,
                 onSurface: _primaryText,
+                secondary: _accent,
               ),
               dialogTheme: DialogThemeData(
                 backgroundColor: _surface,
@@ -130,8 +137,112 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   side: const BorderSide(color: _border),
                 ),
               ),
+              datePickerTheme: DatePickerThemeData(
+                backgroundColor: _surface,
+                surfaceTintColor: Colors.transparent,
+                headerBackgroundColor: _surfaceAlt,
+                headerForegroundColor: _primaryText,
+                dayForegroundColor: WidgetStateProperty.resolveWith((states) {
+                  if (states.contains(WidgetState.selected)) {
+                    return Colors.white;
+                  }
+                  if (states.contains(WidgetState.disabled)) {
+                    return _secondaryText.withValues(alpha: 0.45);
+                  }
+                  return _primaryText;
+                }),
+                dayBackgroundColor: WidgetStateProperty.resolveWith((states) {
+                  if (states.contains(WidgetState.selected)) {
+                    return _accent;
+                  }
+                  return Colors.transparent;
+                }),
+                todayForegroundColor: WidgetStateProperty.resolveWith((states) {
+                  if (states.contains(WidgetState.selected)) {
+                    return Colors.white;
+                  }
+                  if (states.contains(WidgetState.disabled)) {
+                    return _secondaryText.withValues(alpha: 0.45);
+                  }
+                  return _accent;
+                }),
+                todayBorder: const BorderSide(color: _accent),
+                yearForegroundColor: WidgetStateProperty.resolveWith((states) {
+                  if (states.contains(WidgetState.selected)) {
+                    return Colors.white;
+                  }
+                  if (states.contains(WidgetState.disabled)) {
+                    return _secondaryText.withValues(alpha: 0.45);
+                  }
+                  return _primaryText;
+                }),
+              ),
             ),
-            child: child!,
+            child: Dialog(
+              backgroundColor: _surface,
+              insetPadding:
+                  const EdgeInsets.symmetric(horizontal: 18, vertical: 24),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(22),
+                side: const BorderSide(color: _border),
+              ),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 380),
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 18, 16, 16),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Row(
+                        children: [
+                          Icon(
+                            Icons.calendar_month_outlined,
+                            color: _accent,
+                            size: 22,
+                          ),
+                          SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              'Select date',
+                              style: TextStyle(
+                                color: _primaryText,
+                                fontSize: 18,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          DateFormat('EEE, MMM d, yyyy').format(initialDate),
+                          style: const TextStyle(
+                            color: _primaryText,
+                            fontSize: 28,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      ConstrainedBox(
+                        constraints: const BoxConstraints(maxHeight: 360),
+                        child: CalendarDatePicker(
+                          initialDate: initialDate,
+                          firstDate: firstDate,
+                          lastDate: lastDate,
+                          currentDate: lastDate,
+                          onDateChanged: (date) {
+                            Navigator.of(dialogContext).pop<DateTime>(date);
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
           );
         },
       );

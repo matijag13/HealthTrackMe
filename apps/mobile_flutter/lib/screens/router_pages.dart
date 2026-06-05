@@ -2153,8 +2153,40 @@ class _VitalsManualEntrySheetState extends State<_VitalsManualEntrySheet> {
         surfaceTintColor: Colors.transparent,
         headerBackgroundColor: _surfaceAlt,
         headerForegroundColor: _primaryText,
-        todayForegroundColor: WidgetStateProperty.all(_accent),
+        dayForegroundColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return Colors.white;
+          }
+          if (states.contains(WidgetState.disabled)) {
+            return _secondaryText.withValues(alpha: 0.45);
+          }
+          return _primaryText;
+        }),
+        dayBackgroundColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return _accent;
+          }
+          return Colors.transparent;
+        }),
+        todayForegroundColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return Colors.white;
+          }
+          if (states.contains(WidgetState.disabled)) {
+            return _secondaryText.withValues(alpha: 0.45);
+          }
+          return _accent;
+        }),
         todayBorder: const BorderSide(color: _accent),
+        yearForegroundColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return Colors.white;
+          }
+          if (states.contains(WidgetState.disabled)) {
+            return _secondaryText.withValues(alpha: 0.45);
+          }
+          return _primaryText;
+        }),
       ),
       timePickerTheme: TimePickerThemeData(
         backgroundColor: _surface,
@@ -4066,8 +4098,40 @@ class _ActivityManualEntrySheetState extends State<_ActivityManualEntrySheet> {
             surfaceTintColor: Colors.transparent,
             headerBackgroundColor: _surfaceAlt,
             headerForegroundColor: _primaryText,
-            todayForegroundColor: WidgetStateProperty.all(_accent),
+            dayForegroundColor: WidgetStateProperty.resolveWith((states) {
+              if (states.contains(WidgetState.selected)) {
+                return Colors.white;
+              }
+              if (states.contains(WidgetState.disabled)) {
+                return _secondaryText.withValues(alpha: 0.45);
+              }
+              return _primaryText;
+            }),
+            dayBackgroundColor: WidgetStateProperty.resolveWith((states) {
+              if (states.contains(WidgetState.selected)) {
+                return _accent;
+              }
+              return Colors.transparent;
+            }),
+            todayForegroundColor: WidgetStateProperty.resolveWith((states) {
+              if (states.contains(WidgetState.selected)) {
+                return Colors.white;
+              }
+              if (states.contains(WidgetState.disabled)) {
+                return _secondaryText.withValues(alpha: 0.45);
+              }
+              return _accent;
+            }),
             todayBorder: const BorderSide(color: _accent),
+            yearForegroundColor: WidgetStateProperty.resolveWith((states) {
+              if (states.contains(WidgetState.selected)) {
+                return Colors.white;
+              }
+              if (states.contains(WidgetState.disabled)) {
+                return _secondaryText.withValues(alpha: 0.45);
+              }
+              return _primaryText;
+            }),
           ),
           textButtonTheme: TextButtonThemeData(
             style: TextButton.styleFrom(foregroundColor: _accent),
@@ -5272,8 +5336,40 @@ class _SleepManualEntrySheetState extends State<_SleepManualEntrySheet> {
         surfaceTintColor: Colors.transparent,
         headerBackgroundColor: _surfaceAlt,
         headerForegroundColor: _primaryText,
-        todayForegroundColor: WidgetStateProperty.all(_accent),
+        dayForegroundColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return Colors.white;
+          }
+          if (states.contains(WidgetState.disabled)) {
+            return _secondaryText.withValues(alpha: 0.45);
+          }
+          return _primaryText;
+        }),
+        dayBackgroundColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return _accent;
+          }
+          return Colors.transparent;
+        }),
+        todayForegroundColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return Colors.white;
+          }
+          if (states.contains(WidgetState.disabled)) {
+            return _secondaryText.withValues(alpha: 0.45);
+          }
+          return _accent;
+        }),
         todayBorder: const BorderSide(color: _accent),
+        yearForegroundColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return Colors.white;
+          }
+          if (states.contains(WidgetState.disabled)) {
+            return _secondaryText.withValues(alpha: 0.45);
+          }
+          return _primaryText;
+        }),
       ),
       timePickerTheme: TimePickerThemeData(
         backgroundColor: _surface,

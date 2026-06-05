@@ -1502,11 +1502,27 @@ class _MedicineEditSheetState extends State<MedicineEditSheet> {
                 }
                 return Colors.transparent;
               }),
-              todayForegroundColor:
-                  WidgetStateProperty.all(const Color(0xFF5A8CFF)),
+              todayForegroundColor: WidgetStateProperty.resolveWith((states) {
+                if (states.contains(WidgetState.selected)) {
+                  return Colors.white;
+                }
+                if (states.contains(WidgetState.disabled)) {
+                  return _MedicinesScreenState._mutedText
+                      .withValues(alpha: 0.5);
+                }
+                return const Color(0xFF5A8CFF);
+              }),
               todayBorder: const BorderSide(color: Color(0xFF5A8CFF)),
-              yearForegroundColor:
-                  WidgetStateProperty.all(_MedicinesScreenState._primaryText),
+              yearForegroundColor: WidgetStateProperty.resolveWith((states) {
+                if (states.contains(WidgetState.selected)) {
+                  return Colors.white;
+                }
+                if (states.contains(WidgetState.disabled)) {
+                  return _MedicinesScreenState._mutedText
+                      .withValues(alpha: 0.5);
+                }
+                return _MedicinesScreenState._primaryText;
+              }),
             ),
             textButtonTheme: TextButtonThemeData(
               style: TextButton.styleFrom(
