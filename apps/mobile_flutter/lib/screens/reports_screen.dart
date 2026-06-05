@@ -128,9 +128,8 @@ class _ReportsScreenState extends State<ReportsScreen>
       messenger.showSnackBar(
         SnackBar(
           behavior: SnackBarBehavior.floating,
-          backgroundColor: result.success
-              ? _ReportsColors.success
-              : _ReportsColors.surface,
+          backgroundColor:
+              result.success ? _ReportsColors.success : _ReportsColors.surface,
           content: Text(
             result.message,
             style: const TextStyle(

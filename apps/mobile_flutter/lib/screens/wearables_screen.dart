@@ -56,8 +56,8 @@ class _WearablesScreenState extends State<WearablesScreen> {
   String get _lastSyncLabel {
     final ms = _lastSyncMs;
     if (ms == null) return 'Not synced yet';
-    final diff = DateTime.now()
-        .difference(DateTime.fromMillisecondsSinceEpoch(ms));
+    final diff =
+        DateTime.now().difference(DateTime.fromMillisecondsSinceEpoch(ms));
     if (diff.inSeconds < 60) return 'Last synced just now';
     if (diff.inMinutes < 60) return 'Last synced ${diff.inMinutes}m ago';
     if (diff.inHours < 24) return 'Last synced ${diff.inHours}h ago';
