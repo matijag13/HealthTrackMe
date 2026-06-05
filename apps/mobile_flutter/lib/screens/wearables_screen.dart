@@ -30,6 +30,7 @@ class _WearablesScreenState extends State<WearablesScreen> {
   List<WearableDevice> _devices = [];
   bool _loading = true;
   bool _syncing = false;
+  int? _lastSyncMs;
 
   @override
   void initState() {
@@ -40,13 +41,80 @@ class _WearablesScreenState extends State<WearablesScreen> {
   Future<void> _load() async {
     setState(() => _loading = true);
     try {
+      final prefs = await SharedPreferences.getInstance();
+      final lastMs = prefs.getInt(_kLastSyncKey);
       final userId = await _api.ensureActiveUserId();
       if (userId != null) {
         final devices = await _wearableService.getConnectedDevices(userId);
         if (mounted) setState(() => _devices = devices);
       }
+      if (mounted) setState(() => _lastSyncMs = lastMs);
     } catch (_) {}
     if (mounted) setState(() => _loading = false);
+  }
+
+  String get _lastSyncLabel {
+    final ms = _lastSyncMs;
+    if (ms == null) return 'Not synced yet';
+    final diff = DateTime.now()
+        .difference(DateTime.fromMillisecondsSinceEpoch(ms));
+    if (diff.inSeconds < 60) return 'Last synced just now';
+    if (diff.inMinutes < 60) return 'Last synced ${diff.inMinutes}m ago';
+    if (diff.inHours < 24) return 'Last synced ${diff.inHours}h ago';
+    return 'Last synced ${diff.inDays}d ago';
+  }
+
+  /// Register a device, request Health permissions, pull its data immediately,
+  /// and stamp its last-sync time — so "Add" actually connects rather than just
+  /// labelling a card.
+  Future<void> _connectDevice(WearableDeviceType type) async {
+    setState(() => _syncing = true);
+    try {
+      final userId = await _api.ensureActiveUserId();
+      if (userId == null) return;
+
+      final device =
+          await _wearableService.addDevice(userId, type.displayName, type);
+
+      final synced = <String>[];
+      final granted = await _wearableService.hasPermissions() ||
+          await _wearableService.requestPermissions();
+      if (granted) {
+        final prefs = await SharedPreferences.getInstance();
+        final lastMs = prefs.getInt(_kLastSyncKey);
+        final startDate = lastMs != null
+            ? DateTime.fromMillisecondsSinceEpoch(lastMs)
+            : DateTime.now().subtract(const Duration(days: 7));
+        final result = await _wearableService.syncWearableData(
+          userId: userId,
+          startDate: startDate,
+        );
+        await prefs.setInt(
+            _kLastSyncKey, DateTime.now().millisecondsSinceEpoch);
+        await _wearableService.markDeviceSynced(device.id);
+        if (result.steps != null) synced.add('${result.steps} steps');
+        if (result.heartRateAvg != null) {
+          synced.add('HR ${result.heartRateAvg!.toInt()} bpm');
+        }
+        if (result.sleepHours != null) {
+          synced.add('${result.sleepHours!.toStringAsFixed(1)}h sleep');
+        }
+      }
+
+      await _load();
+      if (mounted) {
+        final detail = synced.isNotEmpty
+            ? 'connected — synced ${synced.join(', ')}'
+            : (granted
+                ? 'connected — no new data yet'
+                : 'connected (grant Health permission to sync)');
+        _showStatus('${type.displayName} $detail', granted);
+      }
+    } catch (e) {
+      if (mounted) _showStatus('Failed to add device', false);
+    } finally {
+      if (mounted) setState(() => _syncing = false);
+    }
   }
 
   Future<void> _sync() async {
@@ -111,18 +179,9 @@ class _WearablesScreenState extends State<WearablesScreen> {
         side: BorderSide(color: _border),
       ),
       builder: (_) => _AddDeviceSheet(
-        onAdd: (type) async {
+        onAdd: (type) {
           Navigator.pop(context);
-          try {
-            final userId = await _api.ensureActiveUserId();
-            if (userId != null) {
-              await _wearableService.addDevice(userId, type.displayName, type);
-              await _load();
-              if (mounted) _showStatus('${type.displayName} added', true);
-            }
-          } catch (e) {
-            if (mounted) _showStatus('Failed to add device', false);
-          }
+          _connectDevice(type);
         },
       ),
     );
@@ -278,6 +337,28 @@ class _WearablesScreenState extends State<WearablesScreen> {
                 children: [
                   // Sync button
                   _SyncButton(syncing: _syncing, onSync: _sync),
+                  const SizedBox(height: 10),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        _lastSyncMs == null
+                            ? Icons.sync_disabled_rounded
+                            : Icons.check_circle_rounded,
+                        size: 14,
+                        color: _lastSyncMs == null ? _secondaryText : _green,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        _lastSyncLabel,
+                        style: const TextStyle(
+                          color: _secondaryText,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
                   const SizedBox(height: 24),
 
                   // Devices section

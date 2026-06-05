@@ -25,6 +25,20 @@ spring:
     enabled: true
     locations: classpath:db/migration
     baseline-on-migrate: true
+  mail:
+    host: ${SMTP_HOST:smtp.gmail.com}
+    port: ${SMTP_PORT:587}
+    username: ${SMTP_USERNAME:}
+    password: ${SMTP_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+          connectiontimeout: 5000
+          timeout: 5000
+          writetimeout: 5000
 
 server:
   port: ${PORT:8080}
@@ -47,6 +61,11 @@ app:
   data-retention:
     # TODO: Implement user-level hard-delete workflow for "delete my data" GDPR requests.
     delete-my-data-enabled: false
+  mail:
+    # Set APP_MAIL_ENABLED=true and provide SMTP_USERNAME/SMTP_PASSWORD (Gmail app password)
+    # in the deploy environment to enable the "email me my summary" feature.
+    enabled: ${APP_MAIL_ENABLED:false}
+    from: ${APP_MAIL_FROM:HealthTrackMe <no-reply@healthtrackme.app>}
 
 logging:
   level:

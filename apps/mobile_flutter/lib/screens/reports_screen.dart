@@ -20,6 +20,7 @@ class _ReportsScreenState extends State<ReportsScreen>
 
   final ApiService _api = ApiService.instance;
   late Future<_InsightsSnapshot> _future;
+  bool _emailing = false;
 
   @override
   bool get wantKeepAlive => true;
@@ -116,6 +117,34 @@ class _ReportsScreenState extends State<ReportsScreen>
     setState(() => _future = _load());
   }
 
+  Future<void> _emailSummary() async {
+    if (_emailing) return;
+    setState(() => _emailing = true);
+    try {
+      final result = await _api.emailHealthSummary();
+      if (!mounted) return;
+      final messenger = ScaffoldMessenger.of(context);
+      messenger.clearSnackBars();
+      messenger.showSnackBar(
+        SnackBar(
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: result.success
+              ? _ReportsColors.success
+              : _ReportsColors.surface,
+          content: Text(
+            result.message,
+            style: const TextStyle(
+              color: _primaryText,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _emailing = false);
+    }
+  }
+
   void _goBack() {
     final navigator = Navigator.of(context);
     if (navigator.canPop()) {
@@ -143,6 +172,33 @@ class _ReportsScreenState extends State<ReportsScreen>
         ),
       );
 
+  Widget _emailButton() => Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: _emailing ? null : _emailSummary,
+          borderRadius: BorderRadius.circular(15),
+          child: Ink(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: _surface,
+              borderRadius: BorderRadius.circular(15),
+              border: Border.all(color: _border),
+            ),
+            child: _emailing
+                ? const Padding(
+                    padding: EdgeInsets.all(12),
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: _accent,
+                    ),
+                  )
+                : const Icon(Icons.mail_outline_rounded,
+                    color: _primaryText, size: 21),
+          ),
+        ),
+      );
+
   Widget _topBar() => Padding(
         padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
         child: Row(
@@ -159,6 +215,7 @@ class _ReportsScreenState extends State<ReportsScreen>
                     ),
               ),
             ),
+            _emailButton(),
           ],
         ),
       );

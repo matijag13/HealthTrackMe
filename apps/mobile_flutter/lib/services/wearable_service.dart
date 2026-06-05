@@ -396,7 +396,9 @@ class WearableService {
         await _api.createSportActivity(payload, userId: userId);
       }
 
-      // Save vitals as a health entry
+      // Save vitals as a health entry via the idempotent /sync endpoint so repeated
+      // foreground syncs upsert the day's row instead of stacking duplicates. We no
+      // longer send a hardcoded wellbeingScore — that's the user's to log.
       final hasVitals = data.heartRateAvg != null ||
           data.sleepHours != null ||
           data.calories != null;
@@ -404,20 +406,21 @@ class WearableService {
       if (hasVitals) {
         final payload = <String, dynamic>{
           'entryDate': dateStr,
-          'wellbeingScore': 5,
           'notes': 'Synced from $source',
         };
         if (data.heartRateAvg != null) {
           payload['heartRate'] = data.heartRateAvg!.toInt();
         }
         if (data.sleepHours != null) payload['sleepHours'] = data.sleepHours;
+        if (data.sleepQuality != null) {
+          payload['sleepQuality'] = data.sleepQuality;
+        }
         if (data.calories != null) payload['caloriesConsumed'] = data.calories;
 
-        await http.post(
-          _uri('/health-entries/users/$userId'),
-          headers: await _headers(extra: {'Content-Type': 'application/json'}),
-          body: jsonEncode(payload),
-        );
+        final ok = await _api.syncHealthVitals(payload, userId: userId);
+        if (!ok) {
+          debugPrint('⚠️ Vitals sync upsert failed');
+        }
       }
 
       debugPrint('✅ Data uploaded to backend');
@@ -486,6 +489,20 @@ class WearableService {
     } catch (e) {
       debugPrint('❌ Error adding device: $e');
       rethrow;
+    }
+  }
+
+  /// Stamp a device's last-sync time on the backend so its card shows real
+  /// "synced X ago" status. Best-effort — failures don't block the UI.
+  Future<void> markDeviceSynced(int deviceId) async {
+    try {
+      if (kIsWeb) return;
+      await http.post(
+        _uri('/wearable-devices/$deviceId/sync'),
+        headers: await _headers(extra: {'Content-Type': 'application/json'}),
+      );
+    } catch (e) {
+      debugPrint('⚠️ Error stamping device sync: $e');
     }
   }
 

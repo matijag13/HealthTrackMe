@@ -197,7 +197,7 @@ class WearableDevice {
   static SyncStatus _parseSyncStatus(String status) {
     try {
       return SyncStatus.values.firstWhere(
-        (e) => e.toString().split('.').last == status.toLowerCase(),
+        (e) => e.name.toLowerCase() == status.toLowerCase(),
         orElse: () => SyncStatus.notConnected,
       );
     } catch (e) {

@@ -3,6 +3,7 @@ package com.healthwithme.api.controller
 import com.healthwithme.api.dto.CreateHealthEntryRequest
 import com.healthwithme.api.dto.HealthEntryDto
 import com.healthwithme.api.dto.ApiResponse
+import com.healthwithme.api.dto.SyncVitalsRequest
 import com.healthwithme.api.service.HealthEntryService
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
@@ -18,6 +19,18 @@ class HealthEntryController(private val healthEntryService: HealthEntryService) 
             val entry = healthEntryService.createHealthEntry(userId, request)
             ResponseEntity.status(HttpStatus.CREATED).body(
                 ApiResponse(success = true, message = "Entry created", data = entry)
+            )
+        } catch (e: Exception) {
+            ResponseEntity.badRequest().body(ApiResponse(success = false, message = (e.message ?: "Bad request"), data = null))
+        }
+    }
+
+    @PostMapping("/users/{userId}/sync")
+    fun syncEntry(@PathVariable userId: Long, @RequestBody request: SyncVitalsRequest): ResponseEntity<ApiResponse<HealthEntryDto>> {
+        return try {
+            val entry = healthEntryService.upsertSyncedVitals(userId, request)
+            ResponseEntity.ok().body(
+                ApiResponse(success = true, message = "Vitals synced", data = entry)
             )
         } catch (e: Exception) {
             ResponseEntity.badRequest().body(ApiResponse(success = false, message = (e.message ?: "Bad request"), data = null))

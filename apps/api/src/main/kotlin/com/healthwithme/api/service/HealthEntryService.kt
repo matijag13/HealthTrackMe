@@ -2,6 +2,7 @@ package com.healthwithme.api.service
 
 import com.healthwithme.api.dto.CreateHealthEntryRequest
 import com.healthwithme.api.dto.HealthEntryDto
+import com.healthwithme.api.dto.SyncVitalsRequest
 import com.healthwithme.api.dto.UpdateHealthEntryRequest
 import com.healthwithme.api.model.HealthEntry
 import com.healthwithme.api.repository.HealthEntryRepository
@@ -55,6 +56,60 @@ class HealthEntryService(
         
         val savedEntry = healthEntryRepository.save(entry)
         return toHealthEntryDto(savedEntry)
+    }
+
+    /**
+     * Idempotent upsert for wearable-synced vitals. Updates the existing entry for that day in
+     * place (only the fields the sync actually carries), or creates one with a neutral wellbeing
+     * baseline if the day has no entry yet. This is what makes near-real-time foreground sync safe:
+     * syncing the same day every couple of minutes mutates one row instead of inserting many.
+     */
+    fun upsertSyncedVitals(userId: Long, request: SyncVitalsRequest): HealthEntryDto {
+        val user = userRepository.findById(userId)
+            .orElseThrow { IllegalArgumentException("User not found") }
+
+        val date = LocalDate.parse(request.entryDate)
+        val existing = healthEntryRepository
+            .findByUserIdAndEntryDateOrderByCreatedAtDesc(userId, date)
+            .firstOrNull()
+
+        val entry = if (existing != null) {
+            existing.copy(
+                measuredAt = request.measuredAt?.let { LocalDateTime.parse(it) } ?: existing.measuredAt,
+                heartRate = request.heartRate ?: existing.heartRate,
+                sleepHours = request.sleepHours ?: existing.sleepHours,
+                sleepQuality = request.sleepQuality ?: existing.sleepQuality,
+                caloriesConsumed = request.caloriesConsumed ?: existing.caloriesConsumed,
+                systolicBp = request.systolicBp ?: existing.systolicBp,
+                diastolicBp = request.diastolicBp ?: existing.diastolicBp,
+                spO2 = request.spO2 ?: existing.spO2,
+                weight = request.weight ?: existing.weight,
+                doctorNotes = request.notes ?: existing.doctorNotes,
+                updatedAt = LocalDateTime.now()
+            )
+        } else {
+            HealthEntry(
+                user = user,
+                entryDate = date,
+                measuredAt = request.measuredAt?.let { LocalDateTime.parse(it) },
+                // Neutral baseline only for a brand-new synced day; never overwrites a value the
+                // user logged, because existing entries take the copy() branch above.
+                wellbeingScore = 5,
+                heartRate = request.heartRate,
+                sleepHours = request.sleepHours,
+                sleepQuality = request.sleepQuality,
+                caloriesConsumed = request.caloriesConsumed,
+                systolicBp = request.systolicBp,
+                diastolicBp = request.diastolicBp,
+                spO2 = request.spO2,
+                weight = request.weight,
+                doctorNotes = request.notes,
+                createdAt = LocalDateTime.now(),
+                updatedAt = LocalDateTime.now()
+            )
+        }
+
+        return toHealthEntryDto(healthEntryRepository.save(entry))
     }
 
     fun getHealthEntry(id: Long): HealthEntryDto {

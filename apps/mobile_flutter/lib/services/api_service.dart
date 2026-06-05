@@ -746,6 +746,49 @@ class ApiService {
     return response.statusCode >= 200 && response.statusCode < 300;
   }
 
+  /// Ask the backend to email the logged-in user's health summary to their own
+  /// address. Returns (success, message) so the UI can surface the server's
+  /// message (e.g. "Summary sent to you@example.com" or
+  /// "Email is not configured on the server").
+  Future<({bool success, String message})> emailHealthSummary({
+    int? userId,
+  }) async {
+    final id = userId ?? await ensureActiveUserId();
+    if (id == null) {
+      return (success: false, message: 'Not signed in');
+    }
+    try {
+      final response = await _postRaw(
+        '/export/summary/email/$id',
+        headers: {'Content-Type': 'application/json'},
+      );
+      final ok = response.statusCode >= 200 && response.statusCode < 300;
+      final message = _responseMessage(response) ??
+          (ok ? 'Summary sent' : 'Could not send summary');
+      return (success: ok, message: message);
+    } catch (e) {
+      return (success: false, message: 'Could not send summary');
+    }
+  }
+
+  /// Idempotent vitals sync — upserts the day's health entry so repeated
+  /// foreground syncs update one row instead of creating duplicates.
+  Future<bool> syncHealthVitals(
+    Map<String, dynamic> payload, {
+    int? userId,
+  }) async {
+    final id = userId ?? await ensureActiveUserId();
+    if (id == null) {
+      return false;
+    }
+    final response = await _postRaw(
+      '/health-entries/users/$id/sync',
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode(payload),
+    );
+    return response.statusCode >= 200 && response.statusCode < 300;
+  }
+
   // Alerts endpoints
   Future<List<HealthAlertSummary>> getHealthAlerts(
       {int? userId, bool unreadOnly = false}) async {

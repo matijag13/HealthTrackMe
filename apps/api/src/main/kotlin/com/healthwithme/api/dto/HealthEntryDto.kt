@@ -92,3 +92,22 @@ data class HealthEntryFilterRequest(
     val symptom: String?
 )
 
+/**
+ * Payload for idempotent wearable/health sync. All vitals are optional; the entry for the given
+ * day is updated in place (or created once if absent), so repeated syncs never pile up duplicate
+ * rows and never overwrite a wellbeing score the user logged themselves.
+ */
+data class SyncVitalsRequest(
+    val entryDate: String,
+    val measuredAt: String? = null,
+    val heartRate: Int? = null,
+    val sleepHours: Double? = null,
+    val sleepQuality: String? = null,
+    val caloriesConsumed: Int? = null,
+    val systolicBp: Int? = null,
+    val diastolicBp: Int? = null,
+    val spO2: Int? = null,
+    val weight: Double? = null,
+    val notes: String? = null
+)
+
