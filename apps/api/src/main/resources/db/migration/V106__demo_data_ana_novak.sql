@@ -25,8 +25,7 @@ INSERT INTO health_entries (
     wellbeing_score, energy_level, stress_level, mood,
     heart_rate, systolic_bp, diastolic_bp, spo2,
     weight, sleep_hours, sleep_quality,
-    water_intake_ml, symptoms,
-    created_at, updated_at
+    water_intake_ml, symptoms
 )
 SELECT u.id, v.*
 FROM users u
@@ -80,8 +79,7 @@ WHERE u.email = 'ana.novak@example.com'
 INSERT INTO sport_activities (
     user_id, activity_type, activity_date,
     duration, distance, calories_burned, steps,
-    average_heart_rate, intensity, notes,
-    created_at, updated_at
+    average_heart_rate, intensity, notes
 )
 SELECT u.id, a.*
 FROM users u
