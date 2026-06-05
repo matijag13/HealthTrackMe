@@ -1864,6 +1864,7 @@ class _VitalsManualEntrySheet extends StatefulWidget {
 class _VitalsManualEntrySheetState extends State<_VitalsManualEntrySheet> {
   static const _surface = Color(0xFF0F1624);
   static const _surfaceAlt = Color(0xFF121B2C);
+  static const _surfaceSoft = Color(0xFF11141B);
   static const _border = Color(0xFF243047);
   static const _primaryText = Color(0xFFF5F7FB);
   static const _secondaryText = Color(0xFF94A3B8);
@@ -2493,10 +2494,21 @@ class _VitalsManualEntrySheetState extends State<_VitalsManualEntrySheet> {
                           ],
                         ),
                       ),
-                      IconButton(
-                        onPressed: _saving ? null : _cancel,
-                        icon: const Icon(Icons.close_rounded),
-                        color: _secondaryText,
+                      Material(
+                        color: Colors.transparent,
+                        child: IconButton(
+                          onPressed: _saving ? null : _cancel,
+                          icon: const Icon(
+                            Icons.close_rounded,
+                            color: _primaryText,
+                          ),
+                          style: IconButton.styleFrom(
+                            backgroundColor: _surfaceSoft,
+                            side: BorderSide(
+                              color: _border.withValues(alpha: 0.95),
+                            ),
+                          ),
+                        ),
                       ),
                     ],
                   ),
@@ -5814,47 +5826,26 @@ class _SleepManualEntrySheetState extends State<_SleepManualEntrySheet> {
 
   Widget _buildActionButtons() {
     final canSave = !_saving && _sleepHours != null;
-    return Row(
-      children: [
-        Expanded(
-          child: TextButton(
-            onPressed: _saving ? null : () => Navigator.of(context).pop(),
-            style: TextButton.styleFrom(
-              foregroundColor: _secondaryText,
-              padding: const EdgeInsets.symmetric(vertical: 14),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-                side: BorderSide(color: _border.withValues(alpha: 0.9)),
-              ),
-            ),
-            child: const Text('Cancel'),
-          ),
+    return FilledButton(
+      onPressed: canSave ? _save : null,
+      style: FilledButton.styleFrom(
+        backgroundColor: _accent,
+        foregroundColor: Colors.white,
+        padding: const EdgeInsets.symmetric(vertical: 14),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
         ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: FilledButton(
-            onPressed: canSave ? _save : null,
-            style: FilledButton.styleFrom(
-              backgroundColor: _accent,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(vertical: 14),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
+      ),
+      child: _saving
+          ? const SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(
+                strokeWidth: 2.2,
+                color: Colors.white,
               ),
-            ),
-            child: _saving
-                ? const SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2.2,
-                      color: Colors.white,
-                    ),
-                  )
-                : const Text('Save'),
-          ),
-        ),
-      ],
+            )
+          : const Text('Save'),
     );
   }
 
@@ -5895,13 +5886,36 @@ class _SleepManualEntrySheetState extends State<_SleepManualEntrySheet> {
                   ),
                 ),
                 const SizedBox(height: 16),
-                const Text(
-                  'Add sleep',
-                  style: TextStyle(
-                    color: _primaryText,
-                    fontSize: 22,
-                    fontWeight: FontWeight.w900,
-                  ),
+                Row(
+                  children: [
+                    const Expanded(
+                      child: Text(
+                        'Add sleep',
+                        style: TextStyle(
+                          color: _primaryText,
+                          fontSize: 22,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                    ),
+                    Material(
+                      color: Colors.transparent,
+                      child: IconButton(
+                        onPressed:
+                            _saving ? null : () => Navigator.of(context).pop(),
+                        icon: const Icon(
+                          Icons.close_rounded,
+                          color: _primaryText,
+                        ),
+                        style: IconButton.styleFrom(
+                          backgroundColor: _surfaceSoft,
+                          side: BorderSide(
+                            color: _border.withValues(alpha: 0.95),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 6),
                 const Text(
