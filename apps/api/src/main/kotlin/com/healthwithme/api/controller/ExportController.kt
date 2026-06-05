@@ -117,8 +117,10 @@ class ExportController(
                 ApiResponse(success = true, message = "Summary sent to $email", data = email)
             )
         } catch (e: Exception) {
+            // Surface the deepest cause (e.g. the actual SMTP error) for easier diagnosis.
+            val rootCause = generateSequence(e as Throwable) { it.cause }.last().message ?: e.message
             ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
-                ApiResponse(success = false, message = (e.message ?: "Failed to send email"), data = null)
+                ApiResponse(success = false, message = "Failed to send email: $rootCause", data = null)
             )
         }
     }

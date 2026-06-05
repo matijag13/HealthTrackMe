@@ -36,9 +36,10 @@ spring:
           auth: true
           starttls:
             enable: true
-          connectiontimeout: 5000
-          timeout: 5000
-          writetimeout: 5000
+          # Generous timeouts — a cold cloud->Gmail TLS handshake can exceed a few seconds.
+          connectiontimeout: 20000
+          timeout: 20000
+          writetimeout: 20000
 
 server:
   port: ${PORT:8080}
