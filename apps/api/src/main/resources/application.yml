@@ -52,10 +52,24 @@ server:
 security:
   jwt:
     secret: ${JWT_SECRET:change-me-local-secret}
+    # Token lifetime in seconds (default 30 days so demo testers stay signed in).
+    expiration-seconds: ${JWT_EXPIRATION_SECONDS:2592000}
+  # When true, all /api/v1/** endpoints except /auth/** require a valid JWT and
+  # enforce per-user ownership. Disabled in the test profile.
+  auth:
+    enabled: ${AUTH_ENABLED:true}
 
 google:
   oauth:
     allowed-client-ids: ${GOOGLE_OAUTH_ALLOWED_CLIENT_IDS:}
+
+anthropic:
+  # Set ANTHROPIC_API_KEY in the deploy env to enable AI-powered Detective insights
+  # and the "ask your health data" Q&A. When blank, the service falls back to the
+  # existing rule-based analysis automatically.
+  api:
+    key: ${ANTHROPIC_API_KEY:}
+  model: ${ANTHROPIC_MODEL:claude-haiku-4-5}
 
 app:
   data-retention:

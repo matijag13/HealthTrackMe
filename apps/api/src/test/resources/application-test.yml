@@ -10,3 +10,7 @@ spring:
     show-sql: false
   flyway:
     enabled: false
+
+security:
+  auth:
+    enabled: false

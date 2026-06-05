@@ -37,7 +37,8 @@ class WearableDeviceController(private val deviceService: WearableDeviceService)
     @GetMapping("/users/{userId}")
     fun getUserDevices(@PathVariable userId: Long): ResponseEntity<ApiResponse<List<WearableDeviceDto>>> {
         return try {
-            val devices = deviceService.getDevicesByUser(userId)
+            // Active only — a disconnected device (soft-deleted: isActive=false) must not reappear.
+            val devices = deviceService.getActiveDevicesByUser(userId)
             ResponseEntity.ok().body(ApiResponse(success = true, message = "Devices found", data = devices))
         } catch (e: Exception) {
             ResponseEntity.notFound().build()

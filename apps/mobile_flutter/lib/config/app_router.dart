@@ -12,6 +12,7 @@ import '../screens/health_screen.dart';
 import '../screens/health_shield_screen.dart';
 import '../screens/onboarding_screen.dart';
 import '../screens/wearables_screen.dart';
+import '../screens/detective_screen.dart';
 import '../services/api_service.dart';
 
 GoRouter createAppRouter() {
@@ -166,6 +167,11 @@ GoRouter createAppRouter() {
         path: '/wearables',
         name: 'wearables',
         builder: (context, state) => const WearablesScreen(),
+      ),
+      GoRoute(
+        path: '/detective',
+        name: 'detective',
+        builder: (context, state) => const DetectiveScreen(),
       ),
       GoRoute(
         path: '/health-shield',

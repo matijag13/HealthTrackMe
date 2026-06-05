@@ -48,6 +48,12 @@ data class GoogleLoginRequest(
     val idToken: String
 )
 
+/** Returned by /auth/login and /auth/google — the JWT plus the authenticated user. */
+data class AuthResponse(
+    val token: String,
+    val user: UserDto
+)
+
 data class UpdateUserRequest(
     val email: String?,
     val firstName: String?,

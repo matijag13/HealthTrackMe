@@ -7,6 +7,11 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Service
+import java.net.URI
+import java.net.http.HttpClient
+import java.net.http.HttpRequest
+import java.net.http.HttpResponse
+import java.time.Duration
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
@@ -26,6 +31,13 @@ class HealthDetectiveService(
 
     @Value("\${anthropic.api.key:}")
     private lateinit var apiKey: String
+
+    @Value("\${anthropic.model:claude-haiku-4-5}")
+    private lateinit var model: String
+
+    private val httpClient: HttpClient = HttpClient.newBuilder()
+        .connectTimeout(Duration.ofSeconds(10))
+        .build()
 
     /**
      * Analyze health data and generate insights using Claude API
@@ -246,7 +258,11 @@ class HealthDetectiveService(
     /**
      * Build prompt for Claude API
      */
-    private fun buildClaudePrompt(
+    /**
+     * The user's aggregated health metrics as plain text — shared by the insight
+     * prompt and the Q&A prompt.
+     */
+    private fun buildHealthContext(
         user: User,
         entries: List<HealthEntry>,
         analysis: Map<String, Any>,
@@ -254,7 +270,7 @@ class HealthDetectiveService(
     ): String {
         val dateRange = "${LocalDate.now().minusDays(daysBack.toLong())} to ${LocalDate.now()}"
 
-        val healthSummary = """
+        return """
             User: ${user.firstName} ${user.lastName}
             Period: Last $daysBack days ($dateRange)
 
@@ -268,7 +284,19 @@ class HealthDetectiveService(
             - Active Medications: ${analysis["medicationCount"] as? Int ?: 0}
 
             Entry Count: ${entries.size} entries
+        """.trimIndent()
+    }
 
+    /**
+     * Build prompt for the Claude insight card (health context + JSON-format task).
+     */
+    private fun buildClaudePrompt(
+        user: User,
+        entries: List<HealthEntry>,
+        analysis: Map<String, Any>,
+        daysBack: Int
+    ): String {
+        return buildHealthContext(user, entries, analysis, daysBack) + "\n\n" + """
             Task: Analyze this health data and provide ONE key insight about health patterns and correlations.
             Generate a professional health insight card with:
             1. badge: Short emoji + insight type (max 20 chars, e.g., "✨ Strong week")
@@ -284,22 +312,126 @@ class HealthDetectiveService(
                 "finding": "finding text"
             }
         """.trimIndent()
-
-        return healthSummary
     }
 
     /**
-     * Call Claude API (placeholder - needs actual implementation)
+     * Answer a free-form question about the user's recent health data using Claude.
+     * Returns {"answer": ...}. Degrades gracefully when there's no data or no API
+     * key, so the "ask your health data" feature never errors out.
+     */
+    fun answerQuestion(userId: Long, question: String, daysBack: Int = 30): Map<String, String> {
+        val user = userRepository.findById(userId)
+            .orElseThrow { IllegalArgumentException("User not found") }
+
+        if (question.isBlank()) {
+            return mapOf("answer" to "Please type a question about your health.")
+        }
+
+        val endDate = LocalDate.now()
+        val startDate = endDate.minusDays(daysBack.toLong())
+        val entries = healthEntryRepository
+            .findByUserIdAndEntryDateBetween(userId, startDate, endDate)
+            .sortedByDescending { it.entryDate }
+
+        if (entries.isEmpty()) {
+            return mapOf(
+                "answer" to "I don't have enough of your health data yet. Log a few days of " +
+                    "vitals, sleep, or activity and ask again."
+            )
+        }
+
+        if (apiKey.isBlank()) {
+            return mapOf(
+                "answer" to "AI answers aren't enabled on the server yet. Once an API key is " +
+                    "configured, I can answer questions about your trends."
+            )
+        }
+
+        return try {
+            val analysis = analyzeHealthData(entries, user)
+            val userMessage = buildString {
+                appendLine("Here is the user's recent health data:")
+                appendLine(buildHealthContext(user, entries, analysis, daysBack))
+                appendLine()
+                appendLine("Question: $question")
+            }
+            val answer = callClaude(ASK_SYSTEM_PROMPT, userMessage, 1024).trim()
+            mapOf("answer" to answer.ifBlank { "I couldn't find an answer in your data." })
+        } catch (e: Exception) {
+            logger.warn("Detective Q&A failed: ${e.message}")
+            mapOf("answer" to "I couldn't analyze that right now. Please try again.")
+        }
+    }
+
+    /**
+     * Call Claude for the insight card. Delegates to [callClaude] with the
+     * card-generation system prompt; the data + format instructions are in [prompt].
      */
     private fun callClaudeAPI(prompt: String): String {
-        // TODO: Implement actual Anthropic Claude API call
-        // This would require setting up the Anthropic client with the API key
-        // and making a messages.create() call
+        return callClaude(INSIGHT_SYSTEM_PROMPT, prompt, 1024)
+    }
 
-        logger.info("Claude API call placeholder - implement with actual Anthropic SDK")
+    /**
+     * Raw HTTP call to the Anthropic Messages API (no SDK). The stable system block
+     * carries cache_control so repeated calls reuse the cached prefix; per-user data
+     * goes in the volatile user message. Throws on non-2xx so callers can fall back.
+     */
+    private fun callClaude(systemPrompt: String, userMessage: String, maxTokens: Int): String {
+        if (apiKey.isBlank()) {
+            throw IllegalStateException("Anthropic API key not configured")
+        }
 
-        // For now, return empty response which will trigger fallback
-        throw UnsupportedOperationException("Claude API not yet configured. Configure apiKey in application.yml")
+        val body = mapOf(
+            "model" to model,
+            "max_tokens" to maxTokens,
+            "system" to listOf(
+                mapOf(
+                    "type" to "text",
+                    "text" to systemPrompt,
+                    "cache_control" to mapOf("type" to "ephemeral")
+                )
+            ),
+            "messages" to listOf(
+                mapOf("role" to "user", "content" to userMessage)
+            )
+        )
+
+        val request = HttpRequest.newBuilder()
+            .uri(URI.create("https://api.anthropic.com/v1/messages"))
+            .timeout(Duration.ofSeconds(30))
+            .header("content-type", "application/json")
+            .header("x-api-key", apiKey)
+            .header("anthropic-version", "2023-06-01")
+            .POST(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(body)))
+            .build()
+
+        val response = httpClient.send(request, HttpResponse.BodyHandlers.ofString())
+        if (response.statusCode() !in 200..299) {
+            throw IllegalStateException("Claude API error ${response.statusCode()}: ${response.body()}")
+        }
+
+        val content = objectMapper.readTree(response.body()).path("content")
+        for (block in content) {
+            if (block.path("type").asText() == "text") {
+                return block.path("text").asText()
+            }
+        }
+        throw IllegalStateException("Claude API returned no text content")
+    }
+
+    companion object {
+        private const val INSIGHT_SYSTEM_PROMPT =
+            "You are a supportive, evidence-aware health insights assistant for a personal health " +
+                "tracking app. You analyze the user's own logged data and surface one clear, " +
+                "encouraging insight. Never give a medical diagnosis or prescribe treatment. " +
+                "Respond ONLY with the requested JSON object — no prose before or after."
+
+        private const val ASK_SYSTEM_PROMPT =
+            "You are a supportive health assistant inside a personal health tracking app. Answer the " +
+                "user's question using ONLY the health data provided. Be concise (2-4 sentences), " +
+                "specific, and encouraging. If the data can't answer the question, say so plainly. " +
+                "Never give a medical diagnosis or prescribe treatment; suggest seeing a clinician for " +
+                "medical concerns."
     }
 
     /**

@@ -25,6 +25,10 @@ class _DetectiveScreenState extends State<DetectiveScreen>
   String _selectedTimeRange = 'WEEK';
   late TabController _tabController;
 
+  final TextEditingController _questionController = TextEditingController();
+  bool _asking = false;
+  String? _answer;
+
   @override
   void initState() {
     super.initState();
@@ -35,7 +39,36 @@ class _DetectiveScreenState extends State<DetectiveScreen>
   @override
   void dispose() {
     _tabController.dispose();
+    _questionController.dispose();
     super.dispose();
+  }
+
+  Future<void> _askQuestion() async {
+    final question = _questionController.text.trim();
+    if (question.isEmpty || _asking) return;
+
+    FocusScope.of(context).unfocus();
+    setState(() => _asking = true);
+    try {
+      final userId = await _api.ensureActiveUserId();
+      if (userId == null) {
+        if (mounted) {
+          DetectiveService.showError(context, 'No active user selected');
+        }
+        return;
+      }
+      final answer = await _detectiveService.askQuestion(
+        userId: userId,
+        question: question,
+      );
+      if (mounted) setState(() => _answer = answer);
+    } catch (e) {
+      if (mounted) {
+        DetectiveService.showError(context, 'Could not get an answer');
+      }
+    } finally {
+      if (mounted) setState(() => _asking = false);
+    }
   }
 
   Future<void> _loadInsight() async {
@@ -233,6 +266,11 @@ class _DetectiveScreenState extends State<DetectiveScreen>
                     Text(_regenerating ? 'Analyzing...' : 'Regenerate Insight'),
               ),
             ),
+
+          const SizedBox(height: 24),
+
+          // Ask your health data (AI Q&A)
+          _buildAskCard(isDark),
 
           const SizedBox(height: 24),
 
@@ -439,6 +477,110 @@ class _DetectiveScreenState extends State<DetectiveScreen>
             icon: const Icon(Icons.analytics),
             label: const Text('Generate Insight'),
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAskCard(bool isDark) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.darkCard : AppColors.lightCard,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: AppColors.primaryBlue.withValues(alpha: 0.3),
+          width: 1.5,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.auto_awesome,
+                  size: 18, color: AppColors.primaryBlue),
+              const SizedBox(width: 8),
+              Text(
+                'Ask your health data',
+                style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'AI answers using your recent vitals, sleep and activity.',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: isDark
+                      ? AppColors.darkTextSecondary
+                      : AppColors.textSecondary,
+                ),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _questionController,
+                  textInputAction: TextInputAction.send,
+                  onSubmitted: (_) => _askQuestion(),
+                  decoration: InputDecoration(
+                    hintText: 'e.g. How was my sleep this week?',
+                    isDense: true,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              SizedBox(
+                height: 48,
+                child: ElevatedButton(
+                  onPressed: _asking ? null : _askQuestion,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primaryBlue,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: _asking
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Icon(Icons.send, color: Colors.white, size: 20),
+                ),
+              ),
+            ],
+          ),
+          if (_answer != null) ...[
+            const SizedBox(height: 12),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppColors.primaryGreen.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                _answer!,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: isDark
+                          ? AppColors.darkTextPrimary
+                          : AppColors.textPrimary,
+                      height: 1.4,
+                    ),
+              ),
+            ),
+          ],
         ],
       ),
     );

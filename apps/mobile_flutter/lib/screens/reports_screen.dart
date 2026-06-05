@@ -171,6 +171,24 @@ class _ReportsScreenState extends State<ReportsScreen>
         ),
       );
 
+  Widget _detectiveButton() => Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () => context.pushNamed('detective'),
+          borderRadius: BorderRadius.circular(15),
+          child: Ink(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: _surface,
+              borderRadius: BorderRadius.circular(15),
+              border: Border.all(color: _accent.withValues(alpha: 0.5)),
+            ),
+            child: const Icon(Icons.auto_awesome, color: _accent, size: 21),
+          ),
+        ),
+      );
+
   Widget _emailButton() => Material(
         color: Colors.transparent,
         child: InkWell(
@@ -214,6 +232,8 @@ class _ReportsScreenState extends State<ReportsScreen>
                     ),
               ),
             ),
+            _detectiveButton(),
+            const SizedBox(width: 10),
             _emailButton(),
           ],
         ),

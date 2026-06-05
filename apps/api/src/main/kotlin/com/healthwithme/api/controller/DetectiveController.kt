@@ -5,7 +5,6 @@ import com.healthwithme.api.dto.DetectiveInsightDto
 import com.healthwithme.api.dto.DetectiveInsightRequest
 import com.healthwithme.api.model.TimeRange
 import com.healthwithme.api.service.HealthDetectiveService
-import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
 
@@ -118,17 +117,17 @@ class DetectiveController(
     ): ResponseEntity<ApiResponse<Map<String, String>>> {
         return try {
             val question = request["question"] ?: ""
+            val answer = detectiveService.answerQuestion(userId, question)
 
-            // TODO: Implement Claude API conversation for specific questions
-            // This would allow users to ask follow-up questions about their health
-
-            ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED).body(
+            ResponseEntity.ok(
                 ApiResponse(
-                    success = false,
-                    message = "Detective Q&A coming soon",
-                    data = null
+                    success = true,
+                    message = "Answer generated",
+                    data = answer
                 )
             )
+        } catch (e: IllegalArgumentException) {
+            ResponseEntity.notFound().build()
         } catch (e: Exception) {
             ResponseEntity.badRequest().body(
                 ApiResponse(

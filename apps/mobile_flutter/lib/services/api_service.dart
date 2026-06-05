@@ -134,7 +134,11 @@ class ApiService {
 
   Future<void> clearAuthToken() async => setAuthToken(null);
 
-  Future<void> resetActiveUserId() => setActiveUserId(null);
+  /// Full sign-out: clear the JWT and the active user so the app returns to auth.
+  Future<void> resetActiveUserId() async {
+    await clearAuthToken();
+    await setActiveUserId(null);
+  }
 
   static String _normalizeBaseUrl(String value) {
     var normalized = value.trim();
@@ -343,23 +347,32 @@ class ApiService {
   int? _effectiveUserId({int? userId}) => userId ?? _activeUserId;
 
   Future<int?> ensureActiveUserId() async {
-    final users = await getUsers();
-    if (users.isEmpty) {
-      await setActiveUserId(null);
+    if (_activeUserId != null) {
+      return _activeUserId;
+    }
+    // Derive the signed-in user from the auth token instead of listing all users
+    // (the API now enforces per-user ownership).
+    final id = await _currentUserIdFromToken();
+    if (id != null) {
+      await setActiveUserId(id);
+    }
+    return id;
+  }
+
+  /// Resolve the current user's id from the JWT via GET /auth/me. Returns null
+  /// when there's no valid token (i.e. not signed in).
+  Future<int?> _currentUserIdFromToken() async {
+    final token = await getAuthToken();
+    if (token == null || token.isEmpty) {
       return null;
     }
-
-    if (_activeUserId != null) {
-      final exists = users.any((user) => user.id == _activeUserId);
-      if (exists) {
-        return _activeUserId;
+    try {
+      final response = await _getRaw('/auth/me');
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        return _parseSingle(response, User.fromJson)?.id;
       }
-    }
-
-    final selected =
-        users.firstWhere((user) => user.isActive, orElse: () => users.first);
-    await setActiveUserId(selected.id);
-    return selected.id;
+    } catch (_) {}
+    return null;
   }
 
   Future<bool> canReachBackend() async {
@@ -367,7 +380,9 @@ class ApiService {
       final response = await http
           .get(Uri.parse('$baseUrl/users'))
           .timeout(const Duration(seconds: 3));
-      return response.statusCode >= 200 && response.statusCode < 300;
+      // Any HTTP response means the server is reachable — including 401, which
+      // is expected now that endpoints require auth.
+      return response.statusCode > 0;
     } catch (_) {
       return false;
     }
@@ -397,7 +412,7 @@ class ApiService {
         }));
 
     if (response.statusCode >= 200 && response.statusCode < 300) {
-      final user = _parseSingle(response, User.fromJson);
+      final user = await _parseAuthAndStoreToken(response);
       if (user != null) {
         return user;
       }
@@ -410,6 +425,24 @@ class ApiService {
     throw Exception(_responseMessage(response) ?? 'Could not sign in');
   }
 
+  /// Parse an AuthResponse ({token, user}) from a login response, persist the
+  /// JWT, and return the user.
+  Future<User?> _parseAuthAndStoreToken(http.Response response) async {
+    final decoded = _unwrapData(_decodeBody(response));
+    if (decoded is Map) {
+      final map = Map<String, dynamic>.from(decoded);
+      final token = map['token'] as String?;
+      if (token != null && token.isNotEmpty) {
+        await setAuthToken(token);
+      }
+      final userJson = map['user'];
+      if (userJson != null) {
+        return User.fromJson(userJson);
+      }
+    }
+    return null;
+  }
+
   Future<User> loginWithGoogle(String idToken) async {
     final response = await _postRaw('/auth/google',
         headers: {'Content-Type': 'application/json'},
@@ -418,7 +451,7 @@ class ApiService {
         }));
 
     if (response.statusCode >= 200 && response.statusCode < 300) {
-      final user = _parseSingle(response, User.fromJson);
+      final user = await _parseAuthAndStoreToken(response);
       if (user != null) {
         return user;
       }
@@ -479,6 +512,10 @@ class ApiService {
       if (response.statusCode >= 200 && response.statusCode < 300) {
         final created = _parseSingle(response, User.fromJson);
         if (created != null) {
+          // Auto-login so the new account immediately holds an auth token.
+          try {
+            await login(email: email, password: password);
+          } catch (_) {}
           return created;
         }
       }

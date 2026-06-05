@@ -4,8 +4,11 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.healthwithme.api.dto.UserDto
 import com.healthwithme.api.service.GoogleTokenVerifier
 import com.healthwithme.api.service.GoogleUserInfo
+import com.healthwithme.api.service.JwtService
 import com.healthwithme.api.service.UserService
 import org.junit.jupiter.api.Test
+import org.mockito.ArgumentMatchers.anyLong
+import org.mockito.ArgumentMatchers.anyString
 import org.mockito.Mockito.`when`
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest
@@ -30,6 +33,9 @@ class AuthControllerTest {
 
     @MockBean
     private lateinit var googleTokenVerifier: GoogleTokenVerifier
+
+    @MockBean
+    private lateinit var jwtService: JwtService
 
     @Test
     fun `POST login returns user for valid credentials`() {
@@ -63,6 +69,8 @@ class AuthControllerTest {
             )
         )
 
+        `when`(jwtService.issueToken(anyLong(), anyString())).thenReturn("jwt-token")
+
         mockMvc.perform(
             post("/api/v1/auth/login")
                 .contentType(MediaType.APPLICATION_JSON)
@@ -70,8 +78,9 @@ class AuthControllerTest {
         )
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.success").value(true))
-            .andExpect(jsonPath("$.data.id").value(1))
-            .andExpect(jsonPath("$.data.email").value("ana@example.com"))
+            .andExpect(jsonPath("$.data.token").value("jwt-token"))
+            .andExpect(jsonPath("$.data.user.id").value(1))
+            .andExpect(jsonPath("$.data.user.email").value("ana@example.com"))
     }
 
     @Test
@@ -101,6 +110,7 @@ class AuthControllerTest {
         )
         `when`(googleTokenVerifier.verify("valid-token")).thenReturn(googleUser)
         `when`(userService.loginWithGoogle(googleUser)).thenReturn(userDto())
+        `when`(jwtService.issueToken(anyLong(), anyString())).thenReturn("jwt-token")
 
         mockMvc.perform(
             post("/api/v1/auth/google")
@@ -109,8 +119,9 @@ class AuthControllerTest {
         )
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.success").value(true))
-            .andExpect(jsonPath("$.data.id").value(1))
-            .andExpect(jsonPath("$.data.email").value("ana@example.com"))
+            .andExpect(jsonPath("$.data.token").value("jwt-token"))
+            .andExpect(jsonPath("$.data.user.id").value(1))
+            .andExpect(jsonPath("$.data.user.email").value("ana@example.com"))
     }
 
     @Test
