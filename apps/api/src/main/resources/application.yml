@@ -77,10 +77,16 @@ app:
     # TODO: Implement user-level hard-delete workflow for "delete my data" GDPR requests.
     delete-my-data-enabled: false
   mail:
-    # Set APP_MAIL_ENABLED=true and provide SMTP_USERNAME/SMTP_PASSWORD (Gmail app password)
-    # in the deploy environment to enable the "email me my summary" feature.
+    # Enable the "email me my summary" feature with APP_MAIL_ENABLED=true, then either:
+    #  - set RESEND_API_KEY (HTTPS — works on hosts that block SMTP, e.g. Railway), OR
+    #  - set SMTP_USERNAME/SMTP_PASSWORD (Gmail app password; SMTP, for local dev).
     enabled: ${APP_MAIL_ENABLED:false}
-    from: ${APP_MAIL_FROM:HealthTrackMe <no-reply@healthtrackme.app>}
+    from: ${APP_MAIL_FROM:HealthTrackMe <onboarding@resend.dev>}
+
+# Resend (https://resend.com) — HTTPS email API, preferred when SMTP egress is blocked.
+resend:
+  api:
+    key: ${RESEND_API_KEY:}
 
 logging:
   level:
