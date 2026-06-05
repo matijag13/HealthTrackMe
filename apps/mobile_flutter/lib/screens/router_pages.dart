@@ -2628,7 +2628,9 @@ class _HealthActivityPageState extends State<HealthActivityPage> {
 
   Future<List<Map<String, dynamic>>> _refreshActivities() {
     final refreshed = _loadActivities();
-    setState(() => _activitiesFuture = refreshed);
+    setState(() {
+      _activitiesFuture = refreshed;
+    });
     return refreshed;
   }
 
@@ -2740,7 +2742,34 @@ class _HealthActivityPageState extends State<HealthActivityPage> {
   }
 
   int _activitySteps(Map<String, dynamic> activity) {
-    return (activity['steps'] as num?)?.toInt() ?? 0;
+    final rawSteps = activity['steps'];
+    if (rawSteps is num && rawSteps > 0) return rawSteps.toInt();
+    final parsedSteps = int.tryParse(rawSteps?.toString() ?? '');
+    if (parsedSteps != null && parsedSteps > 0) return parsedSteps;
+
+    if (_activityTypeLabel(activity) != _ActivityType.walking.label) return 0;
+
+    final distance = _activityDistance(activity);
+    if (distance != null && distance > 0) {
+      return _estimatedWalkingSteps(distance: distance);
+    }
+
+    final duration = _activityDuration(activity);
+    if (duration > 0) {
+      return _estimatedWalkingSteps(duration: duration);
+    }
+
+    return 0;
+  }
+
+  int _estimatedWalkingSteps({double? distance, int? duration}) {
+    if (distance != null && distance > 0) {
+      return (distance * 1312).round();
+    }
+    if (duration != null && duration > 0) {
+      return duration * 100;
+    }
+    return 0;
   }
 
   IconData _typeIcon(_ActivityType type) {
@@ -3465,13 +3494,46 @@ class _HealthActivityPageState extends State<HealthActivityPage> {
             minHeight: 4,
           ),
         ),
-        const SizedBox(height: 6),
-        Text(
-          todaySteps >= goal
-              ? '🎉 Daily goal reached!'
-              : '${(goal - todaySteps).clamp(0, goal)} steps to daily goal',
-          style: const TextStyle(
-              color: _secondaryText, fontSize: 12, fontWeight: FontWeight.w600),
+        const SizedBox(height: 10),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          decoration: BoxDecoration(
+            color: todaySteps >= goal
+                ? typeColor.withValues(alpha: 0.12)
+                : _surfaceAlt,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: todaySteps >= goal
+                  ? typeColor.withValues(alpha: 0.34)
+                  : _border.withValues(alpha: 0.65),
+            ),
+          ),
+          child: Row(
+            children: [
+              Icon(
+                todaySteps >= goal
+                    ? Icons.check_circle_rounded
+                    : Icons.flag_outlined,
+                size: 16,
+                color: todaySteps >= goal ? typeColor : _secondaryText,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  todaySteps >= goal
+                      ? 'Daily goal reached'
+                      : '${(goal - todaySteps).clamp(0, goal)} steps to daily goal',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: todaySteps >= goal ? typeColor : _secondaryText,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ]),
     );
@@ -4210,6 +4272,16 @@ class _ActivityManualEntrySheetState extends State<_ActivityManualEntrySheet> {
     }
   }
 
+  int _estimatedWalkingSteps({double? distance, int? duration}) {
+    if (distance != null && distance > 0) {
+      return (distance * 1312).round();
+    }
+    if (duration != null && duration > 0) {
+      return duration * 100;
+    }
+    return 0;
+  }
+
   Future<void> _save() async {
     if (_saving || !_formKey.currentState!.validate()) return;
     final duration = int.parse(_durationController.text.trim());
@@ -4218,12 +4290,16 @@ class _ActivityManualEntrySheetState extends State<_ActivityManualEntrySheet> {
         : double.tryParse(_distanceController.text.trim());
     final calories = int.tryParse(_caloriesController.text.trim());
     final notes = _notesController.text.trim();
+    final steps = _selectedType == _ActivityType.walking
+        ? _estimatedWalkingSteps(distance: distance, duration: duration)
+        : null;
     final payload = <String, dynamic>{
       'activityType': _selectedType.label,
       'activityDate': DateFormat('yyyy-MM-dd').format(_selectedDate),
       'duration': duration,
       if (distance != null) 'distance': distance,
       if (calories != null) 'caloriesBurned': calories,
+      if (steps != null && steps > 0) 'steps': steps,
       if (notes.isNotEmpty) 'notes': notes,
     };
 
