@@ -77,13 +77,20 @@ app:
     # TODO: Implement user-level hard-delete workflow for "delete my data" GDPR requests.
     delete-my-data-enabled: false
   mail:
-    # Enable the "email me my summary" feature with APP_MAIL_ENABLED=true, then either:
-    #  - set RESEND_API_KEY (HTTPS — works on hosts that block SMTP, e.g. Railway), OR
-    #  - set SMTP_USERNAME/SMTP_PASSWORD (Gmail app password; SMTP, for local dev).
+    # Enable "email me my summary" with APP_MAIL_ENABLED=true, then set ONE transport:
+    #  - BREVO_API_KEY (recommended): verify one sender, email any recipient over HTTPS. OR
+    #  - RESEND_API_KEY: HTTPS, but needs a verified domain to email arbitrary recipients. OR
+    #  - SMTP_USERNAME/SMTP_PASSWORD: Gmail SMTP (often blocked on PaaS hosts).
     enabled: ${APP_MAIL_ENABLED:false}
-    from: ${APP_MAIL_FROM:HealthTrackMe <onboarding@resend.dev>}
+    # The sender shown on the email. For Brevo this MUST be your verified sender address.
+    from: ${APP_MAIL_FROM:HealthTrackMe <healthtrackme@gmail.com>}
 
-# Resend (https://resend.com) — HTTPS email API, preferred when SMTP egress is blocked.
+# Brevo (https://brevo.com) — HTTPS email API; send from one verified sender to any recipient.
+brevo:
+  api:
+    key: ${BREVO_API_KEY:}
+
+# Resend (https://resend.com) — HTTPS email API alternative.
 resend:
   api:
     key: ${RESEND_API_KEY:}
