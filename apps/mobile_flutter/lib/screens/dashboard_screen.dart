@@ -9,6 +9,7 @@ import '../config/theme.dart';
 import '../models/models.dart';
 import '../services/api_service.dart';
 import '../services/sync_events.dart';
+import '../widgets/ai_assistant.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -985,6 +986,7 @@ class _DashboardScreenState extends State<DashboardScreen>
 
     return Scaffold(
       backgroundColor: _bg,
+      floatingActionButton: const AiAssistantFab(),
       body: RefreshIndicator(
         color: _accent,
         backgroundColor: _surface,
