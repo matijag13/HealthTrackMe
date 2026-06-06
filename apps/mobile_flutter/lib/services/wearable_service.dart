@@ -112,12 +112,18 @@ class WearableService {
     HealthDataType.HEART_RATE,
   ];
 
-  /// Check if the minimum required permissions are granted.
+  /// Check if the minimum required permissions are granted. Lenient: a single core
+  /// type (heart rate OR steps) being granted is enough — some wearables (e.g. Garmin)
+  /// only write one of them into Health Connect, and we shouldn't skip syncing the rest.
   Future<bool> hasPermissions() async {
     try {
       if (kIsWeb) return false;
-      final authorized = await health.hasPermissions(_coreDataTypes);
-      return authorized ?? false;
+      for (final type in _coreDataTypes) {
+        if ((await health.hasPermissions([type])) ?? false) {
+          return true;
+        }
+      }
+      return false;
     } catch (e) {
       debugPrint('❌ Error checking permissions: $e');
       return false;

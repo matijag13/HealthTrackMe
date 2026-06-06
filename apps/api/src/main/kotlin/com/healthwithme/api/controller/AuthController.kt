@@ -1,7 +1,8 @@
 package com.healthwithme.api.controller
 
+import com.fasterxml.jackson.core.type.TypeReference
+import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.healthwithme.api.dto.ApiResponse
-import com.healthwithme.api.dto.AuthResponse
 import com.healthwithme.api.dto.GoogleLoginRequest
 import com.healthwithme.api.dto.LoginRequest
 import com.healthwithme.api.dto.UserDto
@@ -24,13 +25,14 @@ class AuthController(
     private val googleTokenVerifier: GoogleTokenVerifier,
     private val jwtService: JwtService
 ) {
+    private val objectMapper = jacksonObjectMapper()
 
     @PostMapping("/login")
-    fun login(@RequestBody request: LoginRequest): ResponseEntity<ApiResponse<AuthResponse>> {
+    fun login(@RequestBody request: LoginRequest): ResponseEntity<ApiResponse<Map<String, Any?>>> {
         return try {
             val user = userService.login(request.email, request.password)
             ResponseEntity.ok(
-                ApiResponse(success = true, message = "Login successful", data = authResponse(user))
+                ApiResponse(success = true, message = "Login successful", data = authPayload(user))
             )
         } catch (e: Exception) {
             ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(
@@ -40,12 +42,12 @@ class AuthController(
     }
 
     @PostMapping("/google")
-    fun googleLogin(@RequestBody request: GoogleLoginRequest): ResponseEntity<ApiResponse<AuthResponse>> {
+    fun googleLogin(@RequestBody request: GoogleLoginRequest): ResponseEntity<ApiResponse<Map<String, Any?>>> {
         return try {
             val googleUser = googleTokenVerifier.verify(request.idToken)
             val user = userService.loginWithGoogle(googleUser)
             ResponseEntity.ok(
-                ApiResponse(success = true, message = "Google login successful", data = authResponse(user))
+                ApiResponse(success = true, message = "Google login successful", data = authPayload(user))
             )
         } catch (e: Exception) {
             ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(
@@ -72,6 +74,15 @@ class AuthController(
         }
     }
 
-    private fun authResponse(user: UserDto): AuthResponse =
-        AuthResponse(token = jwtService.issueToken(user.id, user.email), user = user)
+    /**
+     * Backward-compatible auth payload: the user's fields are spread at the top level (so the older
+     * app that reads `data.id`/`data.email` keeps working) AND a `token` + nested `user` are added
+     * (so the new app reads `data.token`/`data.user`). Both APK versions parse this correctly.
+     */
+    private fun authPayload(user: UserDto): Map<String, Any?> {
+        val map = objectMapper.convertValue(user, object : TypeReference<LinkedHashMap<String, Any?>>() {})
+        map["token"] = jwtService.issueToken(user.id, user.email)
+        map["user"] = user
+        return map
+    }
 }
