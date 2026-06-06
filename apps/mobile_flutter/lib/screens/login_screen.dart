@@ -6,6 +6,7 @@ import '../config/theme.dart';
 import '../services/api_service.dart';
 import '../services/google_auth_service.dart';
 import '../services/google_web_sign_in_button.dart';
+import '../widgets/app_logo.dart';
 import '../widgets/design_system.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -355,13 +356,19 @@ class _LoginScreenState extends State<LoginScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Text(
-                        'HealthTrackMe',
-                        style: TextStyle(
-                          color: AppColors.primaryBlue,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w800,
-                        ),
+                      const Row(
+                        children: [
+                          AppLogo(size: 32),
+                          SizedBox(width: 10),
+                          Text(
+                            'HealthTrackMe',
+                            style: TextStyle(
+                              color: AppColors.primaryBlue,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ],
                       ),
                       const SizedBox(height: 18),
                       const Text(
