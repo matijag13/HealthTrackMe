@@ -8,6 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../config/theme.dart';
 import '../models/models.dart';
 import '../services/api_service.dart';
+import '../services/sync_events.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -143,6 +144,18 @@ class _DashboardScreenState extends State<DashboardScreen>
     super.initState();
     unawaited(_loadFavoriteKeys());
     _loadAll();
+    // Refresh automatically when a background/foreground sync uploads new data.
+    SyncEvents.instance.revision.addListener(_onSynced);
+  }
+
+  @override
+  void dispose() {
+    SyncEvents.instance.revision.removeListener(_onSynced);
+    super.dispose();
+  }
+
+  void _onSynced() {
+    if (mounted) _refresh();
   }
 
   Future<void> _loadFavoriteKeys() async {

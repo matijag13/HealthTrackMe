@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 import 'package:permission_handler/permission_handler.dart';
 import '../models/wearable_device.dart';
 import 'api_service.dart';
+import 'sync_events.dart';
 import 'dart:convert';
 
 class WearableService {
@@ -175,6 +176,12 @@ class WearableService {
       // Upload to backend
       await _uploadSyncData(syncData,
           workouts: workouts, distanceKm: distanceKm);
+
+      // Notify open screens (e.g. the dashboard) so freshly synced data appears
+      // without a manual pull-to-refresh.
+      if (syncData.hasData || workouts.isNotEmpty) {
+        SyncEvents.instance.notifySynced();
+      }
 
       debugPrint('✅ Health data synced successfully');
       return syncData;
