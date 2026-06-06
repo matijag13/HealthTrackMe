@@ -2702,6 +2702,11 @@ class _HealthActivityPageState extends State<HealthActivityPage> {
         return definition.label;
       }
     }
+    // Any non-standard type from sync (GYM, HIIT, YOGA, CARDIO, ROWING, etc.)
+    // falls under the Workout tab so it's always visible.
+    if (raw.isNotEmpty && raw.toLowerCase() != 'null') {
+      return _ActivityType.workout.label;
+    }
     return raw;
   }
 

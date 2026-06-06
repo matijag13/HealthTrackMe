@@ -300,6 +300,12 @@ class WearableService {
   }
 
   /// Get workout/exercise sessions — each carries type, duration, calories, distance, steps.
+  ///
+  /// Samsung Health (and some other sources) write exercise sessions to Health Connect
+  /// with null totalDistance / totalSteps inside the WORKOUT record itself. Those values
+  /// are stored separately in STEPS and DISTANCE_WALKING_RUNNING data types.
+  /// We pre-fetch all step and distance points for the window and attribute them to each
+  /// workout by their overlapping time range, so we always capture as much data as possible.
   Future<List<Map<String, dynamic>>> _getWorkouts(
       DateTime startDate, DateTime endDate) async {
     try {
@@ -308,22 +314,61 @@ class WearableService {
         startTime: startDate,
         endTime: endDate,
       );
+      if (data.isEmpty) return [];
+
+      // Pre-fetch steps and distance so we can fill in nulls from WORKOUT records.
+      List<HealthDataPoint> stepsPoints = [];
+      List<HealthDataPoint> distancePoints = [];
+      try {
+        stepsPoints = await health.getHealthDataFromTypes(
+          types: [HealthDataType.STEPS],
+          startTime: startDate,
+          endTime: endDate,
+        );
+      } catch (_) {}
+      try {
+        distancePoints = await health.getHealthDataFromTypes(
+          types: [HealthDataType.DISTANCE_WALKING_RUNNING],
+          startTime: startDate,
+          endTime: endDate,
+        );
+      } catch (_) {}
+
       final results = <Map<String, dynamic>>[];
       for (final point in data) {
         final v = point.value;
         if (v is! WorkoutHealthValue) continue;
-        final durationMinutes =
-            point.dateTo.difference(point.dateFrom).inMinutes;
-        if (durationMinutes <= 0) continue;
+
+        // Use seconds to avoid dropping legitimate short sessions (< 1 min).
+        final durationSeconds =
+            point.dateTo.difference(point.dateFrom).inSeconds;
+        if (durationSeconds <= 0) continue;
+        final durationMinutes = (durationSeconds / 60).round().clamp(1, 9999);
+
+        // Distance: use embedded value first, fall back to DISTANCE data points.
+        double? distanceKm = v.totalDistance != null
+            ? v.totalDistance! / 1000.0
+            : _sumPointsInWindow(distancePoints, point.dateFrom, point.dateTo) >
+                    0
+                ? _sumPointsInWindow(
+                        distancePoints, point.dateFrom, point.dateTo) /
+                    1000.0
+                : null;
+
+        // Steps: use embedded value first, fall back to STEPS data points.
+        final int? steps = v.totalSteps ??
+            (_sumPointsInWindow(stepsPoints, point.dateFrom, point.dateTo) > 0
+                ? _sumPointsInWindow(stepsPoints, point.dateFrom, point.dateTo)
+                    .toInt()
+                : null);
+
         results.add({
           'activityType': _mapWorkoutType(v.workoutActivityType),
           'date': point.dateFrom,
           'durationMinutes': durationMinutes,
           'caloriesBurned': v.totalEnergyBurned,
-          // Health Connect stores distance in metres; convert to km for backend
-          'distanceKm':
-              v.totalDistance != null ? (v.totalDistance! / 1000.0) : null,
-          'steps': v.totalSteps,
+          'distanceKm': distanceKm,
+          'steps': steps,
         });
       }
       debugPrint('🏋️ Found ${results.length} workout sessions');
@@ -334,18 +379,55 @@ class WearableService {
     }
   }
 
+  /// Sum numeric values from [points] whose time window overlaps [from]–[to].
+  double _sumPointsInWindow(
+      List<HealthDataPoint> points, DateTime from, DateTime to) {
+    return points
+        .where((p) => p.dateFrom.isBefore(to) && p.dateTo.isAfter(from))
+        .fold<double>(0, (acc, p) => acc + _numericValue(p));
+  }
+
   String _mapWorkoutType(HealthWorkoutActivityType type) {
     switch (type) {
       case HealthWorkoutActivityType.WALKING:
-        return 'WALKING';
-      case HealthWorkoutActivityType.RUNNING:
-        return 'RUNNING';
-      case HealthWorkoutActivityType.BIKING:
-        return 'CYCLING';
-      case HealthWorkoutActivityType.SWIMMING:
-        return 'SWIMMING';
+      case HealthWorkoutActivityType.WALKING_TREADMILL:
       case HealthWorkoutActivityType.HIKING:
         return 'WALKING';
+      case HealthWorkoutActivityType.RUNNING:
+      case HealthWorkoutActivityType.RUNNING_TREADMILL:
+        return 'RUNNING';
+      case HealthWorkoutActivityType.BIKING:
+      case HealthWorkoutActivityType.BIKING_STATIONARY:
+        return 'CYCLING';
+      case HealthWorkoutActivityType.SWIMMING:
+      case HealthWorkoutActivityType.SWIMMING_OPEN_WATER:
+      case HealthWorkoutActivityType.SWIMMING_POOL:
+      case HealthWorkoutActivityType.WATER_FITNESS:
+        return 'SWIMMING';
+      case HealthWorkoutActivityType.YOGA:
+      case HealthWorkoutActivityType.PILATES:
+      case HealthWorkoutActivityType.TAI_CHI:
+      case HealthWorkoutActivityType.MIND_AND_BODY:
+        return 'YOGA';
+      case HealthWorkoutActivityType.STRENGTH_TRAINING:
+      case HealthWorkoutActivityType.TRADITIONAL_STRENGTH_TRAINING:
+      case HealthWorkoutActivityType.FUNCTIONAL_STRENGTH_TRAINING:
+      case HealthWorkoutActivityType.WEIGHTLIFTING:
+      case HealthWorkoutActivityType.CALISTHENICS:
+      case HealthWorkoutActivityType.CORE_TRAINING:
+        return 'GYM';
+      case HealthWorkoutActivityType.HIGH_INTENSITY_INTERVAL_TRAINING:
+      case HealthWorkoutActivityType.CROSS_TRAINING:
+        return 'HIIT';
+      case HealthWorkoutActivityType.ROWING:
+      case HealthWorkoutActivityType.ROWING_MACHINE:
+        return 'ROWING';
+      case HealthWorkoutActivityType.ELLIPTICAL:
+      case HealthWorkoutActivityType.STAIR_CLIMBING:
+      case HealthWorkoutActivityType.STAIR_CLIMBING_MACHINE:
+      case HealthWorkoutActivityType.MIXED_CARDIO:
+      case HealthWorkoutActivityType.CARDIO_DANCE:
+        return 'CARDIO';
       default:
         return 'WORKOUT';
     }
