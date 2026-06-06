@@ -11,6 +11,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/models.dart';
 import '../services/api_service.dart';
 import '../widgets/widgets.dart';
+import '../widgets/export_sheet.dart';
 import '../utils/health_utils.dart';
 import 'edit_profile_screen.dart';
 
@@ -3427,72 +3428,84 @@ class _HealthActivityPageState extends State<HealthActivityPage> {
           _addButton(),
         ]),
         const SizedBox(height: 20),
-        // Bar chart
+        // Steps bar chart — last 7 days (fl_chart)
         SizedBox(
-          height: 160,
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: days.map((day) {
-              final steps = stepsByDay[day] ?? 0;
-              final fraction = steps / maxSteps;
-              final isToday = day == today;
-              return Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 3),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      if (steps > 0)
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: 4),
-                          child: Text(
-                            steps >= 1000
-                                ? '${(steps / 1000).toStringAsFixed(1)}k'
-                                : '$steps',
-                            style: TextStyle(
-                              color: isToday ? typeColor : _secondaryText,
-                              fontSize: 9,
-                              fontWeight: FontWeight.w700,
-                            ),
+          height: 170,
+          child: BarChart(
+            BarChartData(
+              alignment: BarChartAlignment.spaceAround,
+              maxY: maxSteps.toDouble() * 1.15,
+              gridData: FlGridData(
+                show: true,
+                drawVerticalLine: false,
+                getDrawingHorizontalLine: (v) => FlLine(
+                  color: _border.withValues(alpha: 0.3),
+                  strokeWidth: 1,
+                ),
+              ),
+              borderData: FlBorderData(show: false),
+              titlesData: FlTitlesData(
+                show: true,
+                leftTitles:
+                    const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                rightTitles:
+                    const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                topTitles:
+                    const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                bottomTitles: AxisTitles(
+                  sideTitles: SideTitles(
+                    showTitles: true,
+                    reservedSize: 26,
+                    getTitlesWidget: (value, meta) {
+                      final i = value.toInt();
+                      if (i < 0 || i >= days.length) {
+                        return const SizedBox.shrink();
+                      }
+                      final day = days[i];
+                      final isToday = day == today;
+                      return SideTitleWidget(
+                        axisSide: meta.axisSide,
+                        child: Text(
+                          DateFormat('E').format(day).substring(0, 2),
+                          style: TextStyle(
+                            color: isToday ? _primaryText : _secondaryText,
+                            fontSize: 11,
+                            fontWeight:
+                                isToday ? FontWeight.w800 : FontWeight.w600,
                           ),
                         ),
-                      Flexible(
-                        flex: (fraction * 100).round().clamp(1, 100),
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color: isToday
-                                ? typeColor
-                                : typeColor.withValues(alpha: 0.35),
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                        ),
-                      ),
-                      // Empty space below bar so zero-bars align
-                      if (steps == 0)
-                        Flexible(
-                          flex: 1,
-                          child: Container(
-                            decoration: BoxDecoration(
-                              color: _border.withValues(alpha: 0.4),
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                          ),
-                        ),
-                      const SizedBox(height: 6),
-                      Text(
-                        DateFormat('E').format(day).substring(0, 2),
-                        style: TextStyle(
-                          color: isToday ? _primaryText : _secondaryText,
-                          fontSize: 11,
-                          fontWeight:
-                              isToday ? FontWeight.w800 : FontWeight.w600,
-                        ),
+                      );
+                    },
+                  ),
+                ),
+              ),
+              extraLinesData: ExtraLinesData(
+                horizontalLines: [
+                  HorizontalLine(
+                    y: goal.toDouble(),
+                    color: typeColor.withValues(alpha: 0.45),
+                    strokeWidth: 1,
+                    dashArray: const [6, 4],
+                  ),
+                ],
+              ),
+              barGroups: [
+                for (var i = 0; i < days.length; i++)
+                  BarChartGroupData(
+                    x: i,
+                    barRods: [
+                      BarChartRodData(
+                        toY: (stepsByDay[days[i]] ?? 0).toDouble(),
+                        width: 16,
+                        borderRadius: BorderRadius.circular(6),
+                        color: days[i] == today
+                            ? typeColor
+                            : typeColor.withValues(alpha: 0.4),
                       ),
                     ],
                   ),
-                ),
-              );
-            }).toList(),
+              ],
+            ),
           ),
         ),
         const SizedBox(height: 12),
@@ -6770,8 +6783,8 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
                           icon: Icons.upload_file_outlined,
                           accent: _green,
                           title: 'Export data',
-                          subtitle: 'Download your health data',
-                          onTap: () => context.pushNamed('profileExport'),
+                          subtitle: 'Copy or email your health data',
+                          onTap: () => showExportSheet(context),
                         ),
                         _SettingsTile(
                           icon: Icons.delete_outline,

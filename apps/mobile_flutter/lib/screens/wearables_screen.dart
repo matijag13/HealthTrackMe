@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/wearable_device.dart';
 import '../services/api_service.dart';
 import '../services/wearable_service.dart';
+import '../widgets/app_logo.dart';
 
 const String _kLastSyncKey = 'health_last_sync_ms';
 
@@ -318,12 +319,19 @@ class _WearablesScreenState extends State<WearablesScreen> {
           icon: const Icon(Icons.arrow_back, color: _primaryText),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text(
-          'Wearable Devices',
-          style: TextStyle(
-            color: _primaryText,
-            fontWeight: FontWeight.w800,
-          ),
+        title: const Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            AppLogo(size: 24),
+            SizedBox(width: 10),
+            Text(
+              'Wearable Devices',
+              style: TextStyle(
+                color: _primaryText,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ],
         ),
       ),
       body: _loading

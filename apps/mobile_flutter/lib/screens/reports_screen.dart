@@ -3,6 +3,9 @@ import 'package:go_router/go_router.dart';
 
 import '../models/models.dart';
 import '../services/api_service.dart';
+import '../widgets/ai_assistant.dart';
+import '../widgets/app_logo.dart';
+import '../widgets/export_sheet.dart';
 
 class ReportsScreen extends StatefulWidget {
   const ReportsScreen({super.key});
@@ -20,7 +23,6 @@ class _ReportsScreenState extends State<ReportsScreen>
 
   final ApiService _api = ApiService.instance;
   late Future<_InsightsSnapshot> _future;
-  bool _emailing = false;
 
   @override
   bool get wantKeepAlive => true;
@@ -117,33 +119,6 @@ class _ReportsScreenState extends State<ReportsScreen>
     setState(() => _future = _load());
   }
 
-  Future<void> _emailSummary() async {
-    if (_emailing) return;
-    setState(() => _emailing = true);
-    try {
-      final result = await _api.emailHealthSummary();
-      if (!mounted) return;
-      final messenger = ScaffoldMessenger.of(context);
-      messenger.clearSnackBars();
-      messenger.showSnackBar(
-        SnackBar(
-          behavior: SnackBarBehavior.floating,
-          backgroundColor:
-              result.success ? _ReportsColors.success : _ReportsColors.surface,
-          content: Text(
-            result.message,
-            style: const TextStyle(
-              color: _primaryText,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ),
-      );
-    } finally {
-      if (mounted) setState(() => _emailing = false);
-    }
-  }
-
   void _goBack() {
     final navigator = Navigator.of(context);
     if (navigator.canPop()) {
@@ -174,7 +149,7 @@ class _ReportsScreenState extends State<ReportsScreen>
   Widget _detectiveButton() => Material(
         color: Colors.transparent,
         child: InkWell(
-          onTap: () => context.pushNamed('detective'),
+          onTap: () => showAiAssistant(context),
           borderRadius: BorderRadius.circular(15),
           child: Ink(
             width: 44,
@@ -189,10 +164,10 @@ class _ReportsScreenState extends State<ReportsScreen>
         ),
       );
 
-  Widget _emailButton() => Material(
+  Widget _exportButton() => Material(
         color: Colors.transparent,
         child: InkWell(
-          onTap: _emailing ? null : _emailSummary,
+          onTap: () => showExportSheet(context),
           borderRadius: BorderRadius.circular(15),
           child: Ink(
             width: 44,
@@ -202,16 +177,8 @@ class _ReportsScreenState extends State<ReportsScreen>
               borderRadius: BorderRadius.circular(15),
               border: Border.all(color: _border),
             ),
-            child: _emailing
-                ? const Padding(
-                    padding: EdgeInsets.all(12),
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: _accent,
-                    ),
-                  )
-                : const Icon(Icons.mail_outline_rounded,
-                    color: _primaryText, size: 21),
+            child: const Icon(Icons.ios_share_rounded,
+                color: _primaryText, size: 21),
           ),
         ),
       );
@@ -221,7 +188,9 @@ class _ReportsScreenState extends State<ReportsScreen>
         child: Row(
           children: [
             _backButton(),
-            const SizedBox(width: 14),
+            const SizedBox(width: 12),
+            const AppLogo(size: 26),
+            const SizedBox(width: 10),
             Expanded(
               child: Text(
                 'Insights / Trends',
@@ -234,7 +203,7 @@ class _ReportsScreenState extends State<ReportsScreen>
             ),
             _detectiveButton(),
             const SizedBox(width: 10),
-            _emailButton(),
+            _exportButton(),
           ],
         ),
       );

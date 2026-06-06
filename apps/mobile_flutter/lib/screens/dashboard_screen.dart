@@ -10,6 +10,7 @@ import '../models/models.dart';
 import '../services/api_service.dart';
 import '../services/sync_events.dart';
 import '../widgets/ai_assistant.dart';
+import '../widgets/app_logo.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -917,54 +918,36 @@ class _DashboardScreenState extends State<DashboardScreen>
     return entries.first;
   }
 
+  /// The headline vital to show on the dashboard card (heart rate preferred).
+  String _primaryVital(HealthEntry entry) {
+    if (entry.heartRate != null) return '${entry.heartRate} bpm';
+    if (entry.systolicBp != null && entry.diastolicBp != null) {
+      return '${entry.systolicBp}/${entry.diastolicBp}';
+    }
+    if (entry.spO2 != null) return '${entry.spO2}% SpO2';
+    if (entry.weight != null) return '${entry.weight!.toStringAsFixed(1)} kg';
+    if (entry.bodyTemperature != null) {
+      return '${entry.bodyTemperature!.toStringAsFixed(1)}°C';
+    }
+    return 'Logged';
+  }
+
   String _vitalsValue() {
     final entry = _latestVitalsEntry();
-    if (entry == null) return 'No data';
-    final updatedDate = _entrySortKey(entry);
-    if (_sameDay(updatedDate, DateTime.now())) {
-      return 'Updated today';
-    }
-    return 'Last updated ${_shortDate(updatedDate)}';
+    return entry == null ? 'No data' : _primaryVital(entry);
   }
 
   String _favoriteVitalsValue() {
     final entry = _latestVitalsEntry();
-    if (entry == null) return 'No data';
-    final updatedDate = _entrySortKey(entry);
-    if (_sameDay(updatedDate, DateTime.now())) {
-      return 'Updated today';
-    }
-    final date = _shortDate(updatedDate);
-    final text = 'Updated $date';
-    return text.length <= 14 ? text : date;
+    return entry == null ? 'No data' : _primaryVital(entry);
   }
 
   String _favoriteVitalsSubtitle() {
-    return _latestVitalsEntry() == null ? _vitalsSubtitle(null) : 'View trends';
+    return _vitalsSubtitle(_latestVitalsEntry());
   }
 
   String _vitalsSummarySubtitle() {
-    return _latestVitalsEntry() == null
-        ? _vitalsSubtitle(null)
-        : 'Tap to view trends';
-  }
-
-  String _shortDate(DateTime date) {
-    const months = [
-      'Jan',
-      'Feb',
-      'Mar',
-      'Apr',
-      'May',
-      'Jun',
-      'Jul',
-      'Aug',
-      'Sep',
-      'Oct',
-      'Nov',
-      'Dec',
-    ];
-    return '${months[date.month - 1]} ${date.day}';
+    return _vitalsSubtitle(_latestVitalsEntry());
   }
 
   String _vitalsSubtitle(HealthEntry? entry) {
@@ -1024,6 +1007,8 @@ class _DashboardScreenState extends State<DashboardScreen>
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
+        const AppLogo(size: 34),
+        const SizedBox(width: 10),
         const Expanded(
           child: Text(
             'HealthTrackMe',
@@ -1090,9 +1075,6 @@ class _DashboardScreenState extends State<DashboardScreen>
           case 'profile':
             context.pushNamed('profileEdit');
             break;
-          case 'settings':
-            context.pushNamed('profileSettings');
-            break;
           case 'signOut':
             await _signOut();
             break;
@@ -1103,11 +1085,6 @@ class _DashboardScreenState extends State<DashboardScreen>
           value: 'profile',
           icon: Icons.person_outline,
           label: 'Profile',
-        ),
-        _avatarMenuItem(
-          value: 'settings',
-          icon: Icons.settings_outlined,
-          label: 'Settings',
         ),
         const PopupMenuDivider(height: 8),
         _avatarMenuItem(

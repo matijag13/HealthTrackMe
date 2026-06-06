@@ -8,6 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/models.dart';
 import '../services/api_service.dart';
+import '../widgets/export_sheet.dart';
 import 'edit_profile_screen.dart';
 import 'medical_history_screen.dart';
 
@@ -116,10 +117,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _exportData() async {
-    final id = _api.activeUserId ?? await _api.ensureActiveUserId();
-    if (!mounted || id == null) return;
-    final uri = Uri.parse('${_api.baseUrl}/export/pdf/$id');
-    _showSnack('Export endpoint: $uri');
+    await showExportSheet(context);
   }
 
   Future<void> _deleteAllData() async {
@@ -346,8 +344,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           icon: Icons.upload_file_outlined,
                           accent: _green,
                           title: 'Export data',
-                          subtitle: 'Download your health data',
+                          subtitle: 'Copy or email your health data',
                           onTap: _exportData,
+                        ),
+                        _ProfileTile(
+                          icon: Icons.settings_outlined,
+                          accent: _accent,
+                          title: 'Settings',
+                          subtitle: 'App preferences and theme',
+                          onTap: () => context.pushNamed('profileSettings'),
                         ),
                       ]),
                       const SizedBox(height: 22),
