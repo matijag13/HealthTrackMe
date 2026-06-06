@@ -29,10 +29,10 @@ class HealthDetectiveService(
     private val logger = LoggerFactory.getLogger(HealthDetectiveService::class.java)
     private val objectMapper = ObjectMapper()
 
-    @Value("\${anthropic.api.key:}")
+    @Value("\${groq.api.key:}")
     private lateinit var apiKey: String
 
-    @Value("\${anthropic.model:claude-haiku-4-5}")
+    @Value("\${groq.model:llama-3.3-70b-versatile}")
     private lateinit var model: String
 
     private val httpClient: HttpClient = HttpClient.newBuilder()
@@ -170,7 +170,7 @@ class HealthDetectiveService(
             // Build context for Claude
             val context = buildClaudePrompt(user, entries, analysis, daysBack)
 
-            logger.info("Sending request to Claude API for user ${user.id}")
+            logger.info("Sending request to Groq API for user ${user.id}")
 
             // Note: This is a placeholder for actual Claude API integration
             // You'll need to implement the actual API call here
@@ -178,7 +178,7 @@ class HealthDetectiveService(
 
             parseClaudeResponse(response)
         } catch (e: Exception) {
-            logger.warn("Claude API call failed, falling back to rule-based analysis: ${e.message}")
+            logger.warn("Groq API call failed, falling back to rule-based analysis: ${e.message}")
             generateInsightWithRules(user, entries, analysis, daysBack)
         }
     }
@@ -372,51 +372,40 @@ class HealthDetectiveService(
     }
 
     /**
-     * Raw HTTP call to the Anthropic Messages API (no SDK). The stable system block
-     * carries cache_control so repeated calls reuse the cached prefix; per-user data
-     * goes in the volatile user message. Throws on non-2xx so callers can fall back.
+     * Raw HTTP call to Groq's OpenAI-compatible chat completions endpoint.
+     * Throws on non-2xx so callers can fall back to rule-based analysis.
      */
     private fun callClaude(systemPrompt: String, userMessage: String, maxTokens: Int): String {
         if (apiKey.isBlank()) {
-            throw IllegalStateException("Anthropic API key not configured")
+            throw IllegalStateException("Groq API key not configured")
         }
 
         val body = mapOf(
             "model" to model,
             "max_tokens" to maxTokens,
-            "system" to listOf(
-                mapOf(
-                    "type" to "text",
-                    "text" to systemPrompt,
-                    "cache_control" to mapOf("type" to "ephemeral")
-                )
-            ),
             "messages" to listOf(
+                mapOf("role" to "system", "content" to systemPrompt),
                 mapOf("role" to "user", "content" to userMessage)
             )
         )
 
         val request = HttpRequest.newBuilder()
-            .uri(URI.create("https://api.anthropic.com/v1/messages"))
+            .uri(URI.create("https://api.groq.com/openai/v1/chat/completions"))
             .timeout(Duration.ofSeconds(30))
             .header("content-type", "application/json")
-            .header("x-api-key", apiKey)
-            .header("anthropic-version", "2023-06-01")
+            .header("authorization", "Bearer $apiKey")
             .POST(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(body)))
             .build()
 
         val response = httpClient.send(request, HttpResponse.BodyHandlers.ofString())
         if (response.statusCode() !in 200..299) {
-            throw IllegalStateException("Claude API error ${response.statusCode()}: ${response.body()}")
+            throw IllegalStateException("Groq API error ${response.statusCode()}: ${response.body()}")
         }
 
-        val content = objectMapper.readTree(response.body()).path("content")
-        for (block in content) {
-            if (block.path("type").asText() == "text") {
-                return block.path("text").asText()
-            }
-        }
-        throw IllegalStateException("Claude API returned no text content")
+        return objectMapper.readTree(response.body())
+            .path("choices").first()
+            .path("message").path("content").asText()
+            .also { if (it.isBlank()) throw IllegalStateException("Groq returned no content") }
     }
 
     companion object {

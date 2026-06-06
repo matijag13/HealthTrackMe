@@ -64,13 +64,13 @@ google:
   oauth:
     allowed-client-ids: ${GOOGLE_OAUTH_ALLOWED_CLIENT_IDS:}
 
-anthropic:
-  # Set ANTHROPIC_API_KEY in the deploy env to enable AI-powered Detective insights
+groq:
+  # Set GROQ_API_KEY in the deploy env to enable AI-powered Detective insights
   # and the "ask your health data" Q&A. When blank, the service falls back to the
   # existing rule-based analysis automatically.
   api:
-    key: ${ANTHROPIC_API_KEY:}
-  model: ${ANTHROPIC_MODEL:claude-haiku-4-5}
+    key: ${GROQ_API_KEY:}
+  model: ${GROQ_MODEL:llama-3.3-70b-versatile}
 
 app:
   data-retention:
