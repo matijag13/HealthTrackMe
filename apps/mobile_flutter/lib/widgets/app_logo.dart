@@ -110,7 +110,8 @@ class _LogoPainter extends CustomPainter {
     canvas.restore();
   }
 
-  Path _heartPath(double s, {required double cx, required double cy, required double scale}) {
+  Path _heartPath(double s,
+      {required double cx, required double cy, required double scale}) {
     final path = Path();
     const steps = 200;
     for (var i = 0; i <= steps; i++) {
@@ -134,8 +135,14 @@ class _LogoPainter extends CustomPainter {
 
   List<Offset> _ecgPoints(double s) {
     const norm = [
-      [0.04, 0.50], [0.32, 0.50], [0.385, 0.40], [0.45, 0.66],
-      [0.52, 0.255], [0.60, 0.60], [0.66, 0.50], [0.96, 0.50],
+      [0.04, 0.50],
+      [0.32, 0.50],
+      [0.385, 0.40],
+      [0.45, 0.66],
+      [0.52, 0.255],
+      [0.60, 0.60],
+      [0.66, 0.50],
+      [0.96, 0.50],
     ];
     return [for (final p in norm) Offset(p[0] * s, p[1] * s)];
   }
