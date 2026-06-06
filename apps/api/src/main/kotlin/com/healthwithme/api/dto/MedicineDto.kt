@@ -9,7 +9,9 @@ data class MedicineDto(
     val startDate: String?,
     val endDate: String?,
     val sideEffects: String?,
-    val isActive: Boolean
+    val isActive: Boolean,
+    // Comma-separated daily reminder times in HH:mm (e.g. "08:00,20:00").
+    val reminderTimes: String? = null
 )
 
 data class CreateMedicineRequest(
@@ -19,7 +21,8 @@ data class CreateMedicineRequest(
     val reason: String?,
     val startDate: String?,
     val endDate: String?,
-    val sideEffects: String?
+    val sideEffects: String?,
+    val reminderTimes: String? = null
 )
 
 data class UpdateMedicineRequest(
@@ -30,6 +33,7 @@ data class UpdateMedicineRequest(
     val startDate: String?,
     val endDate: String?,
     val sideEffects: String?,
-    val isActive: Boolean?
+    val isActive: Boolean?,
+    val reminderTimes: String? = null
 )
 

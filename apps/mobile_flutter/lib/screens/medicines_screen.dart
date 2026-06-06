@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
@@ -182,9 +181,35 @@ class _MedicinesScreenState extends State<MedicinesScreen>
       final meds = await _api.getMedicines(activeOnly: false);
       await _syncTakenToday(meds);
       _cached = meds;
+      await _rescheduleReminders(meds);
       return meds;
     } catch (e) {
       return _cached ?? const [];
+    }
+  }
+
+  /// Cancels + reschedules local notifications from each medicine's persisted
+  /// reminder times, so reminders are DB-driven and survive reinstall. Runs on
+  /// first load and after every add/edit (via _refresh).
+  Future<void> _rescheduleReminders(List<Medicine> meds) async {
+    try {
+      final notifs = NotificationService.instance;
+      for (final m in meds) {
+        if (m.isActive && m.reminderTimes.isNotEmpty) {
+          await notifs.scheduleMedicineReminders(
+            medicineId: m.id,
+            medicineName: m.name,
+            dosage: (m.dosage != null && m.dosage!.trim().isNotEmpty)
+                ? m.dosage!.trim()
+                : 'your dose',
+            times: m.reminderTimes,
+          );
+        } else {
+          await notifs.cancelMedicineReminders(m.id);
+        }
+      }
+    } catch (e) {
+      debugPrint('Failed to reschedule medicine reminders: $e');
     }
   }
 
@@ -1349,7 +1374,7 @@ class _MedicineEditSheetState extends State<MedicineEditSheet> {
   final _sideEffects = TextEditingController();
   DateTime? _start;
   DateTime? _end;
-  TimeOfDay? _reminderTime;
+  final List<TimeOfDay> _reminderTimes = [];
   bool _saving = false;
 
   @override
@@ -1364,7 +1389,30 @@ class _MedicineEditSheetState extends State<MedicineEditSheet> {
       _sideEffects.text = m.sideEffects ?? '';
       _start = m.startDate;
       _end = m.endDate;
+      for (final t in m.reminderTimes) {
+        final tod = _parseHhmm(t);
+        if (tod != null) _reminderTimes.add(tod);
+      }
+      _sortReminderTimes();
     }
+  }
+
+  static TimeOfDay? _parseHhmm(String value) {
+    final parts = value.trim().split(':');
+    if (parts.length != 2) return null;
+    final h = int.tryParse(parts[0]);
+    final m = int.tryParse(parts[1]);
+    if (h == null || m == null) return null;
+    if (h < 0 || h > 23 || m < 0 || m > 59) return null;
+    return TimeOfDay(hour: h, minute: m);
+  }
+
+  static String _formatHhmm(TimeOfDay t) =>
+      '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
+
+  void _sortReminderTimes() {
+    _reminderTimes.sort(
+        (a, b) => (a.hour * 60 + a.minute).compareTo(b.hour * 60 + b.minute));
   }
 
   @override
@@ -1395,6 +1443,7 @@ class _MedicineEditSheetState extends State<MedicineEditSheet> {
       sideEffects:
           _sideEffects.text.trim().isEmpty ? null : _sideEffects.text.trim(),
       isActive: true,
+      reminderTimes: _reminderTimes.map(_formatHhmm).toList(),
     ).toJson();
 
     try {
@@ -1424,26 +1473,16 @@ class _MedicineEditSheetState extends State<MedicineEditSheet> {
       if (mounted) setState(() => _saving = false);
     }
 
-    // Schedule notification reminder if a time was set
-    if (_reminderTime != null) {
-      final id =
-          widget.medicine?.id ?? DateTime.now().millisecondsSinceEpoch % 100000;
-      await NotificationService.instance.scheduleMedicineReminder(
-        id: id,
-        medicineName: _name.text.trim(),
-        dosage: _dosage.text.trim().isEmpty ? 'your dose' : _dosage.text.trim(),
-        time: _reminderTime!,
-        repeat: RepeatInterval.daily,
-      );
-    }
-
+    // Notifications are (re)scheduled from persisted data when the list
+    // reloads (see _MedicinesScreenState._load), so both create and edit
+    // get correct, server-id-based reminder ids.
     if (mounted) Navigator.pop(context, true);
   }
 
-  Future<void> _pickReminderTime() async {
+  Future<void> _addReminderTime() async {
     final picked = await showTimePicker(
       context: context,
-      initialTime: _reminderTime ?? const TimeOfDay(hour: 8, minute: 0),
+      initialTime: const TimeOfDay(hour: 8, minute: 0),
       builder: (context, child) => Theme(
         data: Theme.of(context).copyWith(
           colorScheme: const ColorScheme.dark(
@@ -1456,9 +1495,80 @@ class _MedicineEditSheetState extends State<MedicineEditSheet> {
         child: child!,
       ),
     );
-    if (picked != null && mounted) {
-      setState(() => _reminderTime = picked);
-    }
+    if (picked == null || !mounted) return;
+    final exists = _reminderTimes
+        .any((t) => t.hour == picked.hour && t.minute == picked.minute);
+    if (exists) return;
+    setState(() {
+      _reminderTimes.add(picked);
+      _sortReminderTimes();
+    });
+  }
+
+  void _removeReminderTime(TimeOfDay time) {
+    setState(() => _reminderTimes
+        .removeWhere((t) => t.hour == time.hour && t.minute == time.minute));
+  }
+
+  Widget _buildRemindersField() {
+    const accent = Color(0xFF5A8CFF);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (_reminderTimes.isNotEmpty) ...[
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (final t in _reminderTimes)
+                Container(
+                  padding: const EdgeInsets.only(
+                      left: 12, right: 4, top: 6, bottom: 6),
+                  decoration: BoxDecoration(
+                    color: accent.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(color: accent.withValues(alpha: 0.4)),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.access_time_rounded,
+                          size: 15, color: accent),
+                      const SizedBox(width: 6),
+                      Text(
+                        t.format(context),
+                        style: const TextStyle(
+                          color: Color(0xFFF7F8FA),
+                          fontWeight: FontWeight.w700,
+                          fontSize: 13,
+                        ),
+                      ),
+                      InkWell(
+                        onTap: () => _removeReminderTime(t),
+                        borderRadius: BorderRadius.circular(999),
+                        child: const Padding(
+                          padding: EdgeInsets.all(4),
+                          child: Icon(Icons.close_rounded,
+                              size: 15, color: Color(0xFF8A93A6)),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 10),
+        ],
+        _DateButton(
+          label: _reminderTimes.isEmpty
+              ? 'Add reminder time (optional)'
+              : 'Add another time',
+          placeholder: _reminderTimes.isEmpty,
+          icon: Icons.notifications_outlined,
+          onTap: _addReminderTime,
+        ),
+      ],
+    );
   }
 
   Future<void> _pickDate(bool start) async {
@@ -1809,14 +1919,7 @@ class _MedicineEditSheetState extends State<MedicineEditSheet> {
                           ),
                         ),
                         const SizedBox(height: 14),
-                        _DateButton(
-                          label: _reminderTime == null
-                              ? 'Set reminder (optional)'
-                              : 'Reminder at ${_reminderTime!.format(context)}',
-                          placeholder: _reminderTime == null,
-                          icon: Icons.notifications_outlined,
-                          onTap: _pickReminderTime,
-                        ),
+                        _buildRemindersField(),
                         const SizedBox(height: 24),
                         SizedBox(
                           width: double.infinity,

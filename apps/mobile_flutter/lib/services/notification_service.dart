@@ -120,6 +120,77 @@ class NotificationService {
     await _plugin.cancel(id);
   }
 
+  /// Up to this many distinct reminder times per medicine. Each gets a unique
+  /// notification id of `medicineId * 100 + index`, which is collision-free
+  /// across medicines as long as this stays below 100.
+  static const int _reminderSlotsPerMedicine = 20;
+
+  /// Schedules one daily notification per time in [times] (each 'HH:mm').
+  /// Existing reminders for this medicine are cleared first, so this is safe
+  /// to call repeatedly (e.g. on every medicines reload).
+  Future<void> scheduleMedicineReminders({
+    required int medicineId,
+    required String medicineName,
+    required String dosage,
+    required List<String> times,
+  }) async {
+    await cancelMedicineReminders(medicineId);
+
+    var index = 0;
+    for (final raw in times) {
+      if (index >= _reminderSlotsPerMedicine) break;
+      final parts = raw.trim().split(':');
+      if (parts.length != 2) continue;
+      final hour = int.tryParse(parts[0]);
+      final minute = int.tryParse(parts[1]);
+      if (hour == null || minute == null) continue;
+      if (hour < 0 || hour > 23 || minute < 0 || minute > 59) continue;
+
+      final notifId = medicineId * 100 + index;
+      index++;
+
+      try {
+        final now = tz.TZDateTime.now(tz.local);
+        var scheduled =
+            tz.TZDateTime(tz.local, now.year, now.month, now.day, hour, minute);
+        if (scheduled.isBefore(now)) {
+          scheduled = scheduled.add(const Duration(days: 1));
+        }
+
+        await _plugin.zonedSchedule(
+          notifId,
+          medicineName,
+          'Take $dosage',
+          scheduled,
+          const NotificationDetails(
+            android: AndroidNotificationDetails(
+              _medicineChannelId,
+              _medicineChannelName,
+              channelDescription: _medicineChannelDesc,
+              importance: Importance.high,
+              priority: Priority.high,
+            ),
+            iOS: DarwinNotificationDetails(),
+          ),
+          androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+          uiLocalNotificationDateInterpretation:
+              UILocalNotificationDateInterpretation.absoluteTime,
+          matchDateTimeComponents: DateTimeComponents.time, // daily
+          payload: 'medicine_$medicineId',
+        );
+      } catch (e) {
+        debugPrint('Error scheduling medicine reminder ($notifId): $e');
+      }
+    }
+  }
+
+  /// Cancels every reminder slot reserved for [medicineId].
+  Future<void> cancelMedicineReminders(int medicineId) async {
+    for (var i = 0; i < _reminderSlotsPerMedicine; i++) {
+      await _plugin.cancel(medicineId * 100 + i);
+    }
+  }
+
   // =========================
   // DAILY DIARY
   // =========================

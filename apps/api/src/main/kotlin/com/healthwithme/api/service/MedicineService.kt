@@ -33,6 +33,7 @@ class MedicineService(
             startDate = request.startDate?.let { java.time.LocalDate.parse(it) },
             endDate = request.endDate?.let { java.time.LocalDate.parse(it) },
             sideEffects = request.sideEffects,
+            reminderTimes = request.reminderTimes,
             isActive = true,
             createdAt = LocalDateTime.now(),
             updatedAt = LocalDateTime.now()
@@ -72,6 +73,7 @@ class MedicineService(
             startDate = request.startDate?.let { java.time.LocalDate.parse(it) } ?: medicine.startDate,
             endDate = request.endDate?.let { java.time.LocalDate.parse(it) } ?: medicine.endDate,
             sideEffects = request.sideEffects ?: medicine.sideEffects,
+            reminderTimes = request.reminderTimes ?: medicine.reminderTimes,
             isActive = request.isActive ?: medicine.isActive,
             updatedAt = LocalDateTime.now()
         )
@@ -172,7 +174,8 @@ class MedicineService(
             startDate = medicine.startDate?.toString(),
             endDate = medicine.endDate?.toString(),
             sideEffects = medicine.sideEffects,
-            isActive = medicine.isActive
+            isActive = medicine.isActive,
+            reminderTimes = medicine.reminderTimes
         )
     }
 }

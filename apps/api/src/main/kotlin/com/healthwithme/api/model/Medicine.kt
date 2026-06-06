@@ -36,6 +36,10 @@ data class Medicine(
     @Column(nullable = true)
     val sideEffects: String? = null,
 
+    // Comma-separated daily reminder times in HH:mm (e.g. "08:00,20:00").
+    @Column(nullable = true, name = "reminder_times")
+    val reminderTimes: String? = null,
+
     @Column(nullable = false, name = "item_type")
     @Enumerated(EnumType.STRING)
     val itemType: ItemType = ItemType.MEDICATION,

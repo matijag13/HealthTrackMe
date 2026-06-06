@@ -276,6 +276,9 @@ class Medicine {
   final String? sideEffects;
   final bool isActive;
 
+  /// Daily reminder times as 'HH:mm' strings (e.g. ['08:00', '20:00']).
+  final List<String> reminderTimes;
+
   const Medicine({
     required this.id,
     required this.name,
@@ -286,6 +289,7 @@ class Medicine {
     this.endDate,
     this.sideEffects,
     required this.isActive,
+    this.reminderTimes = const [],
   });
 
   String get scheduleLabel => frequency ?? dosage ?? 'Ni urnika';
@@ -299,6 +303,8 @@ class Medicine {
       'startDate': startDate != null ? _dateOnly(startDate!) : null,
       'endDate': endDate != null ? _dateOnly(endDate!) : null,
       'sideEffects': sideEffects,
+      // Empty string (not null) so an update can clear all reminders.
+      'reminderTimes': reminderTimes.join(','),
     };
   }
 
@@ -314,7 +320,19 @@ class Medicine {
       endDate: _tryParseDate(map['endDate']),
       sideEffects: map['sideEffects']?.toString(),
       isActive: _tryParseBool(map['isActive'], fallback: true),
+      reminderTimes: parseReminderTimes(map['reminderTimes']),
     );
+  }
+
+  /// Splits a comma-separated 'HH:mm' string into a normalized list.
+  static List<String> parseReminderTimes(dynamic raw) {
+    if (raw == null) return const [];
+    return raw
+        .toString()
+        .split(',')
+        .map((s) => s.trim())
+        .where((s) => s.isNotEmpty)
+        .toList();
   }
 }
 
