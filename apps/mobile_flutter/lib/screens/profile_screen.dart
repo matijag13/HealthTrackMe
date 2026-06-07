@@ -12,6 +12,113 @@ import '../services/notification_service.dart';
 import '../widgets/export_sheet.dart';
 import 'edit_profile_screen.dart';
 
+enum _ProfileToastType { success, error, neutral }
+
+class _ProfileToastTheme {
+  final IconData icon;
+  final Color accent;
+
+  const _ProfileToastTheme({required this.icon, required this.accent});
+}
+
+void _showProfileToast(
+  BuildContext context,
+  String message, {
+  _ProfileToastType type = _ProfileToastType.neutral,
+}) {
+  final theme = switch (type) {
+    _ProfileToastType.success => const _ProfileToastTheme(
+        icon: Icons.check_circle_rounded,
+        accent: _ProfileScreenState._green,
+      ),
+    _ProfileToastType.error => const _ProfileToastTheme(
+        icon: Icons.error_outline_rounded,
+        accent: _ProfileScreenState._danger,
+      ),
+    _ProfileToastType.neutral => const _ProfileToastTheme(
+        icon: Icons.notifications_none_rounded,
+        accent: _ProfileScreenState._accent,
+      ),
+  };
+
+  final messenger = ScaffoldMessenger.of(context);
+  messenger.clearSnackBars();
+  messenger.showSnackBar(
+    SnackBar(
+      behavior: SnackBarBehavior.floating,
+      backgroundColor: Colors.transparent,
+      elevation: 0,
+      margin: const EdgeInsets.fromLTRB(16, 0, 16, 20),
+      padding: EdgeInsets.zero,
+      duration: const Duration(seconds: 3),
+      dismissDirection: DismissDirection.horizontal,
+      content: Container(
+        decoration: BoxDecoration(
+          color: _ProfileScreenState._surface,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: theme.accent.withValues(alpha: 0.34)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.38),
+              blurRadius: 24,
+              offset: const Offset(0, 12),
+            ),
+          ],
+        ),
+        child: Stack(
+          children: [
+            Positioned(
+              left: 0,
+              top: 0,
+              bottom: 0,
+              child: Container(
+                width: 4,
+                decoration: BoxDecoration(
+                  color: theme.accent,
+                  borderRadius: const BorderRadius.horizontal(
+                    left: Radius.circular(18),
+                  ),
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 13, 16, 13),
+              child: Row(
+                children: [
+                  Container(
+                    width: 34,
+                    height: 34,
+                    decoration: BoxDecoration(
+                      color: theme.accent.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(11),
+                      border: Border.all(
+                        color: theme.accent.withValues(alpha: 0.22),
+                      ),
+                    ),
+                    child: Icon(theme.icon, color: theme.accent, size: 19),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      message,
+                      style: const TextStyle(
+                        color: _ProfileScreenState._primaryText,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        height: 1.25,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
 
@@ -315,8 +422,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   void _showSnack(String message) {
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(message)));
+    final type = message.startsWith('Error') ||
+            message.startsWith('Could not') ||
+            message.contains('failed')
+        ? _ProfileToastType.error
+        : message.startsWith('Open ')
+            ? _ProfileToastType.neutral
+            : _ProfileToastType.success;
+    _showProfileToast(context, message, type: type);
   }
 
   void _goBack() {
@@ -1169,8 +1282,10 @@ class _WeeklyReportTileState extends State<_WeeklyReportTile> {
     final ok = await _api.setWeeklyReport(value);
     if (!ok && mounted) {
       setState(() => _enabled = !value); // revert on failure
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not update weekly report setting')),
+      _showProfileToast(
+        context,
+        'Could not update weekly report setting',
+        type: _ProfileToastType.error,
       );
     }
   }

@@ -5,12 +5,22 @@ import '../services/api_service.dart';
 
 const _bg = Color(0xFF070B13);
 const _surface = Color(0xFF0F1624);
-const _surfaceAlt = Color(0xFF121B2C);
 const _border = Color(0xFF243047);
 const _primaryText = Color(0xFFF5F7FB);
 const _secondaryText = Color(0xFF94A3B8);
 const _accent = Color(0xFF5B8DEF);
 const _green = Color(0xFF36D399);
+const _danger = Color(0xFFFF5C7A);
+const _warning = Color(0xFFF5B941);
+
+enum _ExportToastType { success, error, warning, neutral }
+
+class _ExportToastTheme {
+  final IconData icon;
+  final Color accent;
+
+  const _ExportToastTheme({required this.icon, required this.accent});
+}
 
 /// Opens the export options sheet: copy summary, email summary, or copy full CSV.
 Future<void> showExportSheet(BuildContext context) {
@@ -36,29 +46,27 @@ class _ExportSheetState extends State<_ExportSheet> {
   Future<void> _run(String key, Future<String> Function() action) async {
     if (_busy != null) return;
     setState(() => _busy = key);
-    final messenger = ScaffoldMessenger.of(context);
     String message;
+    var type = _ExportToastType.success;
     try {
       message = await action();
     } catch (e) {
       message = 'Export failed';
+      type = _ExportToastType.error;
     }
     if (!mounted) return;
     setState(() => _busy = null);
-    messenger
-      ..clearSnackBars()
-      ..showSnackBar(SnackBar(
-        behavior: SnackBarBehavior.floating,
-        backgroundColor: _surfaceAlt,
-        content: Text(message, style: const TextStyle(color: _primaryText)),
-      ));
+    if (message.startsWith('No ') || message.startsWith('Please ')) {
+      type = _ExportToastType.warning;
+    }
+    _showExportToast(message, type: type);
   }
 
   Future<String> _copySummary() async {
     final summary = await _api.getHealthSummary();
     if (summary == null || summary.isEmpty) return 'No summary available yet';
     await Clipboard.setData(ClipboardData(text: summary));
-    return 'Summary copied to clipboard ✓';
+    return 'Summary copied to clipboard';
   }
 
   Future<String> _emailSummary() async {
@@ -72,7 +80,108 @@ class _ExportSheetState extends State<_ExportSheet> {
     final csv = await _api.exportCsv('/export/all/$id');
     if (csv == null || csv.isEmpty) return 'No data to export yet';
     await Clipboard.setData(ClipboardData(text: csv));
-    return 'Full data (CSV) copied to clipboard ✓';
+    return 'Full data (CSV) copied to clipboard';
+  }
+
+  void _showExportToast(
+    String message, {
+    _ExportToastType type = _ExportToastType.neutral,
+  }) {
+    final theme = switch (type) {
+      _ExportToastType.success => const _ExportToastTheme(
+          icon: Icons.check_circle_rounded,
+          accent: _green,
+        ),
+      _ExportToastType.error => const _ExportToastTheme(
+          icon: Icons.error_outline_rounded,
+          accent: _danger,
+        ),
+      _ExportToastType.warning => const _ExportToastTheme(
+          icon: Icons.info_outline_rounded,
+          accent: _warning,
+        ),
+      _ExportToastType.neutral => const _ExportToastTheme(
+          icon: Icons.notifications_none_rounded,
+          accent: _accent,
+        ),
+    };
+
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.clearSnackBars();
+    messenger.showSnackBar(
+      SnackBar(
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        margin: const EdgeInsets.fromLTRB(16, 0, 16, 20),
+        padding: EdgeInsets.zero,
+        duration: const Duration(seconds: 3),
+        dismissDirection: DismissDirection.horizontal,
+        content: Container(
+          decoration: BoxDecoration(
+            color: _surface,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: theme.accent.withValues(alpha: 0.34)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.38),
+                blurRadius: 24,
+                offset: const Offset(0, 12),
+              ),
+            ],
+          ),
+          child: Stack(
+            children: [
+              Positioned(
+                left: 0,
+                top: 0,
+                bottom: 0,
+                child: Container(
+                  width: 4,
+                  decoration: BoxDecoration(
+                    color: theme.accent,
+                    borderRadius: const BorderRadius.horizontal(
+                      left: Radius.circular(18),
+                    ),
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 13, 16, 13),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 34,
+                      height: 34,
+                      decoration: BoxDecoration(
+                        color: theme.accent.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(11),
+                        border: Border.all(
+                          color: theme.accent.withValues(alpha: 0.22),
+                        ),
+                      ),
+                      child: Icon(theme.icon, color: theme.accent, size: 19),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        message,
+                        style: const TextStyle(
+                          color: _primaryText,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          height: 1.25,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   @override
