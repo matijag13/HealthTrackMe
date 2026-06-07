@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../services/api_service.dart';
 import '../services/notification_service.dart';
 import '../models/models.dart';
@@ -193,9 +194,11 @@ class _MedicinesScreenState extends State<MedicinesScreen>
   /// first load and after every add/edit (via _refresh).
   Future<void> _rescheduleReminders(List<Medicine> meds) async {
     try {
+      final prefs = await SharedPreferences.getInstance();
+      final remindersOn = prefs.getBool('pref_medicine_reminders') ?? true;
       final notifs = NotificationService.instance;
       for (final m in meds) {
-        if (m.isActive && m.reminderTimes.isNotEmpty) {
+        if (remindersOn && m.isActive && m.reminderTimes.isNotEmpty) {
           await notifs.scheduleMedicineReminders(
             medicineId: m.id,
             medicineName: m.name,

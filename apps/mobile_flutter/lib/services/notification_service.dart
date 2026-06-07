@@ -169,6 +169,7 @@ class NotificationService {
         body: 'Take $dosage',
         when: scheduled,
         payload: 'medicine_$medicineId',
+        details: _medicineDetails,
       );
     }
   }
@@ -193,6 +194,7 @@ class NotificationService {
     required String body,
     required tz.TZDateTime when,
     required String payload,
+    required NotificationDetails details,
   }) async {
     Future<void> schedule(AndroidScheduleMode mode) {
       return _plugin.zonedSchedule(
@@ -200,7 +202,7 @@ class NotificationService {
         title,
         body,
         when,
-        _medicineDetails,
+        details,
         androidScheduleMode: mode,
         uiLocalNotificationDateInterpretation:
             UILocalNotificationDateInterpretation.absoluteTime,
@@ -216,7 +218,7 @@ class NotificationService {
       try {
         await schedule(AndroidScheduleMode.inexactAllowWhileIdle);
       } catch (e2) {
-        debugPrint('Error scheduling medicine reminder ($id): $e2');
+        debugPrint('Error scheduling reminder ($id): $e2');
       }
     }
   }
@@ -232,53 +234,54 @@ class NotificationService {
   // DAILY DIARY
   // =========================
 
+  static const NotificationDetails _diaryDetails = NotificationDetails(
+    android: AndroidNotificationDetails(
+      _diaryChannelId,
+      _diaryChannelName,
+      channelDescription: _diaryChannelDesc,
+      importance: Importance.high,
+      priority: Priority.high,
+    ),
+    iOS: DarwinNotificationDetails(),
+  );
+
   Future<void> scheduleDailyDiaryReminder(TimeOfDay time) async {
     const int id = 999999;
-
-    try {
-      final now = tz.TZDateTime.now(tz.local);
-
-      var scheduled = tz.TZDateTime(
-        tz.local,
-        now.year,
-        now.month,
-        now.day,
-        time.hour,
-        time.minute,
-      );
-
-      if (scheduled.isBefore(now)) {
-        scheduled = scheduled.add(const Duration(days: 1));
-      }
-
-      await _plugin.zonedSchedule(
-        id,
-        'Daily Health Check',
-        'Time to log your health entry',
-        scheduled,
-        const NotificationDetails(
-          android: AndroidNotificationDetails(
-            _diaryChannelId,
-            _diaryChannelName,
-            channelDescription: _diaryChannelDesc,
-            importance: Importance.high,
-            priority: Priority.high,
-          ),
-          iOS: DarwinNotificationDetails(),
-        ),
-        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-        uiLocalNotificationDateInterpretation:
-            UILocalNotificationDateInterpretation.absoluteTime,
-        matchDateTimeComponents: DateTimeComponents.time,
-        payload: 'diary_reminder',
-      );
-    } catch (e) {
-      debugPrint('Error scheduling diary reminder: $e');
+    final now = tz.TZDateTime.now(tz.local);
+    var scheduled = tz.TZDateTime(
+      tz.local,
+      now.year,
+      now.month,
+      now.day,
+      time.hour,
+      time.minute,
+    );
+    if (scheduled.isBefore(now)) {
+      scheduled = scheduled.add(const Duration(days: 1));
     }
+    await _zonedScheduleDailyWithFallback(
+      id: id,
+      title: 'Daily Health Check',
+      body: 'Time to log your health entry',
+      when: scheduled,
+      payload: 'diary_reminder',
+      details: _diaryDetails,
+    );
   }
 
   Future<void> cancelDailyDiaryReminder() async {
     await _plugin.cancel(999999);
+  }
+
+  /// Cancels every pending medicine reminder regardless of medicine id — used
+  /// by the master "Medicine reminders" toggle when it's switched off.
+  Future<void> cancelAllMedicineReminders() async {
+    final pending = await _plugin.pendingNotificationRequests();
+    for (final p in pending) {
+      if (p.payload?.startsWith('medicine_') ?? false) {
+        await _plugin.cancel(p.id);
+      }
+    }
   }
 
   Future<void> cancelAll() async {

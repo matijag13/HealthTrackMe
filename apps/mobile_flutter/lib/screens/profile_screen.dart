@@ -8,6 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/models.dart';
 import '../services/api_service.dart';
+import '../services/notification_service.dart';
 import '../widgets/export_sheet.dart';
 import 'edit_profile_screen.dart';
 
@@ -335,24 +336,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ]),
                       const SizedBox(height: 22),
                       _section('Preferences', [
-                        const _PreferenceToggleTile(
-                          prefKey: 'healthtrackme_notifications_enabled',
-                          defaultValue: true,
-                          icon: Icons.notifications_active_outlined,
-                          accent: _accent,
-                          title: 'Enable notifications',
-                          subtitle: 'Allow reminders and alerts',
-                        ),
                         const _UnitsTile(),
                         _StartOfWeekTile(showSnack: _showSnack),
                         const _DiaryReminderTile(),
-                        const _PreferenceToggleTile(
+                        _PreferenceToggleTile(
                           prefKey: 'pref_medicine_reminders',
                           defaultValue: true,
                           icon: Icons.medication_outlined,
                           accent: _green,
                           title: 'Medicine reminders',
-                          subtitle: 'Master toggle for medicines',
+                          subtitle: 'Turn all medicine reminders on or off',
+                          onChanged: (value) async {
+                            // Off → cancel everything now. On → reminders are
+                            // re-scheduled next time the Medicines screen loads.
+                            if (!value) {
+                              await NotificationService.instance
+                                  .cancelAllMedicineReminders();
+                            }
+                          },
                         ),
                         const _PreferenceToggleTile(
                           prefKey: 'pref_weekly_report',
@@ -943,6 +944,7 @@ class _PreferenceToggleTile extends StatefulWidget {
   final Color accent;
   final String title;
   final String subtitle;
+  final Future<void> Function(bool value)? onChanged;
 
   const _PreferenceToggleTile({
     required this.prefKey,
@@ -951,6 +953,7 @@ class _PreferenceToggleTile extends StatefulWidget {
     required this.accent,
     required this.title,
     required this.subtitle,
+    this.onChanged,
   });
 
   @override
@@ -979,6 +982,7 @@ class _PreferenceToggleTileState extends State<_PreferenceToggleTile> {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(widget.prefKey, value);
     if (mounted) setState(() => _enabled = value);
+    await widget.onChanged?.call(value);
   }
 
   @override
@@ -1038,6 +1042,9 @@ class _DiaryReminderTileState extends State<_DiaryReminderTile> {
         '${picked.hour.toString().padLeft(2, '0')}:${picked.minute.toString().padLeft(2, '0')}',
       );
       if (mounted) setState(() => _time = picked);
+      if (_enabled) {
+        await NotificationService.instance.scheduleDailyDiaryReminder(picked);
+      }
     }
   }
 
@@ -1046,7 +1053,11 @@ class _DiaryReminderTileState extends State<_DiaryReminderTile> {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('pref_diary_enabled', value);
     if (mounted) setState(() => _enabled = value);
-    if (value) await _pickTime();
+    if (value) {
+      await NotificationService.instance.scheduleDailyDiaryReminder(_time);
+    } else {
+      await NotificationService.instance.cancelDailyDiaryReminder();
+    }
   }
 
   @override
