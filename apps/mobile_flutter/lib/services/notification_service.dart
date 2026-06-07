@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:timezone/data/latest_all.dart' as tz_data;
 import 'package:timezone/timezone.dart' as tz;
 
@@ -25,9 +26,15 @@ class NotificationService {
 
   Future<void> initialize() async {
     tz_data.initializeTimeZones();
-    // The timezone package automatically uses the device's configured timezone
-    // after tz_data.initializeTimeZones() is called. tz.local will reflect the
-    // device's local timezone (e.g., Europe/London if the phone is set to that timezone).
+    // tz.local defaults to UTC after initializeTimeZones(). We must explicitly
+    // set it to the device's actual timezone, otherwise zonedSchedule() treats
+    // reminder times as UTC and they fire offset by the local UTC offset.
+    try {
+      final info = await FlutterTimezone.getLocalTimezone();
+      tz.setLocalLocation(tz.getLocation(info.identifier));
+    } catch (e) {
+      debugPrint('Could not resolve local timezone, using UTC: $e');
+    }
 
     const androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
 

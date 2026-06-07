@@ -10,7 +10,6 @@ import '../models/models.dart';
 import '../services/api_service.dart';
 import '../widgets/export_sheet.dart';
 import 'edit_profile_screen.dart';
-import 'medical_history_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -105,13 +104,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
       MaterialPageRoute(
         builder: (_) => EditProfileScreen(user: user, onSaved: _refresh),
       ),
-    );
-    await _refresh();
-  }
-
-  Future<void> _openMedicalHistory(User user) async {
-    await Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => MedicalHistoryScreen(user: user)),
     );
     await _refresh();
   }
@@ -332,13 +324,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           title: 'Personal details',
                           subtitle: 'Name, DOB, gender, height',
                           onTap: () => _openEditProfile(user),
-                        ),
-                        _ProfileTile(
-                          icon: Icons.medical_information_outlined,
-                          accent: _danger,
-                          title: 'Medical history',
-                          subtitle: 'Conditions, allergies, surgeries',
-                          onTap: () => _openMedicalHistory(user),
                         ),
                         _ProfileTile(
                           icon: Icons.upload_file_outlined,

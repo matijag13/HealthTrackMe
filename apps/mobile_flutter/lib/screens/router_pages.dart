@@ -2624,6 +2624,12 @@ class _HealthActivityPageState extends State<HealthActivityPage> {
   late Future<List<Map<String, dynamic>>> _activitiesFuture;
   _ActivityType _selectedType = _ActivityType.walking;
   _ActivityTimeRange _selectedTimeRange = _ActivityTimeRange.week;
+  bool _logsExpanded = false;
+
+  /// Walking stride length in metres, used to convert between steps and
+  /// distance (Samsung Health does the same: distance = steps × stride).
+  /// Personalised from the user's height when known; ~0.762 m otherwise.
+  double _strideMeters = 0.762;
 
   bool get _isWalkingTab => _selectedType == _ActivityType.walking;
 
@@ -2644,8 +2650,23 @@ class _HealthActivityPageState extends State<HealthActivityPage> {
   void initState() {
     super.initState();
     _activitiesFuture = _loadActivities();
+    _loadStride();
     // Auto-refresh when a sync uploads new activities/steps.
     SyncEvents.instance.revision.addListener(_onSynced);
+  }
+
+  /// Personalise the walking stride from the user's height, the way Samsung
+  /// Health does: stride ≈ height × 0.415.
+  Future<void> _loadStride() async {
+    try {
+      final user = await _api.getCurrentUser();
+      final h = user?.heightCm;
+      if (h != null && h > 80 && h < 250 && mounted) {
+        setState(() => _strideMeters = h / 100 * 0.415);
+      }
+    } catch (_) {
+      // Keep the default stride.
+    }
   }
 
   @override
@@ -2776,10 +2797,32 @@ class _HealthActivityPageState extends State<HealthActivityPage> {
     return true;
   }
 
-  double? _activityDistance(Map<String, dynamic> activity) {
-    return double.tryParse(
+  /// Raw stored step count (0 when absent).
+  int _rawSteps(Map<String, dynamic> activity) {
+    final raw = activity['steps'];
+    if (raw is num && raw > 0) return raw.toInt();
+    final parsed = int.tryParse(raw?.toString() ?? '');
+    return (parsed != null && parsed > 0) ? parsed : 0;
+  }
+
+  /// Raw stored distance in km (null when absent).
+  double? _storedDistance(Map<String, dynamic> activity) {
+    final d = double.tryParse(
       (activity['distance'] ?? activity['distanceKm'] ?? '').toString(),
     );
+    return (d != null && d > 0) ? d : null;
+  }
+
+  /// Distance in km. When a walking entry has steps but no distance, it is
+  /// derived as steps × stride (the same way Samsung Health does it).
+  double? _activityDistance(Map<String, dynamic> activity) {
+    final stored = _storedDistance(activity);
+    if (stored != null) return stored;
+    if (_activityTypeLabel(activity) == _ActivityType.walking.label) {
+      final steps = _rawSteps(activity);
+      if (steps > 0) return steps * _strideMeters / 1000.0;
+    }
+    return null;
   }
 
   int? _activityCalories(Map<String, dynamic> activity) {
@@ -2788,16 +2831,16 @@ class _HealthActivityPageState extends State<HealthActivityPage> {
     );
   }
 
+  /// Step count. When a walking entry has distance but no steps, it is derived
+  /// as distance ÷ stride; failing that, estimated from duration.
   int _activitySteps(Map<String, dynamic> activity) {
-    final rawSteps = activity['steps'];
-    if (rawSteps is num && rawSteps > 0) return rawSteps.toInt();
-    final parsedSteps = int.tryParse(rawSteps?.toString() ?? '');
-    if (parsedSteps != null && parsedSteps > 0) return parsedSteps;
+    final raw = _rawSteps(activity);
+    if (raw > 0) return raw;
 
     if (_activityTypeLabel(activity) != _ActivityType.walking.label) return 0;
 
-    final distance = _activityDistance(activity);
-    if (distance != null && distance > 0) {
+    final distance = _storedDistance(activity);
+    if (distance != null) {
       return _estimatedWalkingSteps(distance: distance);
     }
 
@@ -2811,7 +2854,8 @@ class _HealthActivityPageState extends State<HealthActivityPage> {
 
   int _estimatedWalkingSteps({double? distance, int? duration}) {
     if (distance != null && distance > 0) {
-      return (distance * 1312).round();
+      // steps = distance ÷ stride length
+      return (distance * 1000 / _strideMeters).round();
     }
     if (duration != null && duration > 0) {
       return duration * 100;
@@ -3067,30 +3111,132 @@ class _HealthActivityPageState extends State<HealthActivityPage> {
     );
   }
 
+  String _averageTimeframeLabel() {
+    switch (_selectedTimeRange) {
+      case _ActivityTimeRange.day:
+        return 'today';
+      case _ActivityTimeRange.week:
+        return 'this week';
+      case _ActivityTimeRange.month:
+        return 'this month';
+      case _ActivityTimeRange.max:
+        return 'all time';
+    }
+  }
+
+  Widget _buildAverageSummary(String averageLabel) {
+    final color = _typeColor(_selectedType);
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: _surface,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: _border.withValues(alpha: 0.75)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.13),
+              borderRadius: BorderRadius.circular(13),
+              border: Border.all(color: color.withValues(alpha: 0.22)),
+            ),
+            child: Icon(
+              _isWalkingTab
+                  ? Icons.directions_walk_rounded
+                  : Icons.timer_outlined,
+              color: color,
+              size: 22,
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Average ${_averageTimeframeLabel()}',
+                  style: const TextStyle(
+                    color: _secondaryText,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  averageLabel,
+                  style: const TextStyle(
+                    color: _primaryText,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildActivityListSection(List<Map<String, dynamic>> activities) {
+    final averageLabel = _average(_pointsForRange(activities));
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          _activityListTitle(),
-          style: const TextStyle(
-            color: _primaryText,
-            fontSize: 18,
-            fontWeight: FontWeight.w900,
+        // Average for the chosen timeframe, above the collapsible log.
+        _buildAverageSummary(averageLabel),
+        const SizedBox(height: 16),
+        // Tappable dropdown header → reveals the individual logs.
+        Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: () => setState(() => _logsExpanded = !_logsExpanded),
+            borderRadius: BorderRadius.circular(12),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 6),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      '${_activityListTitle()} (${activities.length})',
+                      style: const TextStyle(
+                        color: _primaryText,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ),
+                  AnimatedRotation(
+                    turns: _logsExpanded ? 0.5 : 0,
+                    duration: const Duration(milliseconds: 180),
+                    child: const Icon(
+                      Icons.keyboard_arrow_down_rounded,
+                      color: _secondaryText,
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
         ),
-        const SizedBox(height: 14),
-        if (activities.isEmpty)
-          _buildActivityEmptyState()
-        else
-          Column(
-            children: [
-              for (var i = 0; i < activities.length; i++) ...[
-                _buildActivityListCard(activities[i]),
-                if (i < activities.length - 1) const SizedBox(height: 12),
+        if (_logsExpanded) ...[
+          const SizedBox(height: 12),
+          if (activities.isEmpty)
+            _buildActivityEmptyState()
+          else
+            Column(
+              children: [
+                for (var i = 0; i < activities.length; i++) ...[
+                  _buildActivityListCard(activities[i]),
+                  if (i < activities.length - 1) const SizedBox(height: 12),
+                ],
               ],
-            ],
-          ),
+            ),
+        ],
       ],
     );
   }
