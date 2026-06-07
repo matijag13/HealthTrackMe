@@ -11,5 +11,6 @@ interface UserRepository : JpaRepository<User, Long> {
     fun findByGoogleSub(googleSub: String): Optional<User>
     fun existsByEmail(email: String): Boolean
     fun findAllByIsActiveTrue(): List<User>
+    fun findByWeeklyReportEnabledTrueAndIsActiveTrue(): List<User>
 }
 

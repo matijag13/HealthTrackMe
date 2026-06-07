@@ -3,6 +3,7 @@ package com.healthwithme.api.service
 import com.healthwithme.api.dto.DetectiveInsightDto
 import com.healthwithme.api.model.*
 import com.healthwithme.api.repository.*
+import com.healthwithme.api.util.ExportUtil
 import com.fasterxml.jackson.databind.ObjectMapper
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value
@@ -315,6 +316,58 @@ class HealthDetectiveService(
     }
 
     /**
+     * Build a friendly, plain-text narrative health summary for the given period,
+     * used by the on-demand "email me a summary" action and the scheduled weekly
+     * report. Uses the AI model when available; otherwise returns the factual
+     * [ExportUtil] summary so the email always has useful content.
+     */
+    fun generateNarrativeSummary(userId: Long, daysBack: Int = 7): String {
+        val user = userRepository.findById(userId)
+            .orElseThrow { IllegalArgumentException("User not found") }
+
+        val endDate = LocalDate.now()
+        val startDate = endDate.minusDays(daysBack.toLong())
+
+        val entries = healthEntryRepository
+            .findByUserIdAndEntryDateBetween(userId, startDate, endDate)
+            .sortedByDescending { it.entryDate }
+
+        val activities = sportActivityRepository.findByUserId(userId).filter {
+            val d = runCatching { LocalDate.parse(it.activityDate) }.getOrNull()
+            d != null && !d.isBefore(startDate) && !d.isAfter(endDate)
+        }
+
+        val firstName = user.firstName.ifBlank { "there" }
+
+        if (entries.isEmpty() && activities.isEmpty()) {
+            return "Hi $firstName,\n\nWe didn't see any health data logged in the last " +
+                "$daysBack days, so there's nothing to summarise yet. Log a few days of vitals, " +
+                "sleep, or activity and your next report will have plenty to say.\n\n— HealthTrackMe"
+        }
+
+        val factualSummary = ExportUtil.generateHealthSummary(entries, activities)
+        if (apiKey.isBlank()) return factualSummary
+
+        return try {
+            val userMessage = buildString {
+                appendLine("User's first name: ${user.firstName}")
+                appendLine("Reporting period: last $daysBack days.")
+                appendLine()
+                appendLine("Here is the factual data for that period:")
+                appendLine(factualSummary)
+                appendLine()
+                appendLine("Write the health report email now.")
+            }
+            callClaude(WEEKLY_SUMMARY_SYSTEM_PROMPT, userMessage, 900)
+                .trim()
+                .ifBlank { factualSummary }
+        } catch (e: Exception) {
+            logger.warn("AI narrative summary failed, using factual summary: ${e.message}")
+            factualSummary
+        }
+    }
+
+    /**
      * Answer a free-form question about the user's recent health data using Claude.
      * Returns {"answer": ...}. Degrades gracefully when there's no data or no API
      * key, so the "ask your health data" feature never errors out.
@@ -421,6 +474,15 @@ class HealthDetectiveService(
                 "specific, and encouraging. If the data can't answer the question, say so plainly. " +
                 "Never give a medical diagnosis or prescribe treatment; suggest seeing a clinician for " +
                 "medical concerns."
+
+        private const val WEEKLY_SUMMARY_SYSTEM_PROMPT =
+            "You are a warm, encouraging health coach writing a short health summary email for a " +
+                "personal health tracking app. Use ONLY the data provided — never invent numbers. " +
+                "Write 3-4 short paragraphs in plain text (no markdown, no bullet symbols): greet the " +
+                "user by first name, highlight what went well with specific numbers, gently flag one " +
+                "area to improve with a concrete, doable tip, and close with encouragement. Keep it " +
+                "under ~200 words. Never give a medical diagnosis or prescribe treatment; suggest " +
+                "seeing a clinician for medical concerns. Sign off on its own line as '— HealthTrackMe'."
     }
 
     /**

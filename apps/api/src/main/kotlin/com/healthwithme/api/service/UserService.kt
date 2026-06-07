@@ -248,6 +248,21 @@ class UserService(
         }
     }
 
+    fun getWeeklyReport(id: Long): Boolean {
+        val user = userRepository.findById(id)
+            .orElseThrow { IllegalArgumentException("User not found") }
+        return user.weeklyReportEnabled
+    }
+
+    fun setWeeklyReport(id: Long, enabled: Boolean): Boolean {
+        val user = userRepository.findById(id)
+            .orElseThrow { IllegalArgumentException("User not found") }
+        userRepository.save(
+            user.copy(weeklyReportEnabled = enabled, updatedAt = LocalDateTime.now())
+        )
+        return enabled
+    }
+
     fun saveProfilePhoto(userId: Long, base64: String): UserDto {
         val user = userRepository.findById(userId).orElseThrow { IllegalArgumentException("User not found") }
         val updated = user.copy(profilePhotoBase64 = base64, updatedAt = LocalDateTime.now())

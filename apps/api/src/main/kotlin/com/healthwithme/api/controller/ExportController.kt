@@ -5,6 +5,7 @@ import com.healthwithme.api.repository.HealthEntryRepository
 import com.healthwithme.api.repository.SportActivityRepository
 import com.healthwithme.api.repository.UserRepository
 import com.healthwithme.api.service.EmailService
+import com.healthwithme.api.service.HealthDetectiveService
 import com.healthwithme.api.util.ExportUtil
 import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpStatus
@@ -19,7 +20,8 @@ class ExportController(
     private val healthEntryRepository: HealthEntryRepository,
     private val sportActivityRepository: SportActivityRepository,
     private val userRepository: UserRepository,
-    private val emailService: EmailService
+    private val emailService: EmailService,
+    private val healthDetectiveService: HealthDetectiveService
 ) {
 
     @GetMapping("/health-entries/csv/{userId}")
@@ -93,9 +95,9 @@ class ExportController(
                 )
 
             val email = user.email
-            val healthEntries = healthEntryRepository.findByUserId(userId)
-            val activities = sportActivityRepository.findByUserId(userId)
-            val summary = ExportUtil.generateHealthSummary(healthEntries, activities)
+            // AI-written narrative over the last 30 days (falls back to the
+            // factual summary when the model isn't configured).
+            val summary = healthDetectiveService.generateNarrativeSummary(userId, daysBack = 30)
 
             val sent = emailService.sendPlainText(
                 to = email,

@@ -808,6 +808,35 @@ class ApiService {
     }
   }
 
+  /// Whether the logged-in user has opted in to the weekly AI report email.
+  Future<bool> getWeeklyReport({int? userId}) async {
+    final id = userId ?? await ensureActiveUserId();
+    if (id == null) return false;
+    try {
+      final response = await _getRaw('/users/$id/weekly-report');
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        return _unwrapData(_decodeBody(response)) == true;
+      }
+    } catch (_) {}
+    return false;
+  }
+
+  /// Opt the user in/out of the weekly AI report email. Returns success.
+  Future<bool> setWeeklyReport(bool enabled, {int? userId}) async {
+    final id = userId ?? await ensureActiveUserId();
+    if (id == null) return false;
+    try {
+      final response = await _putRaw(
+        '/users/$id/weekly-report',
+        queryParameters: {'enabled': enabled.toString()},
+        headers: {'Content-Type': 'application/json'},
+      );
+      return response.statusCode >= 200 && response.statusCode < 300;
+    } catch (_) {
+      return false;
+    }
+  }
+
   /// Idempotent vitals sync — upserts the day's health entry so repeated
   /// foreground syncs update one row instead of creating duplicates.
   Future<bool> syncHealthVitals(

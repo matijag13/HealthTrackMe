@@ -355,14 +355,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             }
                           },
                         ),
-                        const _PreferenceToggleTile(
-                          prefKey: 'pref_weekly_report',
-                          defaultValue: false,
-                          icon: Icons.bar_chart_outlined,
-                          accent: _orange,
-                          title: 'Weekly health report',
-                          subtitle: 'Receive a weekly summary',
-                        ),
+                        const _WeeklyReportTile(),
                       ]),
                       const SizedBox(height: 22),
                       _section('Privacy / Account', [
@@ -1073,6 +1066,77 @@ class _DiaryReminderTileState extends State<_DiaryReminderTile> {
         activeThumbColor: _ProfileScreenState._accent,
       ),
       onTap: _pickTime,
+    );
+  }
+}
+
+/// Weekly AI report opt-in. State is stored server-side (so the backend's
+/// scheduled job knows who to email), loaded and saved over the API.
+class _WeeklyReportTile extends StatefulWidget {
+  const _WeeklyReportTile();
+
+  @override
+  State<_WeeklyReportTile> createState() => _WeeklyReportTileState();
+}
+
+class _WeeklyReportTileState extends State<_WeeklyReportTile> {
+  final ApiService _api = ApiService.instance;
+  bool _enabled = false;
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final value = await _api.getWeeklyReport();
+    if (mounted) {
+      setState(() {
+        _enabled = value;
+        _loading = false;
+      });
+    }
+  }
+
+  Future<void> _toggle(bool value) async {
+    HapticFeedback.selectionClick();
+    setState(() => _enabled = value);
+    final ok = await _api.setWeeklyReport(value);
+    if (!ok && mounted) {
+      setState(() => _enabled = !value); // revert on failure
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not update weekly report setting')),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return _ProfileTile(
+      icon: Icons.bar_chart_outlined,
+      accent: _ProfileScreenState._orange,
+      title: 'Weekly health report',
+      subtitle: 'AI summary emailed every Monday',
+      trailing: _loading
+          ? const SizedBox(
+              width: 40,
+              height: 24,
+              child: Center(
+                child: SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              ),
+            )
+          : Switch(
+              value: _enabled,
+              onChanged: _toggle,
+              activeThumbColor: _ProfileScreenState._accent,
+            ),
+      onTap: _loading ? null : () => _toggle(!_enabled),
     );
   }
 }

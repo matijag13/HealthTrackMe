@@ -65,6 +65,33 @@ class UserController(private val userService: UserService) {
         }
     }
 
+    @GetMapping("/{id}/weekly-report")
+    fun getWeeklyReport(@PathVariable id: Long): ResponseEntity<ApiResponse<Boolean>> {
+        return try {
+            val enabled = userService.getWeeklyReport(id)
+            ResponseEntity.ok().body(
+                ApiResponse(success = true, message = "OK", data = enabled)
+            )
+        } catch (e: Exception) {
+            ResponseEntity.notFound().build()
+        }
+    }
+
+    @PutMapping("/{id}/weekly-report")
+    fun setWeeklyReport(
+        @PathVariable id: Long,
+        @RequestParam enabled: Boolean
+    ): ResponseEntity<ApiResponse<Boolean>> {
+        return try {
+            val result = userService.setWeeklyReport(id, enabled)
+            ResponseEntity.ok().body(
+                ApiResponse(success = true, message = "Weekly report preference updated", data = result)
+            )
+        } catch (e: Exception) {
+            ResponseEntity.notFound().build()
+        }
+    }
+
     @DeleteMapping("/{id}")
     fun deleteUser(@PathVariable id: Long): ResponseEntity<ApiResponse<Boolean>> {
         return try {

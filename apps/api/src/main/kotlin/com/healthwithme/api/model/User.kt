@@ -99,7 +99,10 @@ data class User(
 
     @Column(columnDefinition = "TEXT")
     val profilePhotoBase64: String? = null,
-    
+
+    @Column(nullable = false, name = "weekly_report_enabled")
+    val weeklyReportEnabled: Boolean = false,
+
     @Column(nullable = false)
     val isActive: Boolean = true,
     
