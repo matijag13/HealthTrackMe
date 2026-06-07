@@ -116,20 +116,47 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> _testNotifications() async {
     final notifs = NotificationService.instance;
     final enabled = await notifs.requestPermissions();
-    if (!mounted) return;
-    if (!enabled) {
-      _showSnack(
-        'Notifications are blocked. Enable them in Settings → Apps → '
-        'HealthTrackMe → Notifications, then try again.',
-      );
-      return;
-    }
     await notifs.showTestNotification();
     await notifs.scheduleTestReminderIn(seconds: 30);
+    final canExact = await notifs.canScheduleExact();
+    final pending = await notifs.pendingCount();
+    final tzName = notifs.localTimezoneName();
     if (!mounted) return;
-    _showSnack(
-      'Sent one now and scheduled one in 30s. If the 30s one never arrives, '
-      'disable battery optimization for HealthTrackMe.',
+
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => _DarkDialog(
+        title: 'Notification test',
+        content: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Bumped on each notification fix so we can confirm the running
+            // build actually contains the latest changes.
+            _debugLine('Build', 'notif-fix-3 (receivers)'),
+            _debugLine('Notifications allowed', enabled ? 'Yes' : 'NO'),
+            _debugLine('Exact alarms allowed', canExact ? 'Yes' : 'NO'),
+            _debugLine('Timezone', tzName),
+            _debugLine('Scheduled (pending)', '$pending'),
+            const SizedBox(height: 12),
+            Text(
+              canExact
+                  ? 'Sent one now + one in 30s. If the 30s one never arrives, '
+                      'the OS (battery/Doze) is dropping it.'
+                  : 'Exact alarms are OFF — that is why scheduled reminders '
+                      'never fire. Allow "Alarms & reminders" for HealthTrackMe '
+                      'in Android settings.',
+              style: const TextStyle(color: _secondaryText, fontSize: 12),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
     );
   }
 

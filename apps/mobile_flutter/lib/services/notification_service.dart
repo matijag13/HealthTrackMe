@@ -82,6 +82,19 @@ class NotificationService {
     return (await android?.areNotificationsEnabled()) ?? false;
   }
 
+  /// Whether the OS allows this app to schedule EXACT alarms. When false,
+  /// reminders fall back to inexact alarms, which Android can delay or drop —
+  /// the usual reason scheduled reminders never arrive.
+  Future<bool> canScheduleExact() async {
+    if (kIsWeb || !Platform.isAndroid) return true;
+    final android = _plugin.resolvePlatformSpecificImplementation<
+        AndroidFlutterLocalNotificationsPlugin>();
+    return (await android?.canScheduleExactNotifications()) ?? false;
+  }
+
+  /// The resolved local timezone (should be e.g. Europe/Ljubljana, not UTC).
+  String localTimezoneName() => tz.local.name;
+
   /// (Re)request notification + exact-alarm permission. Returns whether
   /// notifications are enabled afterwards.
   Future<bool> requestPermissions() async {
