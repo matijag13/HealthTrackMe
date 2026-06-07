@@ -989,39 +989,32 @@ class _UnitsTileState extends State<_UnitsTile> {
     });
   }
 
-  Future<void> _pick(String key, List<String> options) async {
-    final chosen = await showDialog<String?>(
+  Future<void> _openUnitsDialog() async {
+    final result = await showDialog<_UnitsSelection>(
       context: context,
-      builder: (ctx) => _DarkDialog(
-        title: 'Choose unit',
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: options
-              .map(
-                (option) => ListTile(
-                  title: Text(
-                    option,
-                    style: const TextStyle(
-                      color: _ProfileScreenState._primaryText,
-                    ),
-                  ),
-                  onTap: () => Navigator.pop(ctx, option),
-                ),
-              )
-              .toList(),
+      builder: (ctx) => _UnitsDialog(
+        initial: _UnitsSelection(
+          weight: _weight,
+          height: _height,
+          distance: _distance,
+          temp: _temp,
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
-          ),
-        ],
       ),
     );
-    if (chosen != null) {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(key, chosen);
-      await _load();
+    if (result == null) return;
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('pref_weight_unit', result.weight);
+    await prefs.setString('pref_height_unit', result.height);
+    await prefs.setString('pref_distance_unit', result.distance);
+    await prefs.setString('pref_temp_unit', result.temp);
+    await _load();
+    if (mounted) {
+      _showProfileToast(
+        context,
+        'Units updated',
+        type: _ProfileToastType.success,
+      );
     }
   }
 
@@ -1035,11 +1028,341 @@ class _UnitsTileState extends State<_UnitsTile> {
       accent: _ProfileScreenState._accent,
       onTap: () async {
         HapticFeedback.lightImpact();
-        await _pick('pref_weight_unit', ['kg', 'lbs']);
-        await _pick('pref_height_unit', ['cm', 'ft']);
-        await _pick('pref_distance_unit', ['km', 'mi']);
-        await _pick('pref_temp_unit', ['C', 'F']);
+        await _openUnitsDialog();
       },
+    );
+  }
+}
+
+class _UnitsSelection {
+  final String weight;
+  final String height;
+  final String distance;
+  final String temp;
+
+  const _UnitsSelection({
+    required this.weight,
+    required this.height,
+    required this.distance,
+    required this.temp,
+  });
+}
+
+class _UnitsDialog extends StatefulWidget {
+  final _UnitsSelection initial;
+
+  const _UnitsDialog({required this.initial});
+
+  @override
+  State<_UnitsDialog> createState() => _UnitsDialogState();
+}
+
+class _UnitsDialogState extends State<_UnitsDialog> {
+  late String _weight;
+  late String _height;
+  late String _distance;
+  late String _temp;
+
+  @override
+  void initState() {
+    super.initState();
+    _weight = widget.initial.weight;
+    _height = widget.initial.height;
+    _distance = widget.initial.distance;
+    _temp = widget.initial.temp;
+  }
+
+  void _save() {
+    Navigator.pop(
+      context,
+      _UnitsSelection(
+        weight: _weight,
+        height: _height,
+        distance: _distance,
+        temp: _temp,
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      backgroundColor: _ProfileScreenState._surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+        side: const BorderSide(color: _ProfileScreenState._border),
+      ),
+      insetPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 24),
+      titlePadding: const EdgeInsets.fromLTRB(20, 18, 12, 0),
+      contentPadding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
+      actionsPadding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+      title: Row(
+        children: [
+          const Expanded(
+            child: Text(
+              'Units',
+              style: TextStyle(
+                color: _ProfileScreenState._primaryText,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ),
+          _DialogCloseButton(onTap: () => Navigator.pop(context)),
+        ],
+      ),
+      content: SizedBox(
+        width: double.maxFinite,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _UnitOptionRow(
+              icon: Icons.monitor_weight_outlined,
+              title: 'Weight',
+              value: _weight,
+              options: const ['kg', 'lbs'],
+              onChanged: (value) => setState(() => _weight = value),
+            ),
+            const SizedBox(height: 12),
+            _UnitOptionRow(
+              icon: Icons.height_rounded,
+              title: 'Height',
+              value: _height,
+              options: const ['cm', 'ft'],
+              onChanged: (value) => setState(() => _height = value),
+            ),
+            const SizedBox(height: 12),
+            _UnitOptionRow(
+              icon: Icons.route_outlined,
+              title: 'Distance',
+              value: _distance,
+              options: const ['km', 'mi'],
+              onChanged: (value) => setState(() => _distance = value),
+            ),
+            const SizedBox(height: 12),
+            _UnitOptionRow(
+              icon: Icons.thermostat_outlined,
+              title: 'Temperature',
+              value: _temp,
+              options: const ['C', 'F'],
+              onChanged: (value) => setState(() => _temp = value),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        SizedBox(
+          width: double.infinity,
+          height: 48,
+          child: FilledButton(
+            onPressed: _save,
+            style: FilledButton.styleFrom(
+              backgroundColor: _ProfileScreenState._accent,
+              foregroundColor: _ProfileScreenState._primaryText,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
+            ),
+            child: const Text('Save'),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _DialogCloseButton extends StatelessWidget {
+  final VoidCallback onTap;
+
+  const _DialogCloseButton({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(999),
+        child: Ink(
+          width: 40,
+          height: 40,
+          decoration: BoxDecoration(
+            color: _ProfileScreenState._surfaceAlt,
+            shape: BoxShape.circle,
+            border: Border.all(color: _ProfileScreenState._border),
+          ),
+          child: const Icon(
+            Icons.close_rounded,
+            color: _ProfileScreenState._primaryText,
+            size: 24,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _UnitOptionRow extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String value;
+  final List<String> options;
+  final ValueChanged<String> onChanged;
+
+  const _UnitOptionRow({
+    required this.icon,
+    required this.title,
+    required this.value,
+    required this.options,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final compact = constraints.maxWidth < 320;
+        final titleRow = Row(
+          children: [
+            _IconTile(icon: icon, color: _ProfileScreenState._accent),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                title,
+                style: const TextStyle(
+                  color: _ProfileScreenState._primaryText,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+          ],
+        );
+        final control = _UnitSegmentedControl(
+          value: value,
+          options: options,
+          onChanged: onChanged,
+        );
+
+        return Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: _ProfileScreenState._surfaceAlt,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: _ProfileScreenState._border),
+          ),
+          child: compact
+              ? Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    titleRow,
+                    const SizedBox(height: 10),
+                    Align(alignment: Alignment.centerRight, child: control),
+                  ],
+                )
+              : Row(
+                  children: [
+                    _IconTile(icon: icon, color: _ProfileScreenState._accent),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        title,
+                        style: const TextStyle(
+                          color: _ProfileScreenState._primaryText,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    control,
+                  ],
+                ),
+        );
+      },
+    );
+  }
+}
+
+class _UnitSegmentedControl extends StatelessWidget {
+  final String value;
+  final List<String> options;
+  final ValueChanged<String> onChanged;
+
+  const _UnitSegmentedControl({
+    required this.value,
+    required this.options,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(3),
+      decoration: BoxDecoration(
+        color: _ProfileScreenState._bg,
+        borderRadius: BorderRadius.circular(13),
+        border: Border.all(
+          color: _ProfileScreenState._border.withValues(alpha: 0.8),
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          for (final option in options)
+            _UnitSegment(
+              label: option,
+              selected: option == value,
+              onTap: () => onChanged(option),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _UnitSegment extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _UnitSegment({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(10),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 160),
+          width: 48,
+          height: 34,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: selected
+                ? _ProfileScreenState._accent.withValues(alpha: 0.2)
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color:
+                  selected ? _ProfileScreenState._accent : Colors.transparent,
+            ),
+          ),
+          child: Text(
+            label,
+            style: TextStyle(
+              color: selected
+                  ? _ProfileScreenState._primaryText
+                  : _ProfileScreenState._secondaryText,
+              fontSize: 13,
+              fontWeight: selected ? FontWeight.w900 : FontWeight.w700,
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
@@ -1054,29 +1377,8 @@ class _StartOfWeekTile extends StatelessWidget {
     if (!context.mounted) return;
     final chosen = await showDialog<String?>(
       context: context,
-      builder: (ctx) => _DarkDialog(
-        title: 'Start of week',
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              title: const Text('Monday',
-                  style: TextStyle(color: _ProfileScreenState._primaryText)),
-              onTap: () => Navigator.pop(ctx, 'Monday'),
-            ),
-            ListTile(
-              title: const Text('Sunday',
-                  style: TextStyle(color: _ProfileScreenState._primaryText)),
-              onTap: () => Navigator.pop(ctx, 'Sunday'),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
-          ),
-        ],
+      builder: (ctx) => _StartOfWeekDialog(
+        initial: prefs.getString('pref_start_of_week') ?? 'Monday',
       ),
     );
     if (chosen != null) {
@@ -1093,6 +1395,200 @@ class _StartOfWeekTile extends StatelessWidget {
       title: 'Start of week',
       subtitle: 'Monday or Sunday',
       onTap: () => _pick(context),
+    );
+  }
+}
+
+class _StartOfWeekDialog extends StatefulWidget {
+  final String initial;
+
+  const _StartOfWeekDialog({required this.initial});
+
+  @override
+  State<_StartOfWeekDialog> createState() => _StartOfWeekDialogState();
+}
+
+class _StartOfWeekDialogState extends State<_StartOfWeekDialog> {
+  late String _selected;
+
+  @override
+  void initState() {
+    super.initState();
+    _selected = widget.initial;
+  }
+
+  void _save() {
+    Navigator.pop(context, _selected);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      backgroundColor: _ProfileScreenState._surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+        side: const BorderSide(color: _ProfileScreenState._border),
+      ),
+      insetPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 24),
+      titlePadding: const EdgeInsets.fromLTRB(20, 18, 12, 0),
+      contentPadding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
+      actionsPadding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+      title: Row(
+        children: [
+          const Expanded(
+            child: Text(
+              'Start of week',
+              style: TextStyle(
+                color: _ProfileScreenState._primaryText,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ),
+          _DialogCloseButton(onTap: () => Navigator.pop(context)),
+        ],
+      ),
+      content: _WeekStartPicker(
+        value: _selected,
+        onChanged: (value) => setState(() => _selected = value),
+      ),
+      actions: [
+        SizedBox(
+          width: double.infinity,
+          height: 48,
+          child: FilledButton(
+            onPressed: _save,
+            style: FilledButton.styleFrom(
+              backgroundColor: _ProfileScreenState._accent,
+              foregroundColor: _ProfileScreenState._primaryText,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
+            ),
+            child: const Text('Save'),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _WeekStartPicker extends StatelessWidget {
+  final String value;
+  final ValueChanged<String> onChanged;
+
+  const _WeekStartPicker({
+    required this.value,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: _ProfileScreenState._surfaceAlt,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: _ProfileScreenState._border),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _WeekStartOption(
+            icon: Icons.calendar_view_week_outlined,
+            title: 'Monday',
+            subtitle: 'Use the ISO week format',
+            selected: value == 'Monday',
+            onTap: () => onChanged('Monday'),
+          ),
+          const SizedBox(height: 10),
+          _WeekStartOption(
+            icon: Icons.calendar_month_outlined,
+            title: 'Sunday',
+            subtitle: 'Use the US week format',
+            selected: value == 'Sunday',
+            onTap: () => onChanged('Sunday'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _WeekStartOption extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _WeekStartOption({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final accent = selected
+        ? _ProfileScreenState._accent
+        : _ProfileScreenState._secondaryText;
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(14),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 160),
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: selected
+                ? _ProfileScreenState._accent.withValues(alpha: 0.14)
+                : _ProfileScreenState._surface,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: selected
+                  ? _ProfileScreenState._accent
+                  : _ProfileScreenState._border,
+            ),
+          ),
+          child: Row(
+            children: [
+              _IconTile(icon: icon, color: accent),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        color: _ProfileScreenState._primaryText,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      style: const TextStyle(
+                        color: _ProfileScreenState._secondaryText,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 10),
+              Icon(
+                selected ? Icons.check_circle_rounded : Icons.circle_outlined,
+                color: accent,
+                size: 22,
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
