@@ -939,9 +939,17 @@ class _ChangePasswordSheetState extends State<_ChangePasswordSheet> {
     return null;
   }
 
+  void _clearServerError() {
+    if (_error == null) return;
+    setState(() => _error = null);
+  }
+
   Future<void> _save() async {
     FocusScope.of(context).unfocus();
-    if (!_formKey.currentState!.validate()) return;
+    if (!_formKey.currentState!.validate()) {
+      _clearServerError();
+      return;
+    }
 
     setState(() {
       _saving = true;
@@ -1004,12 +1012,22 @@ class _ChangePasswordSheetState extends State<_ChangePasswordSheet> {
                           ),
                         ),
                       ),
-                      IconButton(
-                        onPressed:
-                            _saving ? null : () => Navigator.pop(context),
-                        icon: const Icon(
-                          Icons.close_rounded,
-                          color: _ProfileScreenState._secondaryText,
+                      Material(
+                        color: Colors.transparent,
+                        child: IconButton(
+                          onPressed:
+                              _saving ? null : () => Navigator.pop(context),
+                          icon: const Icon(
+                            Icons.close_rounded,
+                            color: _ProfileScreenState._primaryText,
+                          ),
+                          style: IconButton.styleFrom(
+                            backgroundColor: _ProfileScreenState._surfaceAlt,
+                            side: BorderSide(
+                              color: _ProfileScreenState._border
+                                  .withValues(alpha: 0.95),
+                            ),
+                          ),
                         ),
                       ),
                     ],
@@ -1029,6 +1047,7 @@ class _ChangePasswordSheetState extends State<_ChangePasswordSheet> {
                     visible: _showCurrent,
                     onToggle: () =>
                         setState(() => _showCurrent = !_showCurrent),
+                    onChanged: (_) => _clearServerError(),
                     validator: _requiredPassword,
                   ),
                   const SizedBox(height: 12),
@@ -1037,6 +1056,7 @@ class _ChangePasswordSheetState extends State<_ChangePasswordSheet> {
                     label: 'New password',
                     visible: _showNew,
                     onToggle: () => setState(() => _showNew = !_showNew),
+                    onChanged: (_) => _clearServerError(),
                     validator: _newPasswordValidator,
                   ),
                   const SizedBox(height: 12),
@@ -1046,33 +1066,13 @@ class _ChangePasswordSheetState extends State<_ChangePasswordSheet> {
                     visible: _showConfirm,
                     onToggle: () =>
                         setState(() => _showConfirm = !_showConfirm),
+                    onChanged: (_) => _clearServerError(),
                     validator: _confirmPasswordValidator,
                     onSubmitted: (_) => _saving ? null : _save(),
                   ),
                   if (_error != null) ...[
                     const SizedBox(height: 14),
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color:
-                            _ProfileScreenState._danger.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(
-                          color: _ProfileScreenState._danger
-                              .withValues(alpha: 0.35),
-                        ),
-                      ),
-                      child: Text(
-                        _error!,
-                        style: const TextStyle(
-                          color: _ProfileScreenState._danger,
-                          fontSize: 13,
-                          height: 1.35,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
+                    _PasswordErrorAlert(message: _error!),
                   ],
                   const SizedBox(height: 18),
                   SizedBox(
@@ -1117,6 +1117,7 @@ class _PasswordField extends StatelessWidget {
   final bool visible;
   final VoidCallback onToggle;
   final String? Function(String?) validator;
+  final ValueChanged<String>? onChanged;
   final ValueChanged<String>? onSubmitted;
 
   const _PasswordField({
@@ -1125,6 +1126,7 @@ class _PasswordField extends StatelessWidget {
     required this.visible,
     required this.onToggle,
     required this.validator,
+    this.onChanged,
     this.onSubmitted,
   });
 
@@ -1134,6 +1136,7 @@ class _PasswordField extends StatelessWidget {
       controller: controller,
       obscureText: !visible,
       validator: validator,
+      onChanged: onChanged,
       onFieldSubmitted: onSubmitted,
       textInputAction:
           onSubmitted == null ? TextInputAction.next : TextInputAction.done,
@@ -1166,6 +1169,75 @@ class _PasswordField extends StatelessWidget {
           borderRadius: BorderRadius.circular(14),
           borderSide: const BorderSide(color: _ProfileScreenState._danger),
         ),
+      ),
+    );
+  }
+}
+
+class _PasswordErrorAlert extends StatelessWidget {
+  final String message;
+
+  const _PasswordErrorAlert({required this.message});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: _ProfileScreenState._surfaceAlt,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: _ProfileScreenState._danger.withValues(alpha: 0.45),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.22),
+            blurRadius: 18,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Stack(
+        children: [
+          Positioned(
+            left: 0,
+            top: 0,
+            bottom: 0,
+            child: Container(
+              width: 4,
+              decoration: const BoxDecoration(
+                color: _ProfileScreenState._danger,
+                borderRadius: BorderRadius.horizontal(
+                  left: Radius.circular(14),
+                ),
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 12, 12, 12),
+            child: Row(
+              children: [
+                const Icon(
+                  Icons.error_outline_rounded,
+                  color: _ProfileScreenState._danger,
+                  size: 18,
+                ),
+                const SizedBox(width: 9),
+                Expanded(
+                  child: Text(
+                    message,
+                    style: const TextStyle(
+                      color: _ProfileScreenState._primaryText,
+                      fontSize: 13,
+                      height: 1.35,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
