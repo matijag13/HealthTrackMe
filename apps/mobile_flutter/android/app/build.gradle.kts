@@ -43,6 +43,12 @@ android {
     buildTypes {
         release {
             signingConfig = signingConfigs.getByName("release")
+            // R8 obfuscation stripped the generics Signature that
+            // flutter_local_notifications' Gson TypeToken relies on, crashing the
+            // scheduled-notification receiver with "Missing type parameter".
+            // Disable shrinking/obfuscation for reliable scheduled notifications.
+            isMinifyEnabled = false
+            isShrinkResources = false
             firebaseAppDistribution {
                 appId = "1:46567361839:android:6bfd89275b8329a82ae5da"
                 releaseNotes = "Latest build from develop branch"
