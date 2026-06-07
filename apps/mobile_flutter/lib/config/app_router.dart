@@ -141,11 +141,6 @@ GoRouter createAppRouter() {
                     builder: (context, state) => const ProfileEditRoutePage(),
                   ),
                   GoRoute(
-                    path: 'settings',
-                    name: 'profileSettings',
-                    builder: (context, state) => const ProfileSettingsPage(),
-                  ),
-                  GoRoute(
                     path: 'medical-history',
                     name: 'profileMedicalHistory',
                     builder: (context, state) =>
