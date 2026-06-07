@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/api_service.dart';
 import '../services/notification_service.dart';
+import '../widgets/dark_time_picker.dart';
 import '../models/models.dart';
 import 'router_pages.dart';
 
@@ -1505,27 +1506,10 @@ class _MedicineEditSheetState extends State<MedicineEditSheet> {
   }
 
   Future<void> _addReminderTime() async {
-    final picked = await showTimePicker(
+    final picked = await showDarkTimePicker(
       context: context,
       initialTime: const TimeOfDay(hour: 8, minute: 0),
-      // Type the numbers (HH:MM + AM/PM) instead of the round clock dial.
-      initialEntryMode: TimePickerEntryMode.inputOnly,
-      builder: (context, child) => Theme(
-        data: Theme.of(context).copyWith(
-          colorScheme: const ColorScheme.dark(
-            primary: Color(0xFF5A8CFF),
-            onPrimary: Colors.white,
-            surface: Color(0xFF0D0F14),
-            onSurface: Color(0xFFF7F8FA),
-          ),
-        ),
-        // Force the familiar 12-hour AM/PM layout (noon = 12:00 PM), regardless
-        // of the device's 24-hour system setting.
-        child: MediaQuery(
-          data: MediaQuery.of(context).copyWith(alwaysUse24HourFormat: false),
-          child: child!,
-        ),
-      ),
+      title: 'Enter time',
     );
     if (picked == null || !mounted) return;
     final exists = _reminderTimes

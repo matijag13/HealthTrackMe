@@ -9,6 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/models.dart';
 import '../services/api_service.dart';
 import '../services/notification_service.dart';
+import '../widgets/dark_time_picker.dart';
 import '../widgets/export_sheet.dart';
 import 'edit_profile_screen.dart';
 
@@ -1672,14 +1673,10 @@ class _DiaryReminderTileState extends State<_DiaryReminderTile> {
   }
 
   Future<void> _pickTime() async {
-    final picked = await showTimePicker(
+    final picked = await showDarkTimePicker(
       context: context,
       initialTime: _time,
-      initialEntryMode: TimePickerEntryMode.inputOnly,
-      builder: (context, child) => MediaQuery(
-        data: MediaQuery.of(context).copyWith(alwaysUse24HourFormat: false),
-        child: child!,
-      ),
+      title: 'Enter time',
     );
     if (picked != null) {
       final prefs = await SharedPreferences.getInstance();
