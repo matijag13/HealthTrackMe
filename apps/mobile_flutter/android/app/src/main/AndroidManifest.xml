@@ -1,6 +1,11 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+    <!-- USE_EXACT_ALARM is auto-granted for alarm/reminder apps (Android 13+), so
+         medicine reminders fire on time without the user opening system settings. -->
+    <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- Reschedule reminders after a device reboot. -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.ACTIVITY_RECOGNITION" />
 
     <!-- Health Connect permissions -->

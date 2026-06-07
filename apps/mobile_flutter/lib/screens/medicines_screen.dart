@@ -1366,14 +1366,24 @@ class MedicineEditSheet extends StatefulWidget {
 }
 
 class _MedicineEditSheetState extends State<MedicineEditSheet> {
+  static const _frequencyOptions = <String>[
+    'Once daily',
+    'Twice daily',
+    'Three times daily',
+    'Four times daily',
+    'Every other day',
+    'Once weekly',
+    'As needed',
+  ];
+
   final _formKey = GlobalKey<FormState>();
   final _name = TextEditingController();
   final _dosage = TextEditingController();
-  final _frequency = TextEditingController();
   final _reason = TextEditingController();
   final _sideEffects = TextEditingController();
   DateTime? _start;
   DateTime? _end;
+  String? _selectedFrequency;
   final List<TimeOfDay> _reminderTimes = [];
   bool _saving = false;
 
@@ -1384,7 +1394,7 @@ class _MedicineEditSheetState extends State<MedicineEditSheet> {
     if (m != null) {
       _name.text = m.name;
       _dosage.text = m.dosage ?? '';
-      _frequency.text = m.frequency ?? '';
+      _selectedFrequency = m.frequency;
       _reason.text = m.reason ?? '';
       _sideEffects.text = m.sideEffects ?? '';
       _start = m.startDate;
@@ -1419,7 +1429,6 @@ class _MedicineEditSheetState extends State<MedicineEditSheet> {
   void dispose() {
     _name.dispose();
     _dosage.dispose();
-    _frequency.dispose();
     _reason.dispose();
     _sideEffects.dispose();
     super.dispose();
@@ -1436,7 +1445,7 @@ class _MedicineEditSheetState extends State<MedicineEditSheet> {
       id: 0,
       name: _name.text.trim(),
       dosage: _dosage.text.trim().isEmpty ? null : _dosage.text.trim(),
-      frequency: _frequency.text.trim().isEmpty ? null : _frequency.text.trim(),
+      frequency: _selectedFrequency,
       reason: _reason.text.trim().isEmpty ? null : _reason.text.trim(),
       startDate: _start,
       endDate: _end,
@@ -1574,8 +1583,11 @@ class _MedicineEditSheetState extends State<MedicineEditSheet> {
   Future<void> _pickDate(bool start) async {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
+    // End/start dates may be in the future (e.g. a course that ends next month).
+    final lastSelectable = DateTime(now.year + 5, now.month, now.day);
     final selectedDate = start ? (_start ?? today) : (_end ?? today);
-    final initialDate = selectedDate.isAfter(today) ? today : selectedDate;
+    final initialDate =
+        selectedDate.isAfter(lastSelectable) ? lastSelectable : selectedDate;
     final picked = await showDialog<DateTime>(
       context: context,
       builder: (dialogContext) {
@@ -1693,7 +1705,7 @@ class _MedicineEditSheetState extends State<MedicineEditSheet> {
                       child: CalendarDatePicker(
                         initialDate: initialDate,
                         firstDate: DateTime(2000),
-                        lastDate: today,
+                        lastDate: lastSelectable,
                         currentDate: today,
                         onDateChanged: (date) {
                           Navigator.of(dialogContext).pop<DateTime>(date);
@@ -1864,13 +1876,32 @@ class _MedicineEditSheetState extends State<MedicineEditSheet> {
                           ),
                           const SizedBox(width: 12),
                           Expanded(
-                            child: TextFormField(
-                              controller: _frequency,
+                            child: DropdownButtonFormField<String>(
+                              initialValue: _selectedFrequency,
+                              isExpanded: true,
+                              dropdownColor: _MedicinesScreenState._surfaceSoft,
+                              iconEnabledColor: const Color(0xFF94A3B8),
                               style: const TextStyle(color: Color(0xFFF7F8FA)),
                               decoration: const InputDecoration(
                                 labelText: 'Frequency',
-                                hintText: 'e.g. Once daily',
                               ),
+                              hint: const Text(
+                                'Select',
+                                style: TextStyle(color: Color(0xFF94A3B8)),
+                              ),
+                              items: [
+                                if (_selectedFrequency != null &&
+                                    !_frequencyOptions
+                                        .contains(_selectedFrequency))
+                                  DropdownMenuItem(
+                                    value: _selectedFrequency,
+                                    child: Text(_selectedFrequency!),
+                                  ),
+                                for (final f in _frequencyOptions)
+                                  DropdownMenuItem(value: f, child: Text(f)),
+                              ],
+                              onChanged: (v) =>
+                                  setState(() => _selectedFrequency = v),
                             ),
                           ),
                         ]),

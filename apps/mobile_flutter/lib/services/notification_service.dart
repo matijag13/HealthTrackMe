@@ -149,37 +149,67 @@ class NotificationService {
       final notifId = medicineId * 100 + index;
       index++;
 
-      try {
-        final now = tz.TZDateTime.now(tz.local);
-        var scheduled =
-            tz.TZDateTime(tz.local, now.year, now.month, now.day, hour, minute);
-        if (scheduled.isBefore(now)) {
-          scheduled = scheduled.add(const Duration(days: 1));
-        }
+      final now = tz.TZDateTime.now(tz.local);
+      var scheduled =
+          tz.TZDateTime(tz.local, now.year, now.month, now.day, hour, minute);
+      if (scheduled.isBefore(now)) {
+        scheduled = scheduled.add(const Duration(days: 1));
+      }
 
-        await _plugin.zonedSchedule(
-          notifId,
-          medicineName,
-          'Take $dosage',
-          scheduled,
-          const NotificationDetails(
-            android: AndroidNotificationDetails(
-              _medicineChannelId,
-              _medicineChannelName,
-              channelDescription: _medicineChannelDesc,
-              importance: Importance.high,
-              priority: Priority.high,
-            ),
-            iOS: DarwinNotificationDetails(),
-          ),
-          androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-          uiLocalNotificationDateInterpretation:
-              UILocalNotificationDateInterpretation.absoluteTime,
-          matchDateTimeComponents: DateTimeComponents.time, // daily
-          payload: 'medicine_$medicineId',
-        );
-      } catch (e) {
-        debugPrint('Error scheduling medicine reminder ($notifId): $e');
+      await _zonedScheduleDailyWithFallback(
+        id: notifId,
+        title: medicineName,
+        body: 'Take $dosage',
+        when: scheduled,
+        payload: 'medicine_$medicineId',
+      );
+    }
+  }
+
+  static const NotificationDetails _medicineDetails = NotificationDetails(
+    android: AndroidNotificationDetails(
+      _medicineChannelId,
+      _medicineChannelName,
+      channelDescription: _medicineChannelDesc,
+      importance: Importance.high,
+      priority: Priority.high,
+    ),
+    iOS: DarwinNotificationDetails(),
+  );
+
+  /// Schedule a daily-repeating notification. Tries an exact alarm first; if the
+  /// OS denies exact alarms (Android 12+ without the permission granted), falls
+  /// back to an inexact one so the reminder still fires (within a few minutes).
+  Future<void> _zonedScheduleDailyWithFallback({
+    required int id,
+    required String title,
+    required String body,
+    required tz.TZDateTime when,
+    required String payload,
+  }) async {
+    Future<void> schedule(AndroidScheduleMode mode) {
+      return _plugin.zonedSchedule(
+        id,
+        title,
+        body,
+        when,
+        _medicineDetails,
+        androidScheduleMode: mode,
+        uiLocalNotificationDateInterpretation:
+            UILocalNotificationDateInterpretation.absoluteTime,
+        matchDateTimeComponents: DateTimeComponents.time, // daily
+        payload: payload,
+      );
+    }
+
+    try {
+      await schedule(AndroidScheduleMode.exactAllowWhileIdle);
+    } catch (e) {
+      debugPrint('Exact alarm failed for $id ($e); retrying inexact');
+      try {
+        await schedule(AndroidScheduleMode.inexactAllowWhileIdle);
+      } catch (e2) {
+        debugPrint('Error scheduling medicine reminder ($id): $e2');
       }
     }
   }

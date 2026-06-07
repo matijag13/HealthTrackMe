@@ -10,6 +10,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/models.dart';
 import '../services/api_service.dart';
+import '../services/sync_events.dart';
 import '../widgets/widgets.dart';
 import '../widgets/export_sheet.dart';
 import '../utils/health_utils.dart';
@@ -615,6 +616,22 @@ class _HealthVitalsPageState extends State<HealthVitalsPage> {
   void initState() {
     super.initState();
     _snapshotFuture = _loadHealthSnapshot();
+    // Refresh automatically when a background/foreground sync lands new data.
+    SyncEvents.instance.revision.addListener(_onSynced);
+  }
+
+  @override
+  void dispose() {
+    SyncEvents.instance.revision.removeListener(_onSynced);
+    super.dispose();
+  }
+
+  void _onSynced() {
+    if (mounted) {
+      setState(() {
+        _snapshotFuture = _loadHealthSnapshot();
+      });
+    }
   }
 
   void _retry() {
@@ -1366,10 +1383,10 @@ class _HealthVitalsPageState extends State<HealthVitalsPage> {
           borderRadius: BorderRadius.circular(20),
           border: Border.all(color: _border.withValues(alpha: 0.75)),
         ),
-        child: const Text(
-          'No sleep data for this period',
+        child: Text(
+          'No ${_vitalsMetricToastLabel(_selectedMetric).toLowerCase()} data for this period',
           textAlign: TextAlign.center,
-          style: TextStyle(
+          style: const TextStyle(
             color: _primaryText,
             fontSize: 15,
             fontWeight: FontWeight.w800,
@@ -2627,6 +2644,18 @@ class _HealthActivityPageState extends State<HealthActivityPage> {
   void initState() {
     super.initState();
     _activitiesFuture = _loadActivities();
+    // Auto-refresh when a sync uploads new activities/steps.
+    SyncEvents.instance.revision.addListener(_onSynced);
+  }
+
+  @override
+  void dispose() {
+    SyncEvents.instance.revision.removeListener(_onSynced);
+    super.dispose();
+  }
+
+  void _onSynced() {
+    if (mounted) _refreshActivities();
   }
 
   Future<List<Map<String, dynamic>>> _loadActivities() async {
@@ -3356,13 +3385,35 @@ class _HealthActivityPageState extends State<HealthActivityPage> {
     );
   }
 
-  /// Build a bar-chart showing daily step totals for the last 7 days.
+  /// Earliest day (clamped) that has walking step data, for the "Max" range.
+  int _maxWalkingSpanDays(List<Map<String, dynamic>> all, DateTime today) {
+    DateTime? earliest;
+    for (final a in all) {
+      if (_activityTypeLabel(a) != _ActivityType.walking.label) continue;
+      if (_activitySteps(a) <= 0) continue;
+      final d = _activityDate(a);
+      if (d == null) continue;
+      final day = DateTime(d.year, d.month, d.day);
+      if (earliest == null || day.isBefore(earliest)) earliest = day;
+    }
+    if (earliest == null) return 7;
+    return (today.difference(earliest).inDays + 1).clamp(7, 90);
+  }
+
+  /// Build a bar-chart showing daily step totals for the selected time range.
   Widget _buildStepsBarChart(List<Map<String, dynamic>> allActivities) {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     const goal = 10000;
 
-    // Aggregate steps per day for the last 7 days.
+    final dayCount = switch (_selectedTimeRange) {
+      _ActivityTimeRange.day => 1,
+      _ActivityTimeRange.week => 7,
+      _ActivityTimeRange.month => 30,
+      _ActivityTimeRange.max => _maxWalkingSpanDays(allActivities, today),
+    };
+
+    // Aggregate steps per day across the range.
     //
     // Two kinds of walking entries can exist:
     //   • No duration  → a "daily total" synced from Health Connect.
@@ -3372,7 +3423,8 @@ class _HealthActivityPageState extends State<HealthActivityPage> {
     //     Sum these because each is a distinct activity.
     //
     // Final value = max(best daily-total, sum of sessions).
-    final days = List.generate(7, (i) => today.subtract(Duration(days: 6 - i)));
+    final days = List.generate(
+        dayCount, (i) => today.subtract(Duration(days: dayCount - 1 - i)));
     final dailyMax = <DateTime, int>{}; // best "total" entry per day
     final sessionSum = <DateTime, int>{}; // sum of session entries per day
     for (final a in allActivities) {
@@ -3468,10 +3520,19 @@ class _HealthActivityPageState extends State<HealthActivityPage> {
                       }
                       final day = days[i];
                       final isToday = day == today;
+                      // Thin labels when there are many bars so they don't overlap.
+                      final labelEvery = (days.length / 6).ceil();
+                      final showLabel = days.length <= 7 ||
+                          i == days.length - 1 ||
+                          i % labelEvery == 0;
+                      if (!showLabel) return const SizedBox.shrink();
+                      final text = days.length <= 7
+                          ? DateFormat('E').format(day).substring(0, 2)
+                          : DateFormat('d/M').format(day);
                       return SideTitleWidget(
                         axisSide: meta.axisSide,
                         child: Text(
-                          DateFormat('E').format(day).substring(0, 2),
+                          text,
                           style: TextStyle(
                             color: isToday ? _primaryText : _secondaryText,
                             fontSize: 11,
@@ -3501,8 +3562,15 @@ class _HealthActivityPageState extends State<HealthActivityPage> {
                     barRods: [
                       BarChartRodData(
                         toY: (stepsByDay[days[i]] ?? 0).toDouble(),
-                        width: 16,
-                        borderRadius: BorderRadius.circular(6),
+                        width: days.length <= 7
+                            ? 16.0
+                            : days.length <= 14
+                                ? 11.0
+                                : days.length <= 31
+                                    ? 6.0
+                                    : 3.0,
+                        borderRadius:
+                            BorderRadius.circular(days.length <= 14 ? 6 : 2),
                         color: days[i] == today
                             ? typeColor
                             : typeColor.withValues(alpha: 0.4),
@@ -3812,13 +3880,13 @@ class _HealthActivityPageState extends State<HealthActivityPage> {
                         children: [
                           _activitySelector(),
                           const SizedBox(height: 16),
-                          // Walking tab: always show 7-day step bar chart
-                          // Other tabs: show time-range selector + line chart
+                          _timeRangeSelector(),
+                          const SizedBox(height: 16),
+                          // Walking tab: step bar chart for the selected range.
+                          // Other tabs: line chart + stats.
                           if (_isWalkingTab)
                             _buildStepsBarChart(activities)
                           else ...[
-                            _timeRangeSelector(),
-                            const SizedBox(height: 16),
                             _chartCard(chartData, points),
                             const SizedBox(height: 16),
                             _stats(points),
@@ -4565,6 +4633,22 @@ class _HealthSleepPageState extends State<HealthSleepPage> {
   void initState() {
     super.initState();
     _snapshotFuture = _loadHealthSnapshot();
+    // Refresh automatically when a background/foreground sync lands new data.
+    SyncEvents.instance.revision.addListener(_onSynced);
+  }
+
+  @override
+  void dispose() {
+    SyncEvents.instance.revision.removeListener(_onSynced);
+    super.dispose();
+  }
+
+  void _onSynced() {
+    if (mounted) {
+      setState(() {
+        _snapshotFuture = _loadHealthSnapshot();
+      });
+    }
   }
 
   void _retry() {

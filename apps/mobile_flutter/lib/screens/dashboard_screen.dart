@@ -1073,7 +1073,7 @@ class _DashboardScreenState extends State<DashboardScreen>
       onSelected: (value) async {
         switch (value) {
           case 'profile':
-            context.pushNamed('profileEdit');
+            context.pushNamed('profile');
             break;
           case 'signOut':
             await _signOut();
