@@ -312,141 +312,155 @@ class _WearablesScreenState extends State<WearablesScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: _bg,
-      appBar: AppBar(
-        backgroundColor: _bg,
-        elevation: 0,
-        leadingWidth: 72,
-        leading: Padding(
-          padding: const EdgeInsets.only(left: 18),
-          child: Material(
-            color: Colors.transparent,
-            child: InkWell(
-              onTap: () => Navigator.pop(context),
-              borderRadius: BorderRadius.circular(15),
-              child: Ink(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: _surface,
-                  borderRadius: BorderRadius.circular(15),
-                  border: Border.all(color: _border),
-                ),
-                child: const Icon(
-                  Icons.arrow_back,
-                  color: _primaryText,
-                  size: 21,
-                ),
-              ),
-            ),
-          ),
-        ),
-        title: const Row(
-          mainAxisSize: MainAxisSize.min,
+      body: SafeArea(
+        child: Column(
           children: [
-            AppLogo(size: 24),
-            SizedBox(width: 10),
-            Text(
-              'Wearable Devices',
-              style: TextStyle(
-                color: _primaryText,
-                fontWeight: FontWeight.w800,
-              ),
+            _topBar(),
+            Expanded(
+              child: _loading
+                  ? const Center(
+                      child: CircularProgressIndicator(color: _accent),
+                    )
+                  : RefreshIndicator(
+                      color: _accent,
+                      onRefresh: _load,
+                      child: ListView(
+                        padding: const EdgeInsets.all(20),
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        children: [
+                          // Sync button
+                          _SyncButton(syncing: _syncing, onSync: _sync),
+                          const SizedBox(height: 10),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                _lastSyncMs == null
+                                    ? Icons.sync_disabled_rounded
+                                    : Icons.check_circle_rounded,
+                                size: 14,
+                                color: _lastSyncMs == null
+                                    ? _secondaryText
+                                    : _green,
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                _lastSyncLabel,
+                                style: const TextStyle(
+                                  color: _secondaryText,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 24),
+
+                          // Devices section
+                          const Text(
+                            'CONNECTED DEVICES',
+                            style: TextStyle(
+                              color: _secondaryText,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 0.8,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          if (_devices.isEmpty)
+                            _EmptyDevices(onAdd: _addDevice)
+                          else
+                            ..._devices.map((d) => Padding(
+                                  padding: const EdgeInsets.only(bottom: 12),
+                                  child: _DeviceCard(
+                                    device: d,
+                                    onRemove: () => _removeDevice(d),
+                                  ),
+                                )),
+                          const SizedBox(height: 24),
+
+                          // Info card
+                          Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: _surfaceAlt,
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(color: _border),
+                            ),
+                            child: const Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(children: [
+                                  Icon(Icons.info_outline_rounded,
+                                      color: _accent, size: 16),
+                                  SizedBox(width: 8),
+                                  Text('How syncing works',
+                                      style: TextStyle(
+                                          color: _primaryText,
+                                          fontWeight: FontWeight.w700)),
+                                ]),
+                                SizedBox(height: 8),
+                                Text(
+                                  'Tap "Sync Health Data" to pull the last 7 days from Samsung Health or Google Fit via Health Connect. Make sure Samsung Health is set to sync with Health Connect in its settings.',
+                                  style: TextStyle(
+                                      color: _secondaryText,
+                                      height: 1.5,
+                                      fontSize: 13),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
             ),
           ],
         ),
       ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator(color: _accent))
-          : RefreshIndicator(
-              color: _accent,
-              onRefresh: _load,
-              child: ListView(
-                padding: const EdgeInsets.all(20),
-                physics: const AlwaysScrollableScrollPhysics(),
-                children: [
-                  // Sync button
-                  _SyncButton(syncing: _syncing, onSync: _sync),
-                  const SizedBox(height: 10),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        _lastSyncMs == null
-                            ? Icons.sync_disabled_rounded
-                            : Icons.check_circle_rounded,
-                        size: 14,
-                        color: _lastSyncMs == null ? _secondaryText : _green,
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        _lastSyncLabel,
-                        style: const TextStyle(
-                          color: _secondaryText,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 24),
-
-                  // Devices section
-                  const Text(
-                    'CONNECTED DEVICES',
-                    style: TextStyle(
-                      color: _secondaryText,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 0.8,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  if (_devices.isEmpty)
-                    _EmptyDevices(onAdd: _addDevice)
-                  else
-                    ..._devices.map((d) => Padding(
-                          padding: const EdgeInsets.only(bottom: 12),
-                          child: _DeviceCard(
-                            device: d,
-                            onRemove: () => _removeDevice(d),
-                          ),
-                        )),
-                  const SizedBox(height: 24),
-
-                  // Info card
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: _surfaceAlt,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: _border),
-                    ),
-                    child: const Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(children: [
-                          Icon(Icons.info_outline_rounded,
-                              color: _accent, size: 16),
-                          SizedBox(width: 8),
-                          Text('How syncing works',
-                              style: TextStyle(
-                                  color: _primaryText,
-                                  fontWeight: FontWeight.w700)),
-                        ]),
-                        SizedBox(height: 8),
-                        Text(
-                          'Tap "Sync Health Data" to pull the last 7 days from Samsung Health or Google Fit via Health Connect. Make sure Samsung Health is set to sync with Health Connect in its settings.',
-                          style: TextStyle(
-                              color: _secondaryText, height: 1.5, fontSize: 13),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
     );
   }
+
+  Widget _backButton() => Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () => Navigator.pop(context),
+          borderRadius: BorderRadius.circular(15),
+          child: Ink(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: _surface,
+              borderRadius: BorderRadius.circular(15),
+              border: Border.all(color: _border),
+            ),
+            child: const Icon(Icons.arrow_back, color: _primaryText, size: 21),
+          ),
+        ),
+      );
+
+  Widget _topBar() => Padding(
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+        child: Row(
+          children: [
+            _backButton(),
+            const SizedBox(width: 14),
+            const AppLogo(size: 24),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                'Wearable Devices',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                      color: _primaryText,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 0,
+                    ),
+              ),
+            ),
+          ],
+        ),
+      );
 }
 
 class _SyncButton extends StatelessWidget {
