@@ -1227,10 +1227,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                     ),
               ),
             ),
-            TextButton(
-              onPressed: _openEditFavoritesSheet,
-              child: const Text('Edit'),
-            ),
+            _FavoritesEditButton(onTap: _openEditFavoritesSheet),
           ],
         ),
         const SizedBox(height: 12),
@@ -1566,6 +1563,60 @@ class _CardTitle extends StatelessWidget {
         color: _DashboardScreenState._secondaryText,
         fontSize: 13,
         fontWeight: FontWeight.w800,
+      ),
+    );
+  }
+}
+
+class _FavoritesEditButton extends StatelessWidget {
+  final VoidCallback onTap;
+
+  const _FavoritesEditButton({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(14),
+        child: Ink(
+          height: 38,
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          decoration: BoxDecoration(
+            color: _DashboardScreenState._surface,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: _DashboardScreenState._border.withValues(alpha: 0.9),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.18),
+                blurRadius: 18,
+                offset: const Offset(0, 8),
+              ),
+            ],
+          ),
+          child: const Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.tune_rounded,
+                color: _DashboardScreenState._accent,
+                size: 17,
+              ),
+              SizedBox(width: 7),
+              Text(
+                'Edit',
+                style: TextStyle(
+                  color: _DashboardScreenState._primaryText,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

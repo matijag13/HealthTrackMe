@@ -626,24 +626,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(color: _secondaryText, fontSize: 13),
                 ),
-                const SizedBox(height: 10),
-                Wrap(
-                  spacing: 10,
-                  runSpacing: 8,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  children: [
-                    TextButton(
-                      onPressed: () => _openEditProfile(user),
-                      style: TextButton.styleFrom(
-                        foregroundColor: _accent,
-                        padding: EdgeInsets.zero,
-                        minimumSize: const Size(0, 32),
-                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      ),
-                      child: const Text('Edit profile'),
-                    ),
-                  ],
-                ),
               ],
             ),
           ),
