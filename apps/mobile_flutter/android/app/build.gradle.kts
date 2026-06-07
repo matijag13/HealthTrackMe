@@ -5,6 +5,7 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
     id("com.google.gms.google-services")
     id("com.google.firebase.appdistribution")
+    id("com.google.firebase.crashlytics")
 }
 
 android {
@@ -59,6 +60,10 @@ android {
 
 dependencies {
     implementation(platform("com.google.firebase:firebase-bom:34.0.0"))
+    // Captures native/JVM crashes (incl. the notification alarm receiver) to the
+    // Firebase console so we can see the exact stack trace. Auto-initialises via
+    // google-services.json; needs no Dart/firebase_core setup.
+    implementation("com.google.firebase:firebase-crashlytics")
     // Workaround for Flutter apps crashing when desugaring is enabled on
     // Android 12L and above (see flutter_local_notifications README).
     implementation("androidx.window:window:1.2.0")

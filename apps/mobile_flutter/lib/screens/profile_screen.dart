@@ -133,7 +133,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           children: [
             // Bumped on each notification fix so we can confirm the running
             // build actually contains the latest changes.
-            _debugLine('Build', 'notif-fix-4 (desugar)'),
+            _debugLine('Build', 'notif-fix-5 (crashlytics)'),
             _debugLine('Notifications allowed', enabled ? 'Yes' : 'NO'),
             _debugLine('Exact alarms allowed', canExact ? 'Yes' : 'NO'),
             _debugLine('Timezone', tzName),
