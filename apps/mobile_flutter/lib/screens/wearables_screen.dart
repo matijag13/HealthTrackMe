@@ -315,9 +315,30 @@ class _WearablesScreenState extends State<WearablesScreen> {
       appBar: AppBar(
         backgroundColor: _bg,
         elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: _primaryText),
-          onPressed: () => Navigator.pop(context),
+        leadingWidth: 72,
+        leading: Padding(
+          padding: const EdgeInsets.only(left: 18),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: () => Navigator.pop(context),
+              borderRadius: BorderRadius.circular(15),
+              child: Ink(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: _surface,
+                  borderRadius: BorderRadius.circular(15),
+                  border: Border.all(color: _border),
+                ),
+                child: const Icon(
+                  Icons.arrow_back,
+                  color: _primaryText,
+                  size: 21,
+                ),
+              ),
+            ),
+          ),
         ),
         title: const Row(
           mainAxisSize: MainAxisSize.min,
