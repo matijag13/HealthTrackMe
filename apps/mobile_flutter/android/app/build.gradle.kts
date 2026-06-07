@@ -51,12 +51,18 @@ android {
     }
 
     dependencies {
-        coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4")
+        // 2.1.x fixes java.time desugaring bugs that crashed the
+        // flutter_local_notifications alarm receiver on Android 12L+.
+        coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
     }
 }
 
 dependencies {
     implementation(platform("com.google.firebase:firebase-bom:34.0.0"))
+    // Workaround for Flutter apps crashing when desugaring is enabled on
+    // Android 12L and above (see flutter_local_notifications README).
+    implementation("androidx.window:window:1.2.0")
+    implementation("androidx.window:window-java:1.2.0")
 }
 
 flutter {
