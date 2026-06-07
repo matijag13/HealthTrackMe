@@ -1030,6 +1030,7 @@ class _DiaryReminderTileState extends State<_DiaryReminderTile> {
     final picked = await showTimePicker(
       context: context,
       initialTime: _time,
+      initialEntryMode: TimePickerEntryMode.inputOnly,
       builder: (context, child) => MediaQuery(
         data: MediaQuery.of(context).copyWith(alwaysUse24HourFormat: false),
         child: child!,

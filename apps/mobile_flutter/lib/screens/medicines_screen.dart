@@ -1503,6 +1503,8 @@ class _MedicineEditSheetState extends State<MedicineEditSheet> {
     final picked = await showTimePicker(
       context: context,
       initialTime: const TimeOfDay(hour: 8, minute: 0),
+      // Type the numbers (HH:MM + AM/PM) instead of the round clock dial.
+      initialEntryMode: TimePickerEntryMode.inputOnly,
       builder: (context, child) => Theme(
         data: Theme.of(context).copyWith(
           colorScheme: const ColorScheme.dark(
