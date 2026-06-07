@@ -352,7 +352,10 @@ class _CloseButton extends StatelessWidget {
           decoration: BoxDecoration(
             color: _surfaceAlt,
             shape: BoxShape.circle,
-            border: Border.all(color: _border),
+            border: Border.all(
+              color: _secondaryText.withValues(alpha: 0.34),
+              width: 1.2,
+            ),
           ),
           child: const Icon(
             Icons.close_rounded,

@@ -4,7 +4,6 @@ import '../models/detective_insight.dart';
 import '../services/api_service.dart';
 import '../services/detective_service.dart';
 
-const _bg = Color(0xFF070B13);
 const _surface = Color(0xFF0F1624);
 const _surfaceAlt = Color(0xFF121B2C);
 const _border = Color(0xFF243047);
@@ -189,7 +188,7 @@ class _AiAssistantSheetState extends State<_AiAssistantSheet> {
       child: Container(
         height: height,
         decoration: const BoxDecoration(
-          color: _bg,
+          color: _surface,
           borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
           border: Border(
             top: BorderSide(color: _border),
