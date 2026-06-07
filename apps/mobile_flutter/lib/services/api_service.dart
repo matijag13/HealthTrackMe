@@ -549,6 +549,26 @@ class ApiService {
     return response.statusCode >= 200 && response.statusCode < 300;
   }
 
+  Future<bool> changePassword({
+    required int userId,
+    required String currentPassword,
+    required String newPassword,
+    required String confirmPassword,
+  }) async {
+    final response = await _putRaw('/users/$userId/password',
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'currentPassword': currentPassword,
+          'newPassword': newPassword,
+          'confirmPassword': confirmPassword,
+        }));
+
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      return true;
+    }
+    throw Exception(_responseMessage(response) ?? 'Could not update password');
+  }
+
   // Health Entry endpoints
   Future<List<HealthEntry>> getHealthEntries({int? userId}) async {
     final id = _effectiveUserId(userId: userId);

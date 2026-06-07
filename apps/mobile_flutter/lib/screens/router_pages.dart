@@ -6906,6 +6906,16 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
     _snack(ok ? 'Account deleted' : 'Could not delete account');
   }
 
+  Future<void> _showPrivacyPolicy() async {
+    HapticFeedback.lightImpact();
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => const _SettingsPrivacyPolicySheet(),
+    );
+  }
+
   Future<void> _showApiConfiguration() async {
     final api = ApiService.instance;
     final debugInfo = await api.getDebugInfo();
@@ -7073,7 +7083,7 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
                           accent: _accent,
                           title: 'Privacy policy',
                           subtitle: 'Review privacy information',
-                          onTap: () => _snack('Open privacy policy'),
+                          onTap: _showPrivacyPolicy,
                         ),
                       ]),
                       const SizedBox(height: 22),
@@ -7168,6 +7178,202 @@ class _SettingsCard extends StatelessWidget {
         ),
       ),
       child: child,
+    );
+  }
+}
+
+class _SettingsPrivacyPolicySheet extends StatelessWidget {
+  const _SettingsPrivacyPolicySheet();
+
+  @override
+  Widget build(BuildContext context) {
+    final maxHeight = MediaQuery.of(context).size.height * 0.86;
+
+    return SafeArea(
+      top: false,
+      child: Container(
+        constraints: BoxConstraints(maxHeight: maxHeight),
+        decoration: const BoxDecoration(
+          color: _ProfileSettingsPageState._surface,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          border:
+              Border(top: BorderSide(color: _ProfileSettingsPageState._border)),
+        ),
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 12, 12, 0),
+              child: Row(
+                children: [
+                  Container(
+                    width: 42,
+                    height: 42,
+                    decoration: BoxDecoration(
+                      color: _ProfileSettingsPageState._accent
+                          .withValues(alpha: 0.16),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                        color: _ProfileSettingsPageState._accent
+                            .withValues(alpha: 0.35),
+                      ),
+                    ),
+                    child: const Icon(
+                      Icons.privacy_tip_outlined,
+                      color: _ProfileSettingsPageState._accent,
+                      size: 22,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Privacy policy',
+                          style: TextStyle(
+                            color: _ProfileSettingsPageState._primaryText,
+                            fontSize: 19,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                        SizedBox(height: 2),
+                        Text(
+                          'Last updated: June 7, 2026',
+                          style: TextStyle(
+                            color: _ProfileSettingsPageState._secondaryText,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => Navigator.pop(context),
+                    icon: const Icon(
+                      Icons.close_rounded,
+                      color: _ProfileSettingsPageState._secondaryText,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Divider(color: _ProfileSettingsPageState._border, height: 22),
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+                children: const [
+                  Text(
+                    'HealthTrackMe uses your health information only to show your dashboard, reminders, reports, and wearable sync results inside the app.',
+                    style: TextStyle(
+                      color: _ProfileSettingsPageState._primaryText,
+                      height: 1.45,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  SizedBox(height: 18),
+                  _SettingsPrivacyPolicyItem(
+                    icon: Icons.favorite_border_rounded,
+                    title: 'Health data we store',
+                    body:
+                        'Profile details, symptoms, medicines, sleep, activity, steps, heart rate, calories, notes, reminders, and connected wearable device records.',
+                  ),
+                  _SettingsPrivacyPolicyItem(
+                    icon: Icons.sync_rounded,
+                    title: 'Wearable and sensor sync',
+                    body:
+                        'When you enable sync, the app reads permitted Health Connect or device data and uploads the selected health metrics to your HealthTrackMe account.',
+                  ),
+                  _SettingsPrivacyPolicyItem(
+                    icon: Icons.lock_outline_rounded,
+                    title: 'How your data is protected',
+                    body:
+                        'Account access is controlled by authentication. Health data is sent to the backend for your account features and is not sold for advertising.',
+                  ),
+                  _SettingsPrivacyPolicyItem(
+                    icon: Icons.notifications_none_rounded,
+                    title: 'Notifications',
+                    body:
+                        'Reminder settings are used to schedule medicine, diary, and health notifications. You can disable them from this screen or system settings.',
+                  ),
+                  _SettingsPrivacyPolicyItem(
+                    icon: Icons.delete_outline_rounded,
+                    title: 'Deleting your data',
+                    body:
+                        'Use "Delete all my data" in Data & Privacy to request permanent removal of your account data from the app backend.',
+                  ),
+                  _SettingsPrivacyPolicyItem(
+                    icon: Icons.mail_outline_rounded,
+                    title: 'Questions',
+                    body:
+                        'For privacy questions, contact the HealthTrackMe project owner or your course project maintainer.',
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SettingsPrivacyPolicyItem extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String body;
+
+  const _SettingsPrivacyPolicyItem({
+    required this.icon,
+    required this.title,
+    required this.body,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 14),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 34,
+            height: 34,
+            decoration: BoxDecoration(
+              color: _ProfileSettingsPageState._accent.withValues(alpha: 0.13),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child:
+                Icon(icon, color: _ProfileSettingsPageState._accent, size: 18),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    color: _ProfileSettingsPageState._primaryText,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 14,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  body,
+                  style: const TextStyle(
+                    color: _ProfileSettingsPageState._secondaryText,
+                    height: 1.42,
+                    fontSize: 13,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

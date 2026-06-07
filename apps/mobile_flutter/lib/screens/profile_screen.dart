@@ -302,42 +302,29 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Future<void> _showChangePasswordSheet() async {
     HapticFeedback.lightImpact();
-    await showModalBottomSheet(
+    final userId = _user?.id;
+    if (userId == null) {
+      _showSnack('No active user');
+      return;
+    }
+
+    final changed = await showModalBottomSheet<bool>(
       context: context,
-      backgroundColor: _surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (ctx) => Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text(
-              'Change password',
-              style: TextStyle(
-                color: _primaryText,
-                fontSize: 18,
-                fontWeight: FontWeight.w900,
-              ),
-            ),
-            const SizedBox(height: 10),
-            const Text(
-              'Password change flow is not implemented yet.',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: _secondaryText),
-            ),
-            const SizedBox(height: 18),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () => Navigator.pop(ctx),
-                child: const Text('Close'),
-              ),
-            ),
-          ],
-        ),
-      ),
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => _ChangePasswordSheet(userId: userId),
+    );
+    if (!mounted || changed != true) return;
+    _showSnack('Password updated');
+  }
+
+  Future<void> _showPrivacyPolicy() async {
+    HapticFeedback.lightImpact();
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => const _PrivacyPolicySheet(),
     );
   }
 
@@ -567,7 +554,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           accent: _accent,
                           title: 'Privacy policy',
                           subtitle: 'Review privacy information',
-                          onTap: () => _showSnack('Open privacy policy'),
+                          onTap: _showPrivacyPolicy,
                         ),
                         _ProfileTile(
                           icon: Icons.delete_outline,
@@ -900,6 +887,479 @@ class _TileDivider extends StatelessWidget {
       child: Container(
         height: 1,
         color: _ProfileScreenState._border.withValues(alpha: 0.45),
+      ),
+    );
+  }
+}
+
+class _ChangePasswordSheet extends StatefulWidget {
+  final int userId;
+
+  const _ChangePasswordSheet({required this.userId});
+
+  @override
+  State<_ChangePasswordSheet> createState() => _ChangePasswordSheetState();
+}
+
+class _ChangePasswordSheetState extends State<_ChangePasswordSheet> {
+  final _formKey = GlobalKey<FormState>();
+  final _currentController = TextEditingController();
+  final _newController = TextEditingController();
+  final _confirmController = TextEditingController();
+
+  bool _saving = false;
+  bool _showCurrent = false;
+  bool _showNew = false;
+  bool _showConfirm = false;
+  String? _error;
+
+  @override
+  void dispose() {
+    _currentController.dispose();
+    _newController.dispose();
+    _confirmController.dispose();
+    super.dispose();
+  }
+
+  String? _requiredPassword(String? value) {
+    if (value == null || value.isEmpty) return 'Required';
+    return null;
+  }
+
+  String? _newPasswordValidator(String? value) {
+    if (value == null || value.isEmpty) return 'Required';
+    if (value.length < 6) return 'Use at least 6 characters';
+    if (value == _currentController.text) return 'Use a different password';
+    return null;
+  }
+
+  String? _confirmPasswordValidator(String? value) {
+    if (value == null || value.isEmpty) return 'Required';
+    if (value != _newController.text) return 'Passwords do not match';
+    return null;
+  }
+
+  Future<void> _save() async {
+    FocusScope.of(context).unfocus();
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() {
+      _saving = true;
+      _error = null;
+    });
+
+    try {
+      await ApiService.instance.changePassword(
+        userId: widget.userId,
+        currentPassword: _currentController.text,
+        newPassword: _newController.text,
+        confirmPassword: _confirmController.text,
+      );
+      if (!mounted) return;
+      Navigator.pop(context, true);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error = e.toString().replaceFirst('Exception: ', '');
+      });
+    } finally {
+      if (mounted) {
+        setState(() => _saving = false);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedPadding(
+      duration: const Duration(milliseconds: 180),
+      curve: Curves.easeOut,
+      padding:
+          EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      child: SafeArea(
+        top: false,
+        child: Container(
+          decoration: const BoxDecoration(
+            color: _ProfileScreenState._surface,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+            border: Border(top: BorderSide(color: _ProfileScreenState._border)),
+          ),
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(20, 14, 20, 20),
+            child: Form(
+              key: _formKey,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Expanded(
+                        child: Text(
+                          'Change password',
+                          style: TextStyle(
+                            color: _ProfileScreenState._primaryText,
+                            fontSize: 20,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        onPressed:
+                            _saving ? null : () => Navigator.pop(context),
+                        icon: const Icon(
+                          Icons.close_rounded,
+                          color: _ProfileScreenState._secondaryText,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  const Text(
+                    'Enter your current password and choose a new one.',
+                    style: TextStyle(
+                      color: _ProfileScreenState._secondaryText,
+                      height: 1.4,
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+                  _PasswordField(
+                    controller: _currentController,
+                    label: 'Current password',
+                    visible: _showCurrent,
+                    onToggle: () =>
+                        setState(() => _showCurrent = !_showCurrent),
+                    validator: _requiredPassword,
+                  ),
+                  const SizedBox(height: 12),
+                  _PasswordField(
+                    controller: _newController,
+                    label: 'New password',
+                    visible: _showNew,
+                    onToggle: () => setState(() => _showNew = !_showNew),
+                    validator: _newPasswordValidator,
+                  ),
+                  const SizedBox(height: 12),
+                  _PasswordField(
+                    controller: _confirmController,
+                    label: 'Confirm new password',
+                    visible: _showConfirm,
+                    onToggle: () =>
+                        setState(() => _showConfirm = !_showConfirm),
+                    validator: _confirmPasswordValidator,
+                    onSubmitted: (_) => _saving ? null : _save(),
+                  ),
+                  if (_error != null) ...[
+                    const SizedBox(height: 14),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color:
+                            _ProfileScreenState._danger.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                          color: _ProfileScreenState._danger
+                              .withValues(alpha: 0.35),
+                        ),
+                      ),
+                      child: Text(
+                        _error!,
+                        style: const TextStyle(
+                          color: _ProfileScreenState._danger,
+                          fontSize: 13,
+                          height: 1.35,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 18),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 50,
+                    child: FilledButton(
+                      onPressed: _saving ? null : _save,
+                      style: FilledButton.styleFrom(
+                        backgroundColor: _ProfileScreenState._accent,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                      ),
+                      child: _saving
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : const Text(
+                              'Update password',
+                              style: TextStyle(fontWeight: FontWeight.w800),
+                            ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _PasswordField extends StatelessWidget {
+  final TextEditingController controller;
+  final String label;
+  final bool visible;
+  final VoidCallback onToggle;
+  final String? Function(String?) validator;
+  final ValueChanged<String>? onSubmitted;
+
+  const _PasswordField({
+    required this.controller,
+    required this.label,
+    required this.visible,
+    required this.onToggle,
+    required this.validator,
+    this.onSubmitted,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return TextFormField(
+      controller: controller,
+      obscureText: !visible,
+      validator: validator,
+      onFieldSubmitted: onSubmitted,
+      textInputAction:
+          onSubmitted == null ? TextInputAction.next : TextInputAction.done,
+      style: const TextStyle(color: _ProfileScreenState._primaryText),
+      decoration: InputDecoration(
+        labelText: label,
+        labelStyle: const TextStyle(color: _ProfileScreenState._secondaryText),
+        filled: true,
+        fillColor: _ProfileScreenState._bg,
+        suffixIcon: IconButton(
+          onPressed: onToggle,
+          icon: Icon(
+            visible ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+            color: _ProfileScreenState._secondaryText,
+          ),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: _ProfileScreenState._border),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: _ProfileScreenState._accent),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: _ProfileScreenState._danger),
+        ),
+        focusedErrorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: _ProfileScreenState._danger),
+        ),
+      ),
+    );
+  }
+}
+
+class _PrivacyPolicySheet extends StatelessWidget {
+  const _PrivacyPolicySheet();
+
+  @override
+  Widget build(BuildContext context) {
+    final maxHeight = MediaQuery.of(context).size.height * 0.86;
+
+    return SafeArea(
+      top: false,
+      child: Container(
+        constraints: BoxConstraints(maxHeight: maxHeight),
+        decoration: const BoxDecoration(
+          color: _ProfileScreenState._surface,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          border: Border(top: BorderSide(color: _ProfileScreenState._border)),
+        ),
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 12, 12, 0),
+              child: Row(
+                children: [
+                  Container(
+                    width: 42,
+                    height: 42,
+                    decoration: BoxDecoration(
+                      color:
+                          _ProfileScreenState._accent.withValues(alpha: 0.16),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                        color:
+                            _ProfileScreenState._accent.withValues(alpha: 0.35),
+                      ),
+                    ),
+                    child: const Icon(
+                      Icons.privacy_tip_outlined,
+                      color: _ProfileScreenState._accent,
+                      size: 22,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Privacy policy',
+                          style: TextStyle(
+                            color: _ProfileScreenState._primaryText,
+                            fontSize: 19,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                        SizedBox(height: 2),
+                        Text(
+                          'Last updated: June 7, 2026',
+                          style: TextStyle(
+                            color: _ProfileScreenState._secondaryText,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => Navigator.pop(context),
+                    icon: const Icon(
+                      Icons.close_rounded,
+                      color: _ProfileScreenState._secondaryText,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Divider(color: _ProfileScreenState._border, height: 22),
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+                children: const [
+                  Text(
+                    'HealthTrackMe uses your health information only to show your dashboard, reminders, reports, and wearable sync results inside the app.',
+                    style: TextStyle(
+                      color: _ProfileScreenState._primaryText,
+                      height: 1.45,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  SizedBox(height: 18),
+                  _PrivacyPolicyItem(
+                    icon: Icons.favorite_border_rounded,
+                    title: 'Health data we store',
+                    body:
+                        'Profile details, symptoms, medicines, sleep, activity, steps, heart rate, calories, notes, reminders, and connected wearable device records.',
+                  ),
+                  _PrivacyPolicyItem(
+                    icon: Icons.sync_rounded,
+                    title: 'Wearable and sensor sync',
+                    body:
+                        'When you enable sync, the app reads permitted Health Connect or device data and uploads the selected health metrics to your HealthTrackMe account.',
+                  ),
+                  _PrivacyPolicyItem(
+                    icon: Icons.lock_outline_rounded,
+                    title: 'How your data is protected',
+                    body:
+                        'Account access is controlled by authentication. Health data is sent to the backend for your account features and is not sold for advertising.',
+                  ),
+                  _PrivacyPolicyItem(
+                    icon: Icons.notifications_none_rounded,
+                    title: 'Notifications',
+                    body:
+                        'Reminder settings are used to schedule medicine, diary, and health notifications. You can disable them from this screen or system settings.',
+                  ),
+                  _PrivacyPolicyItem(
+                    icon: Icons.delete_outline_rounded,
+                    title: 'Deleting your data',
+                    body:
+                        'Use "Delete all my data" in Privacy / Account to request permanent removal of your account data from the app backend.',
+                  ),
+                  _PrivacyPolicyItem(
+                    icon: Icons.mail_outline_rounded,
+                    title: 'Questions',
+                    body:
+                        'For privacy questions, contact the HealthTrackMe project owner or your course project maintainer.',
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _PrivacyPolicyItem extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String body;
+
+  const _PrivacyPolicyItem({
+    required this.icon,
+    required this.title,
+    required this.body,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 14),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 34,
+            height: 34,
+            decoration: BoxDecoration(
+              color: _ProfileScreenState._accent.withValues(alpha: 0.13),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(icon, color: _ProfileScreenState._accent, size: 18),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    color: _ProfileScreenState._primaryText,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 14,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  body,
+                  style: const TextStyle(
+                    color: _ProfileScreenState._secondaryText,
+                    height: 1.42,
+                    fontSize: 13,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

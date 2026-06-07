@@ -1,6 +1,7 @@
 package com.healthwithme.api.service
 
 import com.healthwithme.api.dto.CreateUserRequest
+import com.healthwithme.api.dto.ChangePasswordRequest
 import com.healthwithme.api.dto.UpdateUserRequest
 import com.healthwithme.api.dto.UserDto
 import com.healthwithme.api.model.AuthProvider
@@ -158,6 +159,35 @@ class UserService(
         
         val savedUser = userRepository.save(updatedUser)
         return toUserDto(savedUser)
+    }
+
+    fun changePassword(id: Long, request: ChangePasswordRequest): Boolean {
+        val user = userRepository.findById(id)
+            .orElseThrow { IllegalArgumentException("User not found") }
+
+        val passwordHash = user.passwordHash
+            ?: throw IllegalArgumentException("Password change is only available for password accounts")
+
+        if (!user.isActive || !passwordEncoder.matches(request.currentPassword, passwordHash)) {
+            throw IllegalArgumentException("Current password is incorrect")
+        }
+        if (request.newPassword != request.confirmPassword) {
+            throw IllegalArgumentException("New passwords do not match")
+        }
+        if (request.newPassword.length < 6) {
+            throw IllegalArgumentException("New password must be at least 6 characters")
+        }
+        if (passwordEncoder.matches(request.newPassword, passwordHash)) {
+            throw IllegalArgumentException("New password must be different from the current password")
+        }
+
+        userRepository.save(
+            user.copy(
+                passwordHash = passwordEncoder.encode(request.newPassword),
+                updatedAt = LocalDateTime.now()
+            )
+        )
+        return true
     }
 
     fun deleteUser(id: Long): Boolean {

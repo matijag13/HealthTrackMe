@@ -1,6 +1,7 @@
 package com.healthwithme.api.controller
 
 import com.healthwithme.api.dto.CreateUserRequest
+import com.healthwithme.api.dto.ChangePasswordRequest
 import com.healthwithme.api.dto.UpdateUserRequest
 import com.healthwithme.api.dto.UserDto
 import com.healthwithme.api.dto.ApiResponse
@@ -50,6 +51,24 @@ class UserController(private val userService: UserService) {
             )
         } catch (e: Exception) {
             ResponseEntity.notFound().build()
+        }
+    }
+
+    @PutMapping("/{id}/password")
+    fun changePassword(@PathVariable id: Long, @RequestBody request: ChangePasswordRequest): ResponseEntity<ApiResponse<Boolean>> {
+        return try {
+            val changed = userService.changePassword(id, request)
+            ResponseEntity.ok().body(
+                ApiResponse(success = true, message = "Password updated", data = changed)
+            )
+        } catch (e: IllegalArgumentException) {
+            ResponseEntity.badRequest().body(
+                ApiResponse(success = false, message = (e.message ?: "Could not update password"), data = false)
+            )
+        } catch (e: Exception) {
+            ResponseEntity.status(HttpStatus.NOT_FOUND).body(
+                ApiResponse(success = false, message = (e.message ?: "User not found"), data = false)
+            )
         }
     }
 
