@@ -9,6 +9,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/models.dart';
 import '../services/api_service.dart';
 import '../services/notification_service.dart';
+import '../services/phone_sensor_service.dart';
+import '../services/wearable_service.dart';
 import '../widgets/dark_time_picker.dart';
 import '../widgets/export_sheet.dart';
 import 'edit_profile_screen.dart';
@@ -499,6 +501,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       _section('Preferences', [
                         const _UnitsTile(),
                         _StartOfWeekTile(showSnack: _showSnack),
+                        _PreferenceToggleTile(
+                          prefKey: 'pref_phone_tracking',
+                          defaultValue: false,
+                          icon: Icons.directions_walk_rounded,
+                          accent: _green,
+                          title: 'Track steps on this phone',
+                          subtitle:
+                              "Count steps with the phone's own sensor — no Samsung Health needed",
+                          onChanged: (value) async {
+                            if (value) {
+                              await WearableService().requestPermissions();
+                              await PhoneSensorService.instance.recordSteps();
+                            }
+                          },
+                        ),
                         const _DiaryReminderTile(),
                         _PreferenceToggleTile(
                           prefKey: 'pref_medicine_reminders',

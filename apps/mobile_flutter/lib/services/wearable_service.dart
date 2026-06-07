@@ -4,8 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:health/health.dart';
 import 'package:http/http.dart' as http;
 import 'package:permission_handler/permission_handler.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/wearable_device.dart';
 import 'api_service.dart';
+import 'phone_sensor_service.dart';
 import 'sync_events.dart';
 import 'dart:convert';
 
@@ -85,10 +87,17 @@ class WearableService {
         }
       }
 
-      // Request all types. Even if optional types (distance, workout) are
-      // denied, we still consider the overall request successful as long as
-      // the core types are granted.
-      await health.requestAuthorization(_requestedDataTypes);
+      // Request READ for everything, and READ+WRITE for steps so the phone can
+      // write its own step data into Health Connect. Even if optional types
+      // (distance, workout) are denied, we still consider the overall request
+      // successful as long as the core types are granted.
+      final types = _requestedDataTypes;
+      final permissions = types
+          .map((t) => t == HealthDataType.STEPS
+              ? HealthDataAccess.READ_WRITE
+              : HealthDataAccess.READ)
+          .toList();
+      await health.requestAuthorization(types, permissions: permissions);
       final coreGranted =
           (await health.hasPermissions(_coreDataTypes)) ?? false;
 
@@ -148,6 +157,16 @@ class WearableService {
 
       debugPrint(
           '🔄 Syncing health data from ${startDate.toLocal()} to ${endDate.toLocal()}');
+
+      // If phone-sensor tracking is on, record this phone's steps into Health
+      // Connect first, so the read below includes them (no Samsung Health
+      // needed). Best-effort — failures don't block the rest of the sync.
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        if (prefs.getBool('pref_phone_tracking') ?? false) {
+          await PhoneSensorService.instance.recordSteps();
+        }
+      } catch (_) {}
 
       // Fetch data from Health package
       final steps = await _getSteps(startDate, endDate);
