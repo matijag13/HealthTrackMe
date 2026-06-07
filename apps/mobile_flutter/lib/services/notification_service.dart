@@ -71,6 +71,80 @@ class NotificationService {
   }
 
   // =========================
+  // DIAGNOSTICS / PERMISSIONS
+  // =========================
+
+  /// Whether the OS currently allows this app to post notifications.
+  Future<bool> areNotificationsEnabled() async {
+    if (kIsWeb || !Platform.isAndroid) return true;
+    final android = _plugin.resolvePlatformSpecificImplementation<
+        AndroidFlutterLocalNotificationsPlugin>();
+    return (await android?.areNotificationsEnabled()) ?? false;
+  }
+
+  /// (Re)request notification + exact-alarm permission. Returns whether
+  /// notifications are enabled afterwards.
+  Future<bool> requestPermissions() async {
+    if (kIsWeb) return false;
+    if (Platform.isAndroid) {
+      final android = _plugin.resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin>();
+      await android?.requestNotificationsPermission();
+      await android?.requestExactAlarmsPermission();
+      return (await android?.areNotificationsEnabled()) ?? false;
+    }
+    return true;
+  }
+
+  /// Number of reminders currently scheduled with the OS — useful to confirm
+  /// that scheduling actually took effect.
+  Future<int> pendingCount() async {
+    final pending = await _plugin.pendingNotificationRequests();
+    return pending.length;
+  }
+
+  /// Posts a notification immediately (not scheduled) to verify the whole
+  /// pipeline — permission, channel, display — works on this device.
+  Future<void> showTestNotification() async {
+    await _plugin.show(
+      424242,
+      'HealthTrackMe test ✓',
+      'If you can see this, notifications work. Reminders use the same channel.',
+      _medicineDetails,
+    );
+  }
+
+  /// Schedules a one-off test reminder [seconds] from now (default 30s), so the
+  /// scheduling/alarm path can be verified without waiting for a real reminder.
+  Future<void> scheduleTestReminderIn({int seconds = 30}) async {
+    final when = tz.TZDateTime.now(tz.local).add(Duration(seconds: seconds));
+    Future<void> schedule(AndroidScheduleMode mode) {
+      return _plugin.zonedSchedule(
+        424243,
+        'HealthTrackMe scheduled test ✓',
+        'Scheduled ${seconds}s ago — scheduling works.',
+        when,
+        _medicineDetails,
+        androidScheduleMode: mode,
+        uiLocalNotificationDateInterpretation:
+            UILocalNotificationDateInterpretation.absoluteTime,
+        // No matchDateTimeComponents → fires once, not daily.
+      );
+    }
+
+    try {
+      await schedule(AndroidScheduleMode.exactAllowWhileIdle);
+    } catch (e) {
+      debugPrint('Exact test alarm failed ($e); retrying inexact');
+      try {
+        await schedule(AndroidScheduleMode.inexactAllowWhileIdle);
+      } catch (e2) {
+        debugPrint('Test reminder scheduling failed: $e2');
+      }
+    }
+  }
+
+  // =========================
   // MEDICINE REMINDER
   // =========================
 

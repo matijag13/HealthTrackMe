@@ -113,6 +113,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
     await showExportSheet(context);
   }
 
+  Future<void> _testNotifications() async {
+    final notifs = NotificationService.instance;
+    final enabled = await notifs.requestPermissions();
+    if (!mounted) return;
+    if (!enabled) {
+      _showSnack(
+        'Notifications are blocked. Enable them in Settings → Apps → '
+        'HealthTrackMe → Notifications, then try again.',
+      );
+      return;
+    }
+    await notifs.showTestNotification();
+    await notifs.scheduleTestReminderIn(seconds: 30);
+    if (!mounted) return;
+    _showSnack(
+      'Sent one now and scheduled one in 30s. If the 30s one never arrives, '
+      'disable battery optimization for HealthTrackMe.',
+    );
+  }
+
   Future<void> _deleteAllData() async {
     HapticFeedback.lightImpact();
     final confirm = await _confirmDialog(
@@ -356,6 +376,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           },
                         ),
                         const _WeeklyReportTile(),
+                        _ProfileTile(
+                          icon: Icons.notifications_active_outlined,
+                          accent: _accent,
+                          title: 'Test notifications',
+                          subtitle: 'Send one now + one in 30 seconds',
+                          onTap: _testNotifications,
+                        ),
                       ]),
                       const SizedBox(height: 22),
                       _section('Privacy / Account', [
@@ -1055,6 +1082,7 @@ class _DiaryReminderTileState extends State<_DiaryReminderTile> {
     await prefs.setBool('pref_diary_enabled', value);
     if (mounted) setState(() => _enabled = value);
     if (value) {
+      await NotificationService.instance.requestPermissions();
       await NotificationService.instance.scheduleDailyDiaryReminder(_time);
     } else {
       await NotificationService.instance.cancelDailyDiaryReminder();

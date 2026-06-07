@@ -1493,9 +1493,14 @@ class _MedicineEditSheetState extends State<MedicineEditSheet> {
       if (mounted) setState(() => _saving = false);
     }
 
+    // Make sure notifications are actually permitted before relying on the
+    // reschedule-on-load (see _MedicinesScreenState._load) to set the reminders.
+    if (_reminderTimes.isNotEmpty) {
+      await NotificationService.instance.requestPermissions();
+    }
+
     // Notifications are (re)scheduled from persisted data when the list
-    // reloads (see _MedicinesScreenState._load), so both create and edit
-    // get correct, server-id-based reminder ids.
+    // reloads, so both create and edit get correct, server-id-based reminder ids.
     if (mounted) Navigator.pop(context, true);
   }
 
