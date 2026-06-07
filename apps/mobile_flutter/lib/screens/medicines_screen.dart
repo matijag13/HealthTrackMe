@@ -160,7 +160,11 @@ class _MedicinesScreenState extends State<MedicinesScreen>
   final ApiService _api = ApiService.instance;
   late Future<List<Medicine>> _future;
   List<Medicine>? _cached;
+  // Medicines that have had ALL of today's doses taken (used for the "done"
+  // state and the header count).
   final Set<int> _takenToday = {};
+  // Per-medicine count of doses taken today (for multi-dose meds).
+  final Map<int, int> _doseCountToday = {};
   final Set<int> _deletingMedicineIds = {};
   final Set<int> _loggingMedicineIds = {};
   bool _hasChanges = false;
@@ -207,6 +211,8 @@ class _MedicinesScreenState extends State<MedicinesScreen>
                 ? m.dosage!.trim()
                 : 'your dose',
             times: m.reminderTimes,
+            // Skip today's reminders for doses already taken today.
+            dosesTakenToday: _doseCount(m.id),
           );
         } else {
           await notifs.cancelMedicineReminders(m.id);
@@ -227,31 +233,58 @@ class _MedicinesScreenState extends State<MedicinesScreen>
   }
 
   /// FIX: use api service's _postRaw via logDose helper so the correct
-  /// base URL (with /api/v1) is always used — no more manual URL construction.
+  /// How many doses a medicine is expected to have per day — from its reminder
+  /// times if set, otherwise inferred from the frequency text.
+  int _expectedDoses(Medicine m) {
+    if (m.reminderTimes.isNotEmpty) return m.reminderTimes.length;
+    final f = (m.frequency ?? '').toLowerCase();
+    if (f.contains('four')) return 4;
+    if (f.contains('three') || f.contains('thrice')) return 3;
+    if (f.contains('twice') || f.contains('two')) return 2;
+    return 1;
+  }
+
+  int _doseCount(int id) => _doseCountToday[id] ?? 0;
+
+  bool _isFullyTaken(Medicine m) => _doseCount(m.id) >= _expectedDoses(m);
+
+  Medicine? _medById(int id) {
+    for (final m in _cached ?? const <Medicine>[]) {
+      if (m.id == id) return m;
+    }
+    return null;
+  }
+
+  /// Pulls how many doses were taken today per medicine, so multi-dose meds
+  /// track each dose (instead of one yes/no flag for the whole day).
   Future<void> _syncTakenToday(List<Medicine> meds) async {
     if (meds.isEmpty) {
       _takenToday.clear();
+      _doseCountToday.clear();
       return;
     }
 
-    final today = _dateOnly(DateTime.now());
     try {
-      final results = await Future.wait(
+      final counts = await Future.wait(
         meds.map((m) async {
-          final adherence = await _api.getMedicineAdherence(m.id, days: 1);
-          final breakdown = adherence['dailyBreakdown'];
-          if (breakdown is! List) return null;
-          final takenToday = breakdown.any((point) {
-            if (point is! Map) return false;
-            return point['date']?.toString() == today &&
-                point['status']?.toString().toUpperCase() == 'TAKEN';
-          });
-          return takenToday ? m.id : null;
+          try {
+            final adherence = await _api.getMedicineAdherence(m.id, days: 1);
+            final raw = adherence['takenCount'];
+            final count = raw is num
+                ? raw.toInt()
+                : int.tryParse(raw?.toString() ?? '') ?? 0;
+            return MapEntry(m.id, count < 0 ? 0 : count);
+          } catch (_) {
+            return MapEntry(m.id, _doseCount(m.id)); // keep last known
+          }
         }),
       );
+      _doseCountToday
+        ..clear()
+        ..addEntries(counts);
       _takenToday
         ..clear()
-        ..addAll(results.whereType<int>());
+        ..addAll(meds.where(_isFullyTaken).map((m) => m.id));
     } catch (_) {
       // Keep local state when adherence is unavailable.
     }
@@ -264,7 +297,12 @@ class _MedicinesScreenState extends State<MedicinesScreen>
     try {
       await _api.logDose(id, when, status ?? 'TAKEN');
       if (mounted) {
-        setState(() => _takenToday.add(id));
+        setState(() {
+          // Optimistic per-dose increment; _refresh re-syncs the real count.
+          _doseCountToday[id] = _doseCount(id) + 1;
+          final med = _medById(id);
+          if (med != null && _isFullyTaken(med)) _takenToday.add(id);
+        });
       }
       await _refresh();
       if (mounted) {
@@ -307,10 +345,6 @@ class _MedicinesScreenState extends State<MedicinesScreen>
       }
     }
     return groups;
-  }
-
-  String _dateOnly(DateTime date) {
-    return date.toIso8601String().split('T').first;
   }
 
   String _medicineMetaLine(Medicine m) {
@@ -693,7 +727,10 @@ class _MedicinesScreenState extends State<MedicinesScreen>
   }
 
   Widget _scheduleTile(Medicine m) {
-    final taken = _takenToday.contains(m.id);
+    final expected = _expectedDoses(m);
+    final doseCount = _doseCount(m.id);
+    final taken = doseCount >= expected;
+    final multiDose = expected > 1;
     final logging = _loggingMedicineIds.contains(m.id);
     return Material(
       color: Colors.transparent,
@@ -725,7 +762,9 @@ class _MedicinesScreenState extends State<MedicinesScreen>
           ),
         ),
         subtitle: Text(
-          _medicineMetaLine(m),
+          multiDose
+              ? '${_medicineMetaLine(m)} · $doseCount/$expected today'
+              : _medicineMetaLine(m),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: const TextStyle(fontSize: 13, color: _mutedText),
@@ -735,7 +774,7 @@ class _MedicinesScreenState extends State<MedicinesScreen>
             if (taken) {
               _showMedicineToast(
                 context,
-                'Dose already logged today',
+                'All doses taken today',
                 type: _MedicineToastType.warning,
               );
             } else {
@@ -780,11 +819,22 @@ class _MedicinesScreenState extends State<MedicinesScreen>
                           ),
                         ),
                       )
-                    : const Icon(
-                        Icons.check_rounded,
-                        size: 19,
-                        color: _mutedText,
-                      ),
+                    : multiDose
+                        ? Center(
+                            child: Text(
+                              '$doseCount/$expected',
+                              style: const TextStyle(
+                                color: _accent,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          )
+                        : const Icon(
+                            Icons.check_rounded,
+                            size: 19,
+                            color: _mutedText,
+                          ),
           ),
         ),
         onTap: () => Navigator.of(context).push(
@@ -796,7 +846,10 @@ class _MedicinesScreenState extends State<MedicinesScreen>
   }
 
   Widget _buildMedicineCard(Medicine m) {
-    final taken = _takenToday.contains(m.id);
+    final expected = _expectedDoses(m);
+    final doseCount = _doseCount(m.id);
+    final taken = doseCount >= expected;
+    final multiDose = expected > 1;
     final logging = _loggingMedicineIds.contains(m.id);
 
     final deleting = _deletingMedicineIds.contains(m.id);
@@ -815,7 +868,9 @@ class _MedicinesScreenState extends State<MedicinesScreen>
               if (!taken) _postDose(m.id);
             },
             child: _ActionSegment(
-              label: taken ? 'Taken' : 'Take',
+              label: taken
+                  ? 'Taken'
+                  : (multiDose ? '$doseCount/$expected' : 'Take'),
               icon: taken ? Icons.check_circle_rounded : Icons.check_rounded,
               backgroundColor:
                   taken ? const Color(0xFF10251D) : const Color(0xFF11141B),

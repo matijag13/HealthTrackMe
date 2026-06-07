@@ -227,6 +227,7 @@ class NotificationService {
     required String medicineName,
     required String dosage,
     required List<String> times,
+    int dosesTakenToday = 0,
   }) async {
     await cancelMedicineReminders(medicineId);
 
@@ -240,13 +241,18 @@ class NotificationService {
       if (hour == null || minute == null) continue;
       if (hour < 0 || hour > 23 || minute < 0 || minute > 59) continue;
 
+      final slotIndex = index;
       final notifId = medicineId * 100 + index;
       index++;
 
       final now = tz.TZDateTime.now(tz.local);
       var scheduled =
           tz.TZDateTime(tz.local, now.year, now.month, now.day, hour, minute);
-      if (scheduled.isBefore(now)) {
+      // Times are sorted, so the first [dosesTakenToday] slots are the doses
+      // already taken today — skip those for today and resume tomorrow, so a
+      // dose you've already taken doesn't trigger a reminder.
+      final alreadyTakenToday = slotIndex < dosesTakenToday;
+      if (alreadyTakenToday || scheduled.isBefore(now)) {
         scheduled = scheduled.add(const Duration(days: 1));
       }
 
