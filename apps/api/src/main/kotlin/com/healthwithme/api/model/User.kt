@@ -112,20 +112,35 @@ data class User(
     @Column(nullable = false)
     val updatedAt: LocalDateTime = LocalDateTime.now(),
     
-    @OneToMany(mappedBy = "user", cascade = [CascadeType.ALL])
+    @OneToMany(mappedBy = "user", cascade = [CascadeType.ALL], orphanRemoval = true)
     val healthEntries: MutableList<HealthEntry> = mutableListOf(),
 
-    @OneToMany(mappedBy = "user", cascade = [CascadeType.ALL])
+    @OneToMany(mappedBy = "user", cascade = [CascadeType.ALL], orphanRemoval = true)
     val sleepRecords: MutableList<SleepRecord> = mutableListOf(),
 
-    @OneToMany(mappedBy = "user", cascade = [CascadeType.ALL])
+    @OneToMany(mappedBy = "user", cascade = [CascadeType.ALL], orphanRemoval = true)
     val activityLogs: MutableList<ActivityLog> = mutableListOf(),
     
-    @OneToMany(mappedBy = "user", cascade = [CascadeType.ALL])
+    @OneToMany(mappedBy = "user", cascade = [CascadeType.ALL], orphanRemoval = true)
     val medicines: MutableList<Medicine> = mutableListOf(),
     
-    @OneToMany(mappedBy = "user", cascade = [CascadeType.ALL])
-    val wearableDevices: MutableList<WearableDevice> = mutableListOf()
+    @OneToMany(mappedBy = "user", cascade = [CascadeType.ALL], orphanRemoval = true)
+    val wearableDevices: MutableList<WearableDevice> = mutableListOf(),
+
+    @OneToMany(mappedBy = "user", cascade = [CascadeType.ALL], orphanRemoval = true)
+    val sportActivities: MutableList<SportActivity> = mutableListOf(),
+
+    @OneToMany(mappedBy = "user", cascade = [CascadeType.ALL], orphanRemoval = true)
+    val healthAlerts: MutableList<HealthAlert> = mutableListOf(),
+
+    @OneToMany(mappedBy = "user", cascade = [CascadeType.ALL], orphanRemoval = true)
+    val detectiveInsights: MutableList<DetectiveInsight> = mutableListOf(),
+
+    @OneToMany(mappedBy = "user", cascade = [CascadeType.ALL], orphanRemoval = true)
+    val healthShieldDailyPoints: MutableList<HealthShieldDailyPoints> = mutableListOf(),
+
+    @OneToOne(mappedBy = "user", cascade = [CascadeType.ALL], orphanRemoval = true)
+    val healthShieldStatus: HealthShieldStatus? = null
 )
 
 enum class UserRole {

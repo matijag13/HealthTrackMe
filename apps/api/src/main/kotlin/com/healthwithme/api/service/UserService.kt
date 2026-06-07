@@ -193,9 +193,8 @@ class UserService(
     fun deleteUser(id: Long): Boolean {
         val user = userRepository.findById(id)
             .orElseThrow { IllegalArgumentException("User not found") }
-        
-        val deactivatedUser = user.copy(isActive = false, updatedAt = LocalDateTime.now())
-        userRepository.save(deactivatedUser)
+
+        userRepository.delete(user)
         return true
     }
 

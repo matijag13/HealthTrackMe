@@ -51,7 +51,10 @@ data class Medicine(
     val createdAt: LocalDateTime = LocalDateTime.now(),
     
     @Column(nullable = false)
-    val updatedAt: LocalDateTime = LocalDateTime.now()
+    val updatedAt: LocalDateTime = LocalDateTime.now(),
+
+    @OneToMany(mappedBy = "medicine", cascade = [CascadeType.ALL], orphanRemoval = true)
+    val doseLogs: MutableList<DoseLog> = mutableListOf()
 )
 
 enum class ItemType {

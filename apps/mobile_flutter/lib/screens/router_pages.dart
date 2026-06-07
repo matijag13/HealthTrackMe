@@ -6892,19 +6892,24 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
   }
 
   Future<void> _deleteAllData() async {
-    final confirm = await _confirmDialog(
-      title: 'Delete all data?',
-      message: 'This will permanently delete your data.',
-      action: 'Delete',
-      danger: true,
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => const _SettingsDeleteDataDialog(),
     );
     if (confirm != true) return;
 
-    final user = await ApiService.instance.getCurrentUser();
+    final api = ApiService.instance;
+    final user = await api.getCurrentUser();
     if (!mounted || user == null) return;
-    final ok = await ApiService.instance.deleteUser(user.id);
+    final ok = await api.deleteUser(user.id);
     if (!mounted) return;
-    _snack(ok ? 'Account deleted' : 'Could not delete account');
+    if (ok) {
+      await api.resetActiveUserId();
+      if (!mounted) return;
+      context.go('/auth');
+    } else {
+      _snack('Could not delete account');
+    }
   }
 
   Future<void> _showPrivacyPolicy() async {
@@ -6959,48 +6964,6 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
               _snack('API configuration reset');
             },
             child: const Text('Reset API', style: TextStyle(color: _danger)),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<bool?> _confirmDialog({
-    required String title,
-    required String message,
-    required String action,
-    bool danger = false,
-  }) {
-    return showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: _surface,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-          side: const BorderSide(color: _border),
-        ),
-        title: Text(
-          title,
-          style: const TextStyle(
-            color: _primaryText,
-            fontWeight: FontWeight.w900,
-          ),
-        ),
-        content: Text(
-          message,
-          style: const TextStyle(color: _secondaryText, height: 1.4),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: Text(
-              action,
-              style: TextStyle(color: danger ? _danger : _accent),
-            ),
           ),
         ],
       ),
@@ -7179,6 +7142,183 @@ class _SettingsCard extends StatelessWidget {
         ),
       ),
       child: child,
+    );
+  }
+}
+
+class _SettingsDeleteDataDialog extends StatelessWidget {
+  const _SettingsDeleteDataDialog();
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 22),
+      child: Container(
+        decoration: BoxDecoration(
+          color: _ProfileSettingsPageState._surface,
+          borderRadius: BorderRadius.circular(22),
+          border: Border.all(
+            color: _ProfileSettingsPageState._danger.withValues(alpha: 0.38),
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.46),
+              blurRadius: 34,
+              offset: const Offset(0, 18),
+            ),
+          ],
+        ),
+        child: Stack(
+          children: [
+            Positioned(
+              left: 0,
+              top: 0,
+              bottom: 0,
+              child: Container(
+                width: 4,
+                decoration: const BoxDecoration(
+                  color: _ProfileSettingsPageState._danger,
+                  borderRadius: BorderRadius.horizontal(
+                    left: Radius.circular(22),
+                  ),
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(22, 22, 22, 18),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        width: 44,
+                        height: 44,
+                        decoration: BoxDecoration(
+                          color: _ProfileSettingsPageState._danger
+                              .withValues(alpha: 0.14),
+                          borderRadius: BorderRadius.circular(15),
+                          border: Border.all(
+                            color: _ProfileSettingsPageState._danger
+                                .withValues(alpha: 0.32),
+                          ),
+                        ),
+                        child: const Icon(
+                          Icons.delete_forever_outlined,
+                          color: _ProfileSettingsPageState._danger,
+                          size: 24,
+                        ),
+                      ),
+                      const SizedBox(width: 14),
+                      const Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Delete all data?',
+                              style: TextStyle(
+                                color: _ProfileSettingsPageState._primaryText,
+                                fontSize: 22,
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
+                            SizedBox(height: 6),
+                            Text(
+                              'This permanently removes your account and health data from HealthTrackMe. This cannot be undone.',
+                              style: TextStyle(
+                                color: _ProfileSettingsPageState._secondaryText,
+                                height: 1.42,
+                                fontSize: 13,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 18),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: _ProfileSettingsPageState._surfaceAlt,
+                      borderRadius: BorderRadius.circular(14),
+                      border:
+                          Border.all(color: _ProfileSettingsPageState._border),
+                    ),
+                    child: const Row(
+                      children: [
+                        Icon(
+                          Icons.warning_amber_rounded,
+                          color: _ProfileSettingsPageState._danger,
+                          size: 18,
+                        ),
+                        SizedBox(width: 9),
+                        Expanded(
+                          child: Text(
+                            'Your login session will end after deletion.',
+                            style: TextStyle(
+                              color: _ProfileSettingsPageState._primaryText,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () => Navigator.pop(context, false),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor:
+                                _ProfileSettingsPageState._primaryText,
+                            side: const BorderSide(
+                              color: _ProfileSettingsPageState._border,
+                            ),
+                            minimumSize: const Size.fromHeight(48),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                          ),
+                          child: const Text(
+                            'Cancel',
+                            style: TextStyle(fontWeight: FontWeight.w800),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: FilledButton(
+                          onPressed: () => Navigator.pop(context, true),
+                          style: FilledButton.styleFrom(
+                            backgroundColor: _ProfileSettingsPageState._danger,
+                            foregroundColor: Colors.white,
+                            minimumSize: const Size.fromHeight(48),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                          ),
+                          child: const Text(
+                            'Delete',
+                            style: TextStyle(fontWeight: FontWeight.w900),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
