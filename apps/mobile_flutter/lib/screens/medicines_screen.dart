@@ -1423,6 +1423,14 @@ class _MedicineEditSheetState extends State<MedicineEditSheet> {
   static String _formatHhmm(TimeOfDay t) =>
       '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
 
+  /// 12-hour display (e.g. 12:00 PM), matching the AM/PM picker.
+  static String _format12h(TimeOfDay t) {
+    final h = t.hourOfPeriod == 0 ? 12 : t.hourOfPeriod;
+    final m = t.minute.toString().padLeft(2, '0');
+    final period = t.period == DayPeriod.am ? 'AM' : 'PM';
+    return '$h:$m $period';
+  }
+
   void _sortReminderTimes() {
     _reminderTimes.sort(
         (a, b) => (a.hour * 60 + a.minute).compareTo(b.hour * 60 + b.minute));
@@ -1504,7 +1512,12 @@ class _MedicineEditSheetState extends State<MedicineEditSheet> {
             onSurface: Color(0xFFF7F8FA),
           ),
         ),
-        child: child!,
+        // Force the familiar 12-hour AM/PM layout (noon = 12:00 PM), regardless
+        // of the device's 24-hour system setting.
+        child: MediaQuery(
+          data: MediaQuery.of(context).copyWith(alwaysUse24HourFormat: false),
+          child: child!,
+        ),
       ),
     );
     if (picked == null || !mounted) return;
@@ -1548,7 +1561,7 @@ class _MedicineEditSheetState extends State<MedicineEditSheet> {
                           size: 15, color: accent),
                       const SizedBox(width: 6),
                       Text(
-                        t.format(context),
+                        _format12h(t),
                         style: const TextStyle(
                           color: Color(0xFFF7F8FA),
                           fontWeight: FontWeight.w700,

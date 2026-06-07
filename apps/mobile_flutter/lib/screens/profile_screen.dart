@@ -1027,7 +1027,14 @@ class _DiaryReminderTileState extends State<_DiaryReminderTile> {
   }
 
   Future<void> _pickTime() async {
-    final picked = await showTimePicker(context: context, initialTime: _time);
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: _time,
+      builder: (context, child) => MediaQuery(
+        data: MediaQuery.of(context).copyWith(alwaysUse24HourFormat: false),
+        child: child!,
+      ),
+    );
     if (picked != null) {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(
