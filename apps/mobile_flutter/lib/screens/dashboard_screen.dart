@@ -204,7 +204,11 @@ class _DashboardScreenState extends State<DashboardScreen>
   }
 
   Future<void> _loadAll() async {
-    setState(() => _loading = true);
+    // Only show the full-screen loading state on the very first load. On
+    // refreshes (tab return, post-sync) keep the existing data visible so the
+    // dashboard never blanks back to spinners.
+    final firstLoad = _state.user == null;
+    if (firstLoad) setState(() => _loading = true);
     try {
       await _api.ensureActiveUserId();
 
@@ -265,31 +269,41 @@ class _DashboardScreenState extends State<DashboardScreen>
       );
     }
 
-    var adherenceReliable = false;
-    var takenToday = false;
     final todayKey = _dateKey(DateTime.now());
 
-    for (final medicine in activeMedicines) {
-      try {
-        final adherence = await _api.getMedicineAdherence(medicine.id, days: 1);
-        adherenceReliable = true;
-        final breakdown = adherence['dailyBreakdown'];
-        if (breakdown is List) {
-          takenToday = takenToday ||
-              breakdown.any((point) {
-                if (point is! Map) return false;
-                final status = point['status']?.toString().toUpperCase();
-                return point['date']?.toString() == todayKey &&
-                    (status == 'TAKEN' || status == 'TRACKED');
-              });
-        } else {
-          final rate = num.tryParse(
-            (adherence['adherenceRate'] ?? adherence['percentage'] ?? '')
-                .toString(),
-          );
-          takenToday = takenToday || (rate != null && rate > 0);
+    // Fetch every medicine's adherence in parallel instead of one-by-one, so the
+    // dashboard isn't blocked on N sequential network round-trips.
+    final adherences = await Future.wait(
+      activeMedicines.map((medicine) async {
+        try {
+          return await _api.getMedicineAdherence(medicine.id, days: 1);
+        } catch (_) {
+          return null;
         }
-      } catch (_) {}
+      }),
+    );
+
+    var adherenceReliable = false;
+    var takenToday = false;
+    for (final adherence in adherences) {
+      if (adherence == null) continue;
+      adherenceReliable = true;
+      final breakdown = adherence['dailyBreakdown'];
+      if (breakdown is List) {
+        takenToday = takenToday ||
+            breakdown.any((point) {
+              if (point is! Map) return false;
+              final status = point['status']?.toString().toUpperCase();
+              return point['date']?.toString() == todayKey &&
+                  (status == 'TAKEN' || status == 'TRACKED');
+            });
+      } else {
+        final rate = num.tryParse(
+          (adherence['adherenceRate'] ?? adherence['percentage'] ?? '')
+              .toString(),
+        );
+        takenToday = takenToday || (rate != null && rate > 0);
+      }
     }
 
     if (!adherenceReliable) {
