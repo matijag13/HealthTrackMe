@@ -7,6 +7,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/models.dart';
+import '../services/activity_tracking_service.dart';
 import '../services/api_service.dart';
 import '../services/notification_service.dart';
 import '../services/phone_sensor_service.dart';
@@ -513,6 +514,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             if (value) {
                               await WearableService().requestPermissions();
                               await PhoneSensorService.instance.recordSteps();
+                            }
+                          },
+                        ),
+                        _PreferenceToggleTile(
+                          prefKey: 'pref_auto_activity',
+                          defaultValue: false,
+                          icon: Icons.directions_run_rounded,
+                          accent: _accent,
+                          title: 'Auto-detect walks & runs',
+                          subtitle:
+                              'Log walking/running sessions automatically while the app runs',
+                          onChanged: (value) async {
+                            if (value) {
+                              await WearableService().requestPermissions();
+                              await ActivityTrackingService.instance.start();
+                            } else {
+                              await ActivityTrackingService.instance.stop();
                             }
                           },
                         ),

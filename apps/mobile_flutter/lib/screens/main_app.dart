@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../services/activity_tracking_service.dart';
 import '../services/api_service.dart';
 import '../services/wearable_service.dart';
 
@@ -40,6 +41,17 @@ class _MainAppState extends State<MainApp> with WidgetsBindingObserver {
     _foregroundSync();
     _syncTimer =
         Timer.periodic(_foregroundSyncInterval, (_) => _foregroundSync());
+    _maybeStartActivityTracking();
+  }
+
+  /// Starts auto walk/run detection if the user enabled it.
+  Future<void> _maybeStartActivityTracking() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      if (prefs.getBool('pref_auto_activity') ?? false) {
+        await ActivityTrackingService.instance.start();
+      }
+    } catch (_) {}
   }
 
   @override

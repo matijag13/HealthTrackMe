@@ -92,8 +92,13 @@ class WearableService {
       // (distance, workout) are denied, we still consider the overall request
       // successful as long as the core types are granted.
       final types = _requestedDataTypes;
+      const writeTypes = {
+        HealthDataType.STEPS,
+        HealthDataType.WORKOUT,
+        HealthDataType.DISTANCE_WALKING_RUNNING,
+      };
       final permissions = types
-          .map((t) => t == HealthDataType.STEPS
+          .map((t) => writeTypes.contains(t)
               ? HealthDataAccess.READ_WRITE
               : HealthDataAccess.READ)
           .toList();

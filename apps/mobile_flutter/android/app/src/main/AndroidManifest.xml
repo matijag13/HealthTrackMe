@@ -16,8 +16,10 @@
     <uses-permission android:name="android.permission.health.READ_BLOOD_PRESSURE" />
     <uses-permission android:name="android.permission.health.READ_EXERCISE" />
     <uses-permission android:name="android.permission.health.READ_DISTANCE" />
-    <!-- Write step data measured by this phone's own sensor into Health Connect. -->
+    <!-- Write data measured by this phone (steps + auto-detected workouts) into Health Connect. -->
     <uses-permission android:name="android.permission.health.WRITE_STEPS" />
+    <uses-permission android:name="android.permission.health.WRITE_EXERCISE" />
+    <uses-permission android:name="android.permission.health.WRITE_DISTANCE" />
 
     <application
         android:label="healthtrackme"
