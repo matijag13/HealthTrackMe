@@ -6859,6 +6859,7 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
   static const _notificationsKey = 'healthtrackme_notifications_enabled';
   static const _bg = Color(0xFF070B13);
   static const _surface = Color(0xFF0F1624);
+  static const _surfaceAlt = Color(0xFF121B2C);
   static const _border = Color(0xFF243047);
   static const _primaryText = Color(0xFFF5F7FB);
   static const _secondaryText = Color(0xFF94A3B8);
@@ -7248,11 +7249,21 @@ class _SettingsPrivacyPolicySheet extends StatelessWidget {
                       ],
                     ),
                   ),
-                  IconButton(
-                    onPressed: () => Navigator.pop(context),
-                    icon: const Icon(
-                      Icons.close_rounded,
-                      color: _ProfileSettingsPageState._secondaryText,
+                  Material(
+                    color: Colors.transparent,
+                    child: IconButton(
+                      onPressed: () => Navigator.pop(context),
+                      icon: const Icon(
+                        Icons.close_rounded,
+                        color: _ProfileSettingsPageState._primaryText,
+                      ),
+                      style: IconButton.styleFrom(
+                        backgroundColor: _ProfileSettingsPageState._surfaceAlt,
+                        side: BorderSide(
+                          color: _ProfileSettingsPageState._border
+                              .withValues(alpha: 0.95),
+                        ),
+                      ),
                     ),
                   ),
                 ],

@@ -238,9 +238,16 @@ class _AiAssistantSheetState extends State<_AiAssistantSheet> {
               ],
             ),
           ),
-          IconButton(
-            icon: const Icon(Icons.close_rounded, color: _secondaryText),
-            onPressed: () => Navigator.of(context).pop(),
+          Material(
+            color: Colors.transparent,
+            child: IconButton(
+              onPressed: () => Navigator.of(context).pop(),
+              icon: const Icon(Icons.close_rounded, color: _primaryText),
+              style: IconButton.styleFrom(
+                backgroundColor: _surfaceAlt,
+                side: BorderSide(color: _border.withValues(alpha: 0.95)),
+              ),
+            ),
           ),
         ],
       ),

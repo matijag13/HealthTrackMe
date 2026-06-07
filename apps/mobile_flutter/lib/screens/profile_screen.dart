@@ -1236,11 +1236,21 @@ class _PrivacyPolicySheet extends StatelessWidget {
                       ],
                     ),
                   ),
-                  IconButton(
-                    onPressed: () => Navigator.pop(context),
-                    icon: const Icon(
-                      Icons.close_rounded,
-                      color: _ProfileScreenState._secondaryText,
+                  Material(
+                    color: Colors.transparent,
+                    child: IconButton(
+                      onPressed: () => Navigator.pop(context),
+                      icon: const Icon(
+                        Icons.close_rounded,
+                        color: _ProfileScreenState._primaryText,
+                      ),
+                      style: IconButton.styleFrom(
+                        backgroundColor: _ProfileScreenState._surfaceAlt,
+                        side: BorderSide(
+                          color: _ProfileScreenState._border
+                              .withValues(alpha: 0.95),
+                        ),
+                      ),
                     ),
                   ),
                 ],
