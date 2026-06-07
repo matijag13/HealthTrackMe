@@ -199,16 +199,16 @@ class WearableService {
     return 0;
   }
 
-  /// Get steps from health data
+  /// Get steps from health data.
+  ///
+  /// Uses the platform's aggregated step total, which de-duplicates overlapping
+  /// records from multiple Health Connect sources (Samsung Health, the phone's
+  /// own counter, Google Fit, ...). Summing the raw STEPS records instead would
+  /// double/triple-count and produce wildly inflated totals (e.g. 74k for a day).
   Future<int?> _getSteps(DateTime startDate, DateTime endDate) async {
     try {
-      final data = await health.getHealthDataFromTypes(
-        types: [HealthDataType.STEPS],
-        startTime: startDate,
-        endTime: endDate,
-      );
-      final total = data.fold<double>(0, (s, p) => s + _numericValue(p));
-      return total > 0 ? total.toInt() : null;
+      final total = await health.getTotalStepsInInterval(startDate, endDate);
+      return (total != null && total > 0) ? total : null;
     } catch (e) {
       debugPrint('⚠️ Error fetching steps: $e');
       return null;

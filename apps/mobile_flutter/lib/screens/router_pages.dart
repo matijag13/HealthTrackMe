@@ -2910,24 +2910,51 @@ class _HealthActivityPageState extends State<HealthActivityPage> {
     return raw.isEmpty ? null : raw;
   }
 
+  /// Steps per calendar day for the walking tab, de-duplicated the same way the
+  /// step chart shows them. Daily-total entries (no duration, synced from Health
+  /// Connect) keep the MOST RECENT one per day — the newest sync has the
+  /// correct, de-duplicated count, so a stale/inflated older entry (e.g. a 74k
+  /// total from before the fix) no longer wins. Sessions (with duration) are
+  /// summed. The day's value is whichever is larger of the two.
+  Map<DateTime, int> _walkingStepsByDay(List<Map<String, dynamic>> activities) {
+    final dailyLatest = <DateTime, ({DateTime at, int steps})>{};
+    final sessionSum = <DateTime, int>{};
+    for (final activity in activities) {
+      if (_activityTypeLabel(activity) != _ActivityType.walking.label) continue;
+      final date = _activityDate(activity);
+      if (date == null) continue;
+      final steps = _activitySteps(activity);
+      if (steps <= 0) continue;
+      final day = DateTime(date.year, date.month, date.day);
+      if (_activityDuration(activity) > 0) {
+        sessionSum[day] = (sessionSum[day] ?? 0) + steps;
+      } else {
+        final at = _activityCreatedAt(activity) ?? date;
+        final cur = dailyLatest[day];
+        if (cur == null || at.isAfter(cur.at)) {
+          dailyLatest[day] = (at: at, steps: steps);
+        }
+      }
+    }
+    final result = <DateTime, int>{};
+    for (final day in {...dailyLatest.keys, ...sessionSum.keys}) {
+      final dl = dailyLatest[day]?.steps ?? 0;
+      final ss = sessionSum[day] ?? 0;
+      result[day] = dl > ss ? dl : ss;
+    }
+    return result;
+  }
+
+  DateTime? _activityCreatedAt(Map<String, dynamic> activity) {
+    final raw = activity['createdAt'];
+    return raw == null ? null : DateTime.tryParse(raw.toString());
+  }
+
   List<_ActivityPoint> _pointsForRange(List<Map<String, dynamic>> activities) {
     List<_ActivityPoint> points;
 
     if (_isWalkingTab) {
-      // Aggregate step counts per calendar day so multiple syncs / multiple
-      // walking sessions on the same day collapse into a single chart point.
-      final Map<DateTime, int> stepsByDay = {};
-      for (final activity in activities) {
-        final date = _activityDate(activity);
-        if (date == null ||
-            _activityTypeLabel(activity) != _selectedType.label) {
-          continue;
-        }
-        final steps = _activitySteps(activity);
-        if (steps <= 0) continue;
-        final day = DateTime(date.year, date.month, date.day);
-        stepsByDay[day] = (stepsByDay[day] ?? 0) + steps;
-      }
+      final stepsByDay = _walkingStepsByDay(activities);
       final sortedDays = stepsByDay.keys.toList()..sort();
       points =
           sortedDays.map((d) => _ActivityPoint(d, stepsByDay[d]!)).toList();
@@ -2998,8 +3025,38 @@ class _HealthActivityPageState extends State<HealthActivityPage> {
   String _average(List<_ActivityPoint> points) {
     if (points.isEmpty) return '-';
     final total = points.fold<int>(0, (sum, point) => sum + point.value);
+    if (_isWalkingTab) {
+      // Average steps PER DAY across the whole selected window (counting rest
+      // days), not just the days that happened to have data — otherwise the
+      // average is inflated.
+      final days = _averageDayDivisor(points);
+      final avg = days > 0 ? (total / days).round() : 0;
+      return '$avg steps';
+    }
+    // Other activities: average duration per session.
     final avg = (total / points.length).round();
-    return _isWalkingTab ? '$avg steps' : _formatDuration(avg);
+    return _formatDuration(avg);
+  }
+
+  /// Number of calendar days the walking average is divided over, matching the
+  /// step chart's window (1 / 7 / 30, or the data span for "Max").
+  int _averageDayDivisor(List<_ActivityPoint> points) {
+    switch (_selectedTimeRange) {
+      case _ActivityTimeRange.day:
+        return 1;
+      case _ActivityTimeRange.week:
+        return 7;
+      case _ActivityTimeRange.month:
+        return 30;
+      case _ActivityTimeRange.max:
+        if (points.isEmpty) return 1;
+        final today = DateTime.now();
+        final todayDay = DateTime(today.year, today.month, today.day);
+        final earliest = points
+            .map((p) => DateTime(p.date.year, p.date.month, p.date.day))
+            .reduce((a, b) => a.isBefore(b) ? a : b);
+        return (todayDay.difference(earliest).inDays + 1).clamp(7, 90);
+    }
   }
 
   String _total(List<_ActivityPoint> points) {
@@ -3571,27 +3628,10 @@ class _HealthActivityPageState extends State<HealthActivityPage> {
     // Final value = max(best daily-total, sum of sessions).
     final days = List.generate(
         dayCount, (i) => today.subtract(Duration(days: dayCount - 1 - i)));
-    final dailyMax = <DateTime, int>{}; // best "total" entry per day
-    final sessionSum = <DateTime, int>{}; // sum of session entries per day
-    for (final a in allActivities) {
-      if (_activityTypeLabel(a) != _ActivityType.walking.label) continue;
-      final date = _activityDate(a);
-      if (date == null) continue;
-      final day = DateTime(date.year, date.month, date.day);
-      if (!days.contains(day)) continue;
-      final steps = _activitySteps(a);
-      if (steps <= 0) continue;
-      if (_activityDuration(a) > 0) {
-        sessionSum[day] = (sessionSum[day] ?? 0) + steps;
-      } else {
-        dailyMax[day] =
-            steps > (dailyMax[day] ?? 0) ? steps : (dailyMax[day] ?? 0);
-      }
-    }
+    // Same de-duplicated per-day steps the averages use, so they always agree.
+    final allStepsByDay = _walkingStepsByDay(allActivities);
     final stepsByDay = <DateTime, int>{
-      for (final d in days)
-        d: [dailyMax[d] ?? 0, sessionSum[d] ?? 0]
-            .fold(0, (a, b) => a > b ? a : b),
+      for (final d in days) d: allStepsByDay[d] ?? 0,
     };
 
     final todaySteps = stepsByDay[today] ?? 0;
