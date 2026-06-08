@@ -8,13 +8,17 @@ import 'package:pedometer/pedometer.dart';
 import 'api_service.dart';
 import 'sync_events.dart';
 
-/// Auto-detects walking/running sessions from the OS Activity Recognition API
-/// while the app is alive (foreground or recently backgrounded) and logs them
-/// to the backend + Health Connect.
+/// Auto-detects walking/running sessions while the app is alive and logs each one
+/// (once) to the backend + Health Connect.
 ///
-/// NOTE: always-on detection when the app is fully killed needs a persistent
-/// foreground service (a planned follow-up). This version records whenever the
-/// app is running.
+/// Detection is **step-driven**, not event-driven. The OS Activity Recognition
+/// API is noisy and transition-based — relying on it directly produced dozens of
+/// tiny fragments for a single walk. Instead, an activity event only *starts* a
+/// candidate session; from there a periodic poll watches the hardware step
+/// counter. As long as steps keep accumulating the session stays open (so a
+/// continuous walk is one session, even across short pauses), and a session is
+/// only logged if it clears a real duration **and** step threshold — which throws
+/// away the "3 steps in 90s" noise.
 class ActivityTrackingService {
   ActivityTrackingService._();
   static final ActivityTrackingService instance = ActivityTrackingService._();
@@ -23,17 +27,32 @@ class ActivityTrackingService {
   final Health _health = Health();
 
   StreamSubscription<Activity>? _sub;
+  Timer? _poll;
   bool _running = false;
 
   DateTime? _sessionStart;
   ActivityType? _sessionType;
   int? _sessionStartSteps;
-  Timer? _endTimer;
+  int? _lastSteps;
+  DateTime? _lastMoveTime;
 
   // Distance ≈ steps × stride. A default until per-user height tuning is added.
   static const double _strideMeters = 0.75;
-  static const int _minSessionSeconds = 60; // ignore < 1 min blips
-  static const Duration _endDebounce = Duration(seconds: 90);
+
+  /// How often we sample the step counter while a session is open.
+  static const Duration _pollInterval = Duration(seconds: 45);
+
+  /// Steps within one poll that still count as "moving" (≈ a slow walk). Below
+  /// this the user is treated as stopped.
+  static const int _aliveStepsPerPoll = 15;
+
+  /// End a session after this long with no real movement.
+  static const Duration _idleTimeout = Duration(minutes: 2);
+
+  /// A session must be at least this long AND have at least this many steps to be
+  /// logged — together these discard the activity-recognition noise.
+  static const int _minSessionSeconds = 180; // 3 min
+  static const int _minSessionSteps = 200;
 
   bool get isRunning => _running;
 
@@ -56,55 +75,85 @@ class ActivityTrackingService {
   }
 
   Future<void> stop() async {
-    _endTimer?.cancel();
-    _endTimer = null;
     await _sub?.cancel();
     _sub = null;
     _running = false;
-    await _endSession();
+    await _finalizeSession();
   }
 
   void _onActivity(Activity activity) {
     final type = activity.type;
-    final moving = type == ActivityType.WALKING || type == ActivityType.RUNNING;
-    if (moving && activity.confidence != ActivityConfidence.LOW) {
-      _endTimer?.cancel();
-      _endTimer = null;
-      if (_sessionStart == null) {
-        _beginSession(type);
-      }
-    } else if (_sessionStart != null && _endTimer == null) {
-      // Stopped moving — end the session after a debounce (ignore brief pauses).
-      _endTimer = Timer(_endDebounce, _endSession);
+    final moving =
+        (type == ActivityType.WALKING || type == ActivityType.RUNNING) &&
+            activity.confidence != ActivityConfidence.LOW;
+    if (!moving) return;
+
+    if (_sessionStart == null) {
+      _beginSession(type);
+    } else {
+      _lastMoveTime = DateTime.now();
+      // Upgrade walk → run if the OS now reports running.
+      if (type == ActivityType.RUNNING) _sessionType = ActivityType.RUNNING;
     }
   }
 
   Future<void> _beginSession(ActivityType type) async {
-    _sessionStart = DateTime.now();
+    final now = DateTime.now();
+    _sessionStart = now;
     _sessionType = type;
-    _sessionStartSteps = await _currentSteps();
+    _lastMoveTime = now;
+    final steps = await _currentSteps();
+    _sessionStartSteps = steps;
+    _lastSteps = steps;
+    _poll?.cancel();
+    _poll = Timer.periodic(_pollInterval, (_) => _onPoll());
   }
 
-  Future<void> _endSession() async {
-    _endTimer?.cancel();
-    _endTimer = null;
+  /// Each tick: if steps kept climbing, the session is alive; otherwise check
+  /// whether we've been idle long enough to finalize.
+  Future<void> _onPoll() async {
+    if (_sessionStart == null) return;
+    final cur = await _currentSteps();
+    if (cur != null && _lastSteps != null) {
+      final delta = cur - _lastSteps!;
+      if (delta >= _aliveStepsPerPoll) {
+        _lastMoveTime = DateTime.now();
+      }
+      _lastSteps = cur;
+    }
+    final idleFor = DateTime.now().difference(_lastMoveTime ?? DateTime.now());
+    if (idleFor >= _idleTimeout) {
+      await _finalizeSession();
+    }
+  }
+
+  Future<void> _finalizeSession() async {
+    _poll?.cancel();
+    _poll = null;
     final start = _sessionStart;
     final type = _sessionType;
     final startSteps = _sessionStartSteps;
+    final end = _lastMoveTime;
     _sessionStart = null;
     _sessionType = null;
     _sessionStartSteps = null;
-    if (start == null || type == null) return;
+    _lastSteps = null;
+    _lastMoveTime = null;
+    if (start == null || type == null || end == null) return;
 
-    final end = DateTime.now();
     final durationSec = end.difference(start).inSeconds;
-    if (durationSec < _minSessionSeconds) return;
-
     final endSteps = await _currentSteps();
     final steps =
         (startSteps != null && endSteps != null && endSteps >= startSteps)
             ? endSteps - startSteps
             : 0;
+
+    // The two gates that kill the noise: a real walk lasts minutes and racks up
+    // hundreds of steps. Anything short or near-stationary is discarded.
+    if (durationSec < _minSessionSeconds || steps < _minSessionSteps) {
+      return;
+    }
+
     final durationMin = (durationSec / 60).round().clamp(1, 9999);
     final distanceKm = steps * _strideMeters / 1000.0;
     final isRun = type == ActivityType.RUNNING;
@@ -114,7 +163,7 @@ class ActivityTrackingService {
         'activityType': isRun ? 'RUNNING' : 'WALKING',
         'activityDate': _dateStr(start),
         'duration': durationMin,
-        if (steps > 0) 'steps': steps,
+        'steps': steps,
         if (distanceKm > 0) 'distance': distanceKm,
         'notes': 'Auto-detected on this phone',
       });
