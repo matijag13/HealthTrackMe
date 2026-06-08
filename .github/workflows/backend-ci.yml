@@ -49,12 +49,16 @@ jobs:
 
       - name: Build Docker image
         run: |
+          base_delay=5
           for attempt in 1 2 3; do
             docker build -t healthtrackme-api . && exit 0
             if [ "${attempt}" -eq 3 ]; then
               break
             fi
-            delay=$((5 * 3 ** (attempt - 1)))
+            case "${attempt}" in
+              1) delay=${base_delay} ;;
+              2) delay=$((base_delay * 3)) ;;
+            esac
             echo "Docker build failed on attempt ${attempt}. Retrying in ${delay}s..."
             sleep "${delay}"
           done
