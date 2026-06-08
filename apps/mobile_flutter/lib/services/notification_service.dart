@@ -29,6 +29,11 @@ class NotificationService {
   static const String _streakChannelDesc =
       'Morning nudge to keep your logging streak alive';
 
+  static const String _activityChannelId = 'auto_activity';
+  static const String _activityChannelName = 'Auto-detected Activities';
+  static const String _activityChannelDesc =
+      'Notification when a walk or run is automatically logged';
+
   Future<void> initialize() async {
     tz_data.initializeTimeZones();
     // tz.local defaults to UTC after initializeTimeZones(). We must explicitly
@@ -414,6 +419,49 @@ class NotificationService {
 
   Future<void> cancelDailyStreakReminder() async {
     await _plugin.cancel(_streakReminderId);
+  }
+
+  // =========================
+  // AUTO-DETECTED ACTIVITY
+  // =========================
+
+  static const int _activityNotifId = 777777;
+
+  static const NotificationDetails _activityDetails = NotificationDetails(
+    android: AndroidNotificationDetails(
+      _activityChannelId,
+      _activityChannelName,
+      channelDescription: _activityChannelDesc,
+      importance: Importance.defaultImportance,
+      priority: Priority.defaultPriority,
+    ),
+    iOS: DarwinNotificationDetails(),
+  );
+
+  /// Shows an immediate notification confirming an auto-detected walk/run was
+  /// logged. [distanceKm] is the GPS-adjusted distance, [steps] the final count.
+  Future<void> showAutoActivityNotification({
+    required String type, // 'Walk' or 'Run'
+    required int durationMin,
+    required double distanceKm,
+    required int steps,
+  }) async {
+    if (kIsWeb) return;
+    final emoji = type == 'Run' ? '🏃' : '🚶';
+    final distStr = distanceKm >= 0.1
+        ? '${distanceKm.toStringAsFixed(1)} km'
+        : '${(distanceKm * 1000).round()} m';
+    try {
+      await _plugin.show(
+        _activityNotifId,
+        '$emoji $type logged',
+        '$durationMin min · $distStr · $steps steps',
+        _activityDetails,
+        payload: 'auto_activity',
+      );
+    } catch (e) {
+      debugPrint('Auto-activity notification failed: $e');
+    }
   }
 
   /// Cancels every pending medicine reminder regardless of medicine id — used

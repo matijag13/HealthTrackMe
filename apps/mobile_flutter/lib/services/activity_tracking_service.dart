@@ -6,6 +6,7 @@ import 'package:health/health.dart';
 import 'package:pedometer/pedometer.dart';
 
 import 'api_service.dart';
+import 'notification_service.dart';
 import 'sync_events.dart';
 
 /// Auto-detects walking/running sessions while the app is alive and logs each one
@@ -148,34 +149,51 @@ class ActivityTrackingService {
 
     final durationSec = end.difference(start).inSeconds;
     final endSteps = await _currentSteps();
-    final steps =
+    final pedometerSteps =
         (startSteps != null && endSteps != null && endSteps >= startSteps)
             ? endSteps - startSteps
             : 0;
 
+    // Extend the query window backwards to capture steps the OS activity
+    // recogniser missed at the start of the walk (it typically fires 3-5 min in).
+    final extStart = start.subtract(const Duration(minutes: 6));
+    final extEnd = end.add(const Duration(seconds: 30));
+    final hcSteps = await _hcStepsInWindow(extStart, extEnd);
+    final hcDistanceKm = await _hcDistanceKmInWindow(extStart, extEnd);
+
+    // Prefer Health Connect values when they're richer (GPS-backed distance from
+    // Samsung / other sensors; step counts that include the pre-detection window).
+    final bestSteps = (hcSteps != null && hcSteps > pedometerSteps)
+        ? hcSteps
+        : pedometerSteps;
+    final bestDistanceKm = (hcDistanceKm != null && hcDistanceKm > 0.01)
+        ? hcDistanceKm
+        : pedometerSteps * _strideMeters / 1000.0;
+
     // The two gates that kill the noise: a real walk lasts minutes and racks up
     // hundreds of steps. Anything short or near-stationary is discarded.
-    if (durationSec < _minSessionSeconds || steps < _minSessionSteps) {
+    if (durationSec < _minSessionSeconds || bestSteps < _minSessionSteps) {
       return;
     }
 
     final durationMin = (durationSec / 60).round().clamp(1, 9999);
-    final distanceKm = steps * _strideMeters / 1000.0;
     final isRun = type == ActivityType.RUNNING;
     final weightKg = await _userWeightKg();
     final met = isRun ? _runMet : _walkMet;
     final calories = (met * weightKg * (durationSec / 3600.0)).round();
 
+    bool uploaded = false;
     try {
       await _api.createSportActivity({
         'activityType': isRun ? 'RUNNING' : 'WALKING',
         'activityDate': _dateStr(start),
         'duration': durationMin,
-        'steps': steps,
-        if (distanceKm > 0) 'distance': distanceKm,
+        'steps': bestSteps,
+        if (bestDistanceKm > 0) 'distance': bestDistanceKm,
         if (calories > 0) 'caloriesBurned': calories,
         'notes': 'Auto-detected on this phone',
       });
+      uploaded = true;
     } catch (e) {
       debugPrint('Auto-session upload failed: $e');
     }
@@ -187,7 +205,8 @@ class ActivityTrackingService {
             : HealthWorkoutActivityType.WALKING,
         start: start,
         end: end,
-        totalDistance: distanceKm > 0 ? (distanceKm * 1000).round() : null,
+        totalDistance:
+            bestDistanceKm > 0 ? (bestDistanceKm * 1000).round() : null,
         totalEnergyBurned: calories > 0 ? calories : null,
         recordingMethod: RecordingMethod.automatic,
       );
@@ -195,7 +214,61 @@ class ActivityTrackingService {
       debugPrint('Health Connect workout write failed: $e');
     }
 
+    if (uploaded) {
+      // Notify the user so they see the auto-log immediately.
+      try {
+        await NotificationService.instance.showAutoActivityNotification(
+          type: isRun ? 'Run' : 'Walk',
+          durationMin: durationMin,
+          distanceKm: bestDistanceKm,
+          steps: bestSteps,
+        );
+      } catch (e) {
+        debugPrint('Activity notification failed: $e');
+      }
+    }
+
     SyncEvents.instance.notifySynced();
+  }
+
+  /// Sums Health Connect STEPS data points in [from]..[to].
+  /// Returns null if HC is unavailable or returns nothing.
+  Future<int?> _hcStepsInWindow(DateTime from, DateTime to) async {
+    try {
+      final points = await _health.getHealthDataFromTypes(
+        startTime: from,
+        endTime: to,
+        types: [HealthDataType.STEPS],
+      );
+      if (points.isEmpty) return null;
+      final total = points.fold<double>(0, (s, e) {
+        final v = e.value;
+        return s + (v is NumericHealthValue ? v.numericValue.toDouble() : 0);
+      });
+      return total > 0 ? total.round() : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Sums Health Connect DISTANCE_WALKING_RUNNING (metres) in [from]..[to] and
+  /// converts to kilometres. Returns null if HC is unavailable or has no data.
+  Future<double?> _hcDistanceKmInWindow(DateTime from, DateTime to) async {
+    try {
+      final points = await _health.getHealthDataFromTypes(
+        startTime: from,
+        endTime: to,
+        types: [HealthDataType.DISTANCE_WALKING_RUNNING],
+      );
+      if (points.isEmpty) return null;
+      final totalMetres = points.fold<double>(0, (s, e) {
+        final v = e.value;
+        return s + (v is NumericHealthValue ? v.numericValue.toDouble() : 0);
+      });
+      return totalMetres > 1 ? totalMetres / 1000.0 : null;
+    } catch (_) {
+      return null;
+    }
   }
 
   Future<int?> _currentSteps() async {
