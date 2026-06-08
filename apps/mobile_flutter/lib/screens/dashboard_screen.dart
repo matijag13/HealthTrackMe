@@ -7,7 +7,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../config/theme.dart';
 import '../models/models.dart';
-import '../services/alert_notifier.dart';
 import '../services/api_service.dart';
 import '../services/sync_events.dart';
 import '../utils/streak.dart';
@@ -151,7 +150,6 @@ class _DashboardScreenState extends State<DashboardScreen>
   _DashboardStateModel _state = const _DashboardStateModel();
   List<String> _favoriteKeys = List<String>.from(_defaultFavoriteKeys);
   bool _loading = true;
-  int _unreadAlerts = 0;
   StreakResult _streak = StreakResult.empty;
 
   @override
@@ -268,20 +266,11 @@ class _DashboardScreenState extends State<DashboardScreen>
         _streak = streak;
         _loading = false;
       });
-      _refreshAlertCount();
       _maybeCelebrateStreak(streak.current);
     } catch (e) {
       debugPrint('Dashboard load error: $e');
       setState(() => _loading = false);
     }
-  }
-
-  /// Pulls unread alerts (and posts a notification for any new ones) without
-  /// blocking the dashboard render. Updates the header bell badge.
-  Future<void> _refreshAlertCount() async {
-    final count = await AlertNotifier.instance.checkAndNotify();
-    if (!mounted) return;
-    setState(() => _unreadAlerts = count);
   }
 
   /// Shows a one-time celebration when the logging streak hits a milestone.
@@ -1292,49 +1281,14 @@ class _DashboardScreenState extends State<DashboardScreen>
           ),
         ),
         const SizedBox(width: 8),
-        _buildAlertBell(),
-        const SizedBox(width: 8),
-        _buildAvatar(),
-      ],
-    );
-  }
-
-  Widget _buildAlertBell() {
-    return Stack(
-      clipBehavior: Clip.none,
-      children: [
         IconButton(
-          tooltip: 'Health alerts',
-          icon: const Icon(Icons.notifications_none_rounded,
-              color: _primaryText, size: 26),
-          onPressed: () async {
-            await context.pushNamed('alerts');
-            _refreshAlertCount();
-          },
+          tooltip: 'Friends & leaderboard',
+          icon: const Icon(Icons.emoji_events_outlined,
+              color: _primaryText, size: 25),
+          onPressed: () => context.pushNamed('friends'),
         ),
-        if (_unreadAlerts > 0)
-          Positioned(
-            right: 6,
-            top: 6,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-              constraints: const BoxConstraints(minWidth: 16),
-              decoration: BoxDecoration(
-                color: const Color(0xFFE25555),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: _bg, width: 1.5),
-              ),
-              child: Text(
-                _unreadAlerts > 9 ? '9+' : '$_unreadAlerts',
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 10,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ),
-          ),
+        const SizedBox(width: 4),
+        _buildAvatar(),
       ],
     );
   }

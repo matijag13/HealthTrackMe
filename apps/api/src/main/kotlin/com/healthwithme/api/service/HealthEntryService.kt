@@ -16,22 +16,8 @@ import java.time.format.DateTimeFormatter
 @Service
 class HealthEntryService(
     private val healthEntryRepository: HealthEntryRepository,
-    private val userRepository: UserRepository,
-    private val healthAnalysisService: HealthAnalysisService
+    private val userRepository: UserRepository
 ) {
-
-    /**
-     * Runs trend analysis (which may raise health alerts) over the user's recent entries.
-     * Best-effort: an analysis failure must never block the underlying save.
-     */
-    private fun runTrendAnalysis(userId: Long) {
-        try {
-            val recent = healthEntryRepository.findByUserIdOrderByEntryDateDesc(userId)
-            healthAnalysisService.analyzeHealthTrends(userId, recent)
-        } catch (e: Exception) {
-            // Swallow — alerts are a nice-to-have, not part of the save contract.
-        }
-    }
 
     fun createHealthEntry(userId: Long, request: CreateHealthEntryRequest): HealthEntryDto {
         val user = userRepository.findById(userId)
@@ -69,7 +55,6 @@ class HealthEntryService(
         )
         
         val savedEntry = healthEntryRepository.save(entry)
-        runTrendAnalysis(userId)
         return toHealthEntryDto(savedEntry)
     }
 
@@ -124,9 +109,7 @@ class HealthEntryService(
             )
         }
 
-        val saved = toHealthEntryDto(healthEntryRepository.save(entry))
-        runTrendAnalysis(userId)
-        return saved
+        return toHealthEntryDto(healthEntryRepository.save(entry))
     }
 
     fun getHealthEntry(id: Long): HealthEntryDto {

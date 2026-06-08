@@ -5,7 +5,6 @@ import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../services/activity_tracking_service.dart';
-import '../services/alert_notifier.dart';
 import '../services/api_service.dart';
 import '../services/sleep_tracking_service.dart';
 import '../services/wearable_service.dart';
@@ -111,8 +110,6 @@ class _MainAppState extends State<MainApp> with WidgetsBindingObserver {
         startDate: startDate,
       );
       await prefs.setInt(_kLastSyncKey, DateTime.now().millisecondsSinceEpoch);
-      // New data may have raised alerts server-side — surface them as a push.
-      await AlertNotifier.instance.checkAndNotify();
     } catch (_) {
       // Swallow — background job + manual sync cover failures.
     } finally {

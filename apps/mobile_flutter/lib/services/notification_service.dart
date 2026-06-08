@@ -24,11 +24,6 @@ class NotificationService {
   static const String _diaryChannelName = 'Daily Diary Reminders';
   static const String _diaryChannelDesc = 'Daily reminder to log health entry';
 
-  static const String _alertChannelId = 'health_alerts';
-  static const String _alertChannelName = 'Health Alerts';
-  static const String _alertChannelDesc =
-      'Important changes detected in your health data';
-
   static const String _streakChannelId = 'streak_reminders';
   static const String _streakChannelName = 'Streak Reminders';
   static const String _streakChannelDesc =
@@ -164,41 +159,6 @@ class NotificationService {
       } catch (e2) {
         debugPrint('Test reminder scheduling failed: $e2');
       }
-    }
-  }
-
-  // =========================
-  // HEALTH ALERTS (immediate)
-  // =========================
-
-  static const NotificationDetails _alertDetails = NotificationDetails(
-    android: AndroidNotificationDetails(
-      _alertChannelId,
-      _alertChannelName,
-      channelDescription: _alertChannelDesc,
-      importance: Importance.high,
-      priority: Priority.high,
-    ),
-    iOS: DarwinNotificationDetails(),
-  );
-
-  /// Posts a health alert immediately. [id] is derived from the alert's id so
-  /// the same alert never stacks duplicate notifications.
-  Future<void> showAlertNotification({
-    required int id,
-    required String title,
-    required String body,
-  }) async {
-    try {
-      await _plugin.show(
-        700000000 + (id % 100000000),
-        title,
-        body,
-        _alertDetails,
-        payload: 'health_alert',
-      );
-    } catch (e) {
-      debugPrint('Alert notification failed: $e');
     }
   }
 

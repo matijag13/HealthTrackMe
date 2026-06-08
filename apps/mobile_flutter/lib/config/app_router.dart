@@ -10,7 +10,6 @@ import '../screens/reports_screen.dart';
 import '../screens/router_pages.dart';
 import '../screens/health_screen.dart';
 import '../screens/health_shield_screen.dart';
-import '../screens/alerts_screen.dart';
 import '../screens/friends_screen.dart';
 import '../screens/onboarding_screen.dart';
 import '../screens/wearables_screen.dart';
@@ -51,11 +50,6 @@ GoRouter createAppRouter() {
         path: '/dark-dashboard',
         name: 'darkDashboard',
         builder: (context, state) => const DarkModeDashboardScreen(),
-      ),
-      GoRoute(
-        path: '/alerts',
-        name: 'alerts',
-        builder: (context, state) => const AlertsScreen(),
       ),
       GoRoute(
         path: '/friends',
