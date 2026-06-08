@@ -378,8 +378,7 @@ class _SleepTaskHandler extends TaskHandler {
   /// True if the still stretch covers ~03:00 local on its start or end day — a
   /// strong signal it was overnight sleep rather than daytime stillness.
   bool _spansNight(DateTime start, DateTime end) {
-    bool contains(DateTime t) =>
-        !t.isBefore(start) && !t.isAfter(end);
+    bool contains(DateTime t) => !t.isBefore(start) && !t.isAfter(end);
     final threeAmEnd = DateTime(end.year, end.month, end.day, 3);
     final threeAmStart = DateTime(start.year, start.month, start.day, 3);
     return contains(threeAmEnd) || contains(threeAmStart);
