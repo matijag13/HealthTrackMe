@@ -48,4 +48,11 @@ jobs:
         run: ./mvnw package -DskipTests
 
       - name: Build Docker image
-        run: docker build -t healthtrackme-api .
+        run: |
+          for attempt in 1 2 3; do
+            docker build -t healthtrackme-api . && exit 0
+            echo "Docker build failed on attempt ${attempt}. Retrying..."
+            sleep 10
+          done
+          echo "Docker build failed after 3 attempts."
+          exit 1
