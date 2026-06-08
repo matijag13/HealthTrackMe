@@ -84,6 +84,7 @@ class HealthEntryService(
                 diastolicBp = request.diastolicBp ?: existing.diastolicBp,
                 spO2 = request.spO2 ?: existing.spO2,
                 weight = request.weight ?: existing.weight,
+                waterIntakeMl = request.waterIntakeMl ?: existing.waterIntakeMl,
                 doctorNotes = request.notes ?: existing.doctorNotes,
                 updatedAt = LocalDateTime.now()
             )
@@ -103,6 +104,7 @@ class HealthEntryService(
                 diastolicBp = request.diastolicBp,
                 spO2 = request.spO2,
                 weight = request.weight,
+                waterIntakeMl = request.waterIntakeMl,
                 doctorNotes = request.notes,
                 createdAt = LocalDateTime.now(),
                 updatedAt = LocalDateTime.now()

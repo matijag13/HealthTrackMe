@@ -54,6 +54,11 @@ class ActivityTrackingService {
   static const int _minSessionSeconds = 180; // 3 min
   static const int _minSessionSteps = 200;
 
+  // Calorie estimate = MET × weightKg × hours (the standard no-heart-rate method).
+  static const double _walkMet = 3.3;
+  static const double _runMet = 9.0;
+  static const double _defaultWeightKg = 70;
+
   bool get isRunning => _running;
 
   Future<bool> start() async {
@@ -157,6 +162,9 @@ class ActivityTrackingService {
     final durationMin = (durationSec / 60).round().clamp(1, 9999);
     final distanceKm = steps * _strideMeters / 1000.0;
     final isRun = type == ActivityType.RUNNING;
+    final weightKg = await _userWeightKg();
+    final met = isRun ? _runMet : _walkMet;
+    final calories = (met * weightKg * (durationSec / 3600.0)).round();
 
     try {
       await _api.createSportActivity({
@@ -165,6 +173,7 @@ class ActivityTrackingService {
         'duration': durationMin,
         'steps': steps,
         if (distanceKm > 0) 'distance': distanceKm,
+        if (calories > 0) 'caloriesBurned': calories,
         'notes': 'Auto-detected on this phone',
       });
     } catch (e) {
@@ -179,6 +188,7 @@ class ActivityTrackingService {
         start: start,
         end: end,
         totalDistance: distanceKm > 0 ? (distanceKm * 1000).round() : null,
+        totalEnergyBurned: calories > 0 ? calories : null,
         recordingMethod: RecordingMethod.automatic,
       );
     } catch (e) {
@@ -196,6 +206,17 @@ class ActivityTrackingService {
     } catch (_) {
       return null;
     }
+  }
+
+  /// The user's weight for the calorie estimate, falling back to a default when
+  /// it isn't on the profile.
+  Future<double> _userWeightKg() async {
+    try {
+      final user = await _api.getCurrentUser();
+      final w = user?.weightKg;
+      if (w != null && w > 20 && w < 400) return w;
+    } catch (_) {}
+    return _defaultWeightKg;
   }
 
   String _dateStr(DateTime d) =>

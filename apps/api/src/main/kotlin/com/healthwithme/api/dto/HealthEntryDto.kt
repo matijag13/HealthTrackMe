@@ -108,6 +108,7 @@ data class SyncVitalsRequest(
     val diastolicBp: Int? = null,
     val spO2: Int? = null,
     val weight: Double? = null,
+    val waterIntakeMl: Int? = null,
     val notes: String? = null
 )
 

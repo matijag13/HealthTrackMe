@@ -151,6 +151,8 @@ class _DashboardScreenState extends State<DashboardScreen>
   List<String> _favoriteKeys = List<String>.from(_defaultFavoriteKeys);
   bool _loading = true;
   StreakResult _streak = StreakResult.empty;
+  int _waterToday = 0;
+  static const int _waterGoalMl = 2500;
 
   @override
   bool get wantKeepAlive => true;
@@ -252,6 +254,7 @@ class _DashboardScreenState extends State<DashboardScreen>
       );
 
       final streak = computeLoggingStreak(entries);
+      final waterToday = _todayWaterFromEntries(entries);
 
       if (!mounted) return;
       setState(() {
@@ -264,6 +267,7 @@ class _DashboardScreenState extends State<DashboardScreen>
           sportActivities: sportActivities,
         );
         _streak = streak;
+        _waterToday = waterToday;
         _loading = false;
       });
       _maybeCelebrateStreak(streak.current);
@@ -312,6 +316,136 @@ class _DashboardScreenState extends State<DashboardScreen>
         ),
       );
     } catch (_) {}
+  }
+
+  int _todayWaterFromEntries(List<HealthEntry> entries) {
+    final today = DateTime.now();
+    var maxMl = 0;
+    for (final e in entries) {
+      if (_sameDay(e.entryDate, today) && (e.waterIntakeMl ?? 0) > maxMl) {
+        maxMl = e.waterIntakeMl!;
+      }
+    }
+    return maxMl;
+  }
+
+  /// Adds water to today's total and upserts the day's entry. Optimistic so the
+  /// card responds instantly.
+  Future<void> _addWater(int ml) async {
+    final newTotal = _waterToday + ml;
+    setState(() => _waterToday = newTotal);
+    final now = DateTime.now();
+    final dateStr =
+        '${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+    try {
+      await _api.syncHealthVitals({
+        'entryDate': dateStr,
+        'waterIntakeMl': newTotal,
+      });
+      SyncEvents.instance.notifySynced();
+    } catch (_) {}
+  }
+
+  Widget _buildHydrationCard() {
+    const goal = _waterGoalMl;
+    final progress = (_waterToday / goal).clamp(0.0, 1.0);
+    const water = Color(0xFF3FA9F5);
+    return Column(
+      children: [
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: _surface,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: _border.withValues(alpha: 0.9)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 42,
+                    height: 42,
+                    decoration: BoxDecoration(
+                      color: water.withValues(alpha: 0.16),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.water_drop_rounded,
+                        color: water, size: 22),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('Hydration',
+                            style: TextStyle(
+                                color: _primaryText,
+                                fontSize: 15,
+                                fontWeight: FontWeight.w800)),
+                        const SizedBox(height: 2),
+                        Text('$_waterToday / $goal ml',
+                            style: TextStyle(
+                                color: _primaryText.withValues(alpha: 0.6),
+                                fontSize: 12.5)),
+                      ],
+                    ),
+                  ),
+                  Text('${(progress * 100).round()}%',
+                      style: const TextStyle(
+                          color: water,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w900)),
+                ],
+              ),
+              const SizedBox(height: 12),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(999),
+                child: LinearProgressIndicator(
+                  minHeight: 8,
+                  value: progress,
+                  backgroundColor: Colors.white.withValues(alpha: 0.06),
+                  valueColor: const AlwaysStoppedAnimation<Color>(water),
+                ),
+              ),
+              const SizedBox(height: 14),
+              Row(
+                children: [
+                  Expanded(
+                      child: _waterButton('+250 ml', () => _addWater(250))),
+                  const SizedBox(width: 10),
+                  Expanded(
+                      child: _waterButton('+500 ml', () => _addWater(500))),
+                ],
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 24),
+      ],
+    );
+  }
+
+  Widget _waterButton(String label, VoidCallback onTap) {
+    const water = Color(0xFF3FA9F5);
+    return Material(
+      color: water.withValues(alpha: 0.14),
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 11),
+          child: Center(
+            child: Text(label,
+                style: const TextStyle(
+                    color: water, fontWeight: FontWeight.w800, fontSize: 13)),
+          ),
+        ),
+      ),
+    );
   }
 
   /// Rule-based "on pace" projections (no ML): projects the calendar-week
@@ -1251,6 +1385,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                   const SizedBox(height: 18),
                   _buildFavoritesSection(),
                   const SizedBox(height: 24),
+                  _buildHydrationCard(),
                   _buildOnPaceCard(),
                   _buildFeed(),
                   const SizedBox(height: 22),
