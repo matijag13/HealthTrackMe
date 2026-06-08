@@ -49,16 +49,17 @@ jobs:
 
       - name: Build Docker image
         run: |
+          max_attempts=3
           base_delay=5
-          for attempt in 1 2 3; do
+          for attempt in $(seq 1 "${max_attempts}"); do
             if docker build -t healthtrackme-api .; then
               exit 0
             fi
-            if [ "${attempt}" -lt 3 ]; then
+            if [ "${attempt}" -lt "${max_attempts}" ]; then
               delay=$((base_delay * attempt))
               echo "Docker build failed on attempt ${attempt}. Retrying in ${delay}s..."
               sleep "${delay}"
             fi
           done
-          echo "Docker build failed after 3 attempts."
+          echo "Docker build failed after ${max_attempts} attempts."
           exit 1
