@@ -15,11 +15,21 @@ class HealthAlertService(
     private val userRepository: UserRepository
 ) {
 
-    fun createAlert(userId: Long, title: String, description: String, 
+    fun createAlert(userId: Long, title: String, description: String,
                    alertType: String, severity: String, actionRequired: String? = null): HealthAlertDto {
         val user = userRepository.findById(userId)
             .orElseThrow { IllegalArgumentException("User not found") }
-        
+
+        // De-dupe: if the user already has an unread alert with this title, refresh its
+        // description in place instead of stacking duplicates. Trend analysis re-runs on
+        // every sync, so without this a persistent condition would spam new rows.
+        val existingUnread = alertRepository.findByUserIdAndIsRead(userId, false)
+            .firstOrNull { it.title == title }
+        if (existingUnread != null) {
+            val refreshed = existingUnread.copy(description = description, createdAt = LocalDateTime.now())
+            return toAlertDto(alertRepository.save(refreshed))
+        }
+
         val alert = HealthAlert(
             user = user,
             title = title,
