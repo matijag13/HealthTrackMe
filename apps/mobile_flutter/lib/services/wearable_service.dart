@@ -387,6 +387,17 @@ class WearableService {
                     .toInt()
                 : null);
 
+        // Skip trivial walk/run sessions. Samsung Health writes lots of tiny
+        // auto-detected walking segments to Health Connect (a few steps each);
+        // importing every one floods the log with junk. A real walk/run has
+        // meaningful steps or distance.
+        final isWalkRun =
+            v.workoutActivityType == HealthWorkoutActivityType.WALKING ||
+                v.workoutActivityType == HealthWorkoutActivityType.RUNNING;
+        if (isWalkRun && (steps ?? 0) < 100 && (distanceKm ?? 0) < 0.1) {
+          continue;
+        }
+
         results.add({
           'activityType': _mapWorkoutType(v.workoutActivityType),
           'date': point.dateFrom,

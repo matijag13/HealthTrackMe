@@ -3239,8 +3239,24 @@ class _HealthActivityPageState extends State<HealthActivityPage> {
     );
   }
 
+  /// True for auto/synced walk-run sessions too small to be a real workout —
+  /// Samsung Health floods Health Connect with tiny "few steps" segments. We hide
+  /// these from the session log (averages/charts still use the full data).
+  bool _isTrivialAutoSession(Map<String, dynamic> activity) {
+    final notes = (_activityNotes(activity) ?? '').toLowerCase();
+    final isAuto =
+        notes.contains('synced from') || notes.contains('auto-detected');
+    if (!isAuto) return false;
+    final steps = _activitySteps(activity);
+    final distance = _activityDistance(activity) ?? 0;
+    return steps < 100 && distance < 0.1;
+  }
+
   Widget _buildActivityListSection(List<Map<String, dynamic>> activities) {
     final averageLabel = _average(_pointsForRange(activities));
+    // Clean session log: drop the trivial auto fragments so a real walk reads as
+    // one entry instead of dozens of "3 steps" rows.
+    final logged = activities.where((a) => !_isTrivialAutoSession(a)).toList();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -3259,7 +3275,7 @@ class _HealthActivityPageState extends State<HealthActivityPage> {
                 children: [
                   Expanded(
                     child: Text(
-                      '${_activityListTitle()} (${activities.length})',
+                      '${_activityListTitle()} (${logged.length})',
                       style: const TextStyle(
                         color: _primaryText,
                         fontSize: 18,
@@ -3282,14 +3298,14 @@ class _HealthActivityPageState extends State<HealthActivityPage> {
         ),
         if (_logsExpanded) ...[
           const SizedBox(height: 12),
-          if (activities.isEmpty)
+          if (logged.isEmpty)
             _buildActivityEmptyState()
           else
             Column(
               children: [
-                for (var i = 0; i < activities.length; i++) ...[
-                  _buildActivityListCard(activities[i]),
-                  if (i < activities.length - 1) const SizedBox(height: 12),
+                for (var i = 0; i < logged.length; i++) ...[
+                  _buildActivityListCard(logged[i]),
+                  if (i < logged.length - 1) const SizedBox(height: 12),
                 ],
               ],
             ),
