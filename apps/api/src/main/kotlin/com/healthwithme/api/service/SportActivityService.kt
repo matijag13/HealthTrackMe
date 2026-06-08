@@ -34,6 +34,30 @@ class SportActivityService(
             if (duplicate != null) return toActivityDto(duplicate)
         }
 
+        // Daily-total entries (no duration) — e.g. the step count synced from
+        // Health Connect — must stay at a single row per user + type + date. The
+        // guard above only matches entries that carry a duration, so without this
+        // every foreground sync inserted a fresh row. Update the existing total
+        // in place instead, keeping the larger figure (steps/distance accumulate
+        // over the day, and the read side also takes the daily max).
+        if (request.duration == null) {
+            val existingTotal = activityRepository
+                .findByUserIdAndActivityTypeAndActivityDate(
+                    userId, request.activityType, request.activityDate
+                )
+                .firstOrNull { it.duration == null }
+            if (existingTotal != null) {
+                val merged = existingTotal.copy(
+                    steps = maxOfNullable(existingTotal.steps, request.steps),
+                    distance = maxOfNullable(existingTotal.distance, request.distance),
+                    caloriesBurned = maxOfNullable(existingTotal.caloriesBurned, request.caloriesBurned),
+                    notes = request.notes ?: existingTotal.notes,
+                    updatedAt = LocalDateTime.now()
+                )
+                return toActivityDto(activityRepository.save(merged))
+            }
+        }
+
         val activity = SportActivity(
             user = user,
             activityType = request.activityType,
@@ -113,6 +137,12 @@ class SportActivityService(
             "averageHeartRate" to averageHeartRate
         )
     }
+
+    private fun maxOfNullable(a: Int?, b: Int?): Int? =
+        if (a == null) b else if (b == null) a else maxOf(a, b)
+
+    private fun maxOfNullable(a: Double?, b: Double?): Double? =
+        if (a == null) b else if (b == null) a else maxOf(a, b)
 
     private fun toActivityDto(activity: SportActivity): SportActivityDto {
         return SportActivityDto(

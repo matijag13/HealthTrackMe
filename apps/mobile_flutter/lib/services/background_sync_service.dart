@@ -6,7 +6,6 @@ import 'api_service.dart';
 import 'wearable_service.dart';
 
 const String _kTaskName = 'com.healthtrackme.health_sync';
-const String _kLastSyncKey = 'health_last_sync_ms';
 
 /// Entry point called by WorkManager in a separate isolate.
 /// Must be a top-level function annotated with vm:entry-point.
@@ -34,14 +33,15 @@ void callbackDispatcher() {
       // Only fetch data since the last successful sync to avoid creating
       // duplicate sport-activity entries. Fall back to 24 h on first run.
       final prefs = await SharedPreferences.getInstance();
-      final lastMs = prefs.getInt(_kLastSyncKey);
+      final syncKey = ApiService.instance.lastSyncPrefsKey(userId);
+      final lastMs = prefs.getInt(syncKey);
       final startDate = lastMs != null
           ? DateTime.fromMillisecondsSinceEpoch(lastMs)
           : DateTime.now().subtract(const Duration(hours: 24));
 
       await service.syncWearableData(userId: userId, startDate: startDate);
 
-      await prefs.setInt(_kLastSyncKey, DateTime.now().millisecondsSinceEpoch);
+      await prefs.setInt(syncKey, DateTime.now().millisecondsSinceEpoch);
       debugPrint('✅ Background health sync complete');
       return true;
     } catch (e) {

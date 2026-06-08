@@ -55,28 +55,12 @@ class HealthTrackMeApp extends StatefulWidget {
   State<HealthTrackMeApp> createState() => _HealthTrackMeAppState();
 }
 
-class _HealthTrackMeAppState extends State<HealthTrackMeApp>
-    with WidgetsBindingObserver {
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addObserver(this);
-  }
-
-  @override
-  void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
-    super.dispose();
-  }
-
-  /// Fire a quick background sync whenever the app comes back to the foreground
-  /// so data feels up-to-date without the user pressing Sync.
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) {
-      BackgroundSyncService.syncNow();
-    }
-  }
+class _HealthTrackMeAppState extends State<HealthTrackMeApp> {
+  // Foreground resume-sync is handled in-process by MainApp (which also refreshes
+  // any open screen via SyncEvents). We deliberately do NOT also fire a
+  // WorkManager one-off on resume here: the two ran in separate isolates with no
+  // shared lock, racing on `health_last_sync_ms` and creating duplicate rows.
+  // Background coverage comes from the 15-minute periodic WorkManager task.
 
   @override
   Widget build(BuildContext context) {

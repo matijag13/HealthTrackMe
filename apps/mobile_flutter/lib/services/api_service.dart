@@ -121,6 +121,11 @@ class ApiService {
     }
   }
 
+  /// Per-user key for the wearable last-sync timestamp. Scoping by user id stops
+  /// two accounts on the same device from sharing — and stealing — each other's
+  /// sync window (which would make a fresh account's first sync pull nothing).
+  String lastSyncPrefsKey(int userId) => 'health_last_sync_ms_$userId';
+
   Future<void> setAuthToken(String? token) async {
     _authToken = token;
     if (token == null) {

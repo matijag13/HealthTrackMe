@@ -22,8 +22,6 @@ class MainApp extends StatefulWidget {
 }
 
 class _MainAppState extends State<MainApp> with WidgetsBindingObserver {
-  static const String _kLastSyncKey = 'health_last_sync_ms';
-
   /// How often we pull fresh health data while the app is open. Health Connect
   /// can't push, so a short foreground poll is what makes the data feel live.
   static const Duration _foregroundSyncInterval = Duration(minutes: 2);
@@ -100,7 +98,8 @@ class _MainAppState extends State<MainApp> with WidgetsBindingObserver {
       if (!await _wearableService.hasPermissions()) return;
 
       final prefs = await SharedPreferences.getInstance();
-      final lastMs = prefs.getInt(_kLastSyncKey);
+      final syncKey = _api.lastSyncPrefsKey(userId);
+      final lastMs = prefs.getInt(syncKey);
       final startDate = lastMs != null
           ? DateTime.fromMillisecondsSinceEpoch(lastMs)
           : DateTime.now().subtract(const Duration(hours: 24));
@@ -109,7 +108,7 @@ class _MainAppState extends State<MainApp> with WidgetsBindingObserver {
         userId: userId,
         startDate: startDate,
       );
-      await prefs.setInt(_kLastSyncKey, DateTime.now().millisecondsSinceEpoch);
+      await prefs.setInt(syncKey, DateTime.now().millisecondsSinceEpoch);
     } catch (_) {
       // Swallow — background job + manual sync cover failures.
     } finally {

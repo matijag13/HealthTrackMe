@@ -265,7 +265,11 @@ class WearableService {
         // Calories: readings within [day, nextDay)
         final dayCal = _sumForWindow(allCalPts, day, nextDay);
 
-        if (hr != null || sleep != null || dayCal > 0) {
+        // Active energy burned (dayCal) is intentionally NOT persisted: it would
+        // land in caloriesConsumed, which is the user's manually-logged food
+        // intake, and corrupt it. Per-workout caloriesBurned already captures
+        // exercise energy; dayCal is kept only for the post-sync status message.
+        if (hr != null || sleep != null) {
           anySyncedData = true;
           final dateStr = day.toIso8601String().split('T')[0];
           final vitalsPayload = <String, dynamic>{
@@ -278,9 +282,6 @@ class WearableService {
           if (sleep != null) {
             vitalsPayload['sleepHours'] = sleep['hours'];
             vitalsPayload['sleepQuality'] = sleep['quality'];
-          }
-          if (dayCal > 0) {
-            vitalsPayload['caloriesConsumed'] = dayCal.toInt();
           }
           await _api.syncHealthVitals(vitalsPayload, userId: resolvedUserId);
 

@@ -5,8 +5,6 @@ import '../services/api_service.dart';
 import '../services/wearable_service.dart';
 import '../widgets/app_logo.dart';
 
-const String _kLastSyncKey = 'health_last_sync_ms';
-
 class WearablesScreen extends StatefulWidget {
   const WearablesScreen({super.key});
 
@@ -43,8 +41,9 @@ class _WearablesScreenState extends State<WearablesScreen> {
     setState(() => _loading = true);
     try {
       final prefs = await SharedPreferences.getInstance();
-      final lastMs = prefs.getInt(_kLastSyncKey);
       final userId = await _api.ensureActiveUserId();
+      final lastMs =
+          userId != null ? prefs.getInt(_api.lastSyncPrefsKey(userId)) : null;
       if (userId != null) {
         final devices = await _wearableService.getConnectedDevices(userId);
         if (mounted) setState(() => _devices = devices);
@@ -82,13 +81,13 @@ class _WearablesScreenState extends State<WearablesScreen> {
           await _wearableService.requestPermissions();
       if (granted) {
         final prefs = await SharedPreferences.getInstance();
-        final startDate = _manualSyncStartDate(prefs.getInt(_kLastSyncKey));
+        final syncKey = _api.lastSyncPrefsKey(userId);
+        final startDate = _manualSyncStartDate(prefs.getInt(syncKey));
         final result = await _wearableService.syncWearableData(
           userId: userId,
           startDate: startDate,
         );
-        await prefs.setInt(
-            _kLastSyncKey, DateTime.now().millisecondsSinceEpoch);
+        await prefs.setInt(syncKey, DateTime.now().millisecondsSinceEpoch);
         await _wearableService.markDeviceSynced(device.id);
         if (result.steps != null) synced.add('${result.steps} steps');
         if (result.heartRateAvg != null) {
@@ -148,14 +147,14 @@ class _WearablesScreenState extends State<WearablesScreen> {
         // _manualSyncStartDate) rather than only since the last silent sync,
         // so pressing Sync reliably imports recent data.
         final prefs = await SharedPreferences.getInstance();
-        final startDate = _manualSyncStartDate(prefs.getInt(_kLastSyncKey));
+        final syncKey = _api.lastSyncPrefsKey(userId);
+        final startDate = _manualSyncStartDate(prefs.getInt(syncKey));
 
         final result = await _wearableService.syncWearableData(
           userId: userId,
           startDate: startDate,
         );
-        await prefs.setInt(
-            _kLastSyncKey, DateTime.now().millisecondsSinceEpoch);
+        await prefs.setInt(syncKey, DateTime.now().millisecondsSinceEpoch);
         await _load();
         if (mounted) {
           final parts = <String>[];

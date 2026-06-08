@@ -1274,9 +1274,6 @@ class _DevicesTabState extends State<_DevicesTab> {
     if (mounted) setState(() => _loading = false);
   }
 
-  // Shared key for the last-sync timestamp — must match wearables_screen.dart.
-  static const String _kLastSyncKey = 'health_last_sync_ms';
-
   Future<void> _sync({bool fullResync = false}) async {
     setState(() => _syncing = true);
     try {
@@ -1288,9 +1285,10 @@ class _DevicesTabState extends State<_DevicesTab> {
         }
         // Full re-sync clears the last-sync key so the 30-day fallback fires.
         final prefs = await SharedPreferences.getInstance();
-        if (fullResync) await prefs.remove(_kLastSyncKey);
+        final syncKey = _api.lastSyncPrefsKey(userId);
+        if (fullResync) await prefs.remove(syncKey);
 
-        final lastMs = prefs.getInt(_kLastSyncKey);
+        final lastMs = prefs.getInt(syncKey);
         final startDate = lastMs != null
             ? DateTime.fromMillisecondsSinceEpoch(lastMs)
             : DateTime.now().subtract(const Duration(days: 30));
@@ -1299,7 +1297,7 @@ class _DevicesTabState extends State<_DevicesTab> {
           startDate: startDate,
         );
         await prefs.setInt(
-          _kLastSyncKey,
+          syncKey,
           DateTime.now().millisecondsSinceEpoch,
         );
         await _load();
