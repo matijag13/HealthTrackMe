@@ -1,15 +1,16 @@
 package com.healthwithme.api.controller
 
 import com.fasterxml.jackson.core.type.TypeReference
+import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.healthwithme.api.dto.ApiResponse
-import com.healthwithme.api.dto.GoogleLoginRequest
 import com.healthwithme.api.dto.LoginRequest
 import com.healthwithme.api.dto.UserDto
 import com.healthwithme.api.service.GoogleTokenVerifier
 import com.healthwithme.api.service.JwtService
 import com.healthwithme.api.service.UserService
 import jakarta.servlet.http.HttpServletRequest
+import org.slf4j.LoggerFactory
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.GetMapping
@@ -26,6 +27,7 @@ class AuthController(
     private val jwtService: JwtService
 ) {
     private val objectMapper = jacksonObjectMapper()
+    private val logger = LoggerFactory.getLogger(AuthController::class.java)
 
     @PostMapping("/login")
     fun login(@RequestBody request: LoginRequest): ResponseEntity<ApiResponse<Map<String, Any?>>> {
@@ -42,14 +44,25 @@ class AuthController(
     }
 
     @PostMapping("/google")
-    fun googleLogin(@RequestBody request: GoogleLoginRequest): ResponseEntity<ApiResponse<Map<String, Any?>>> {
+    fun googleLogin(@RequestBody request: JsonNode): ResponseEntity<ApiResponse<Map<String, Any?>>> {
+        val idToken = request.path("idToken").asText("")
+        logger.info(
+            "Google auth request received: hasIdToken={} hasCredential={}",
+            idToken.isNotBlank(),
+            request.path("credential").asText("").isNotBlank()
+        )
         return try {
-            val googleUser = googleTokenVerifier.verify(request.idToken)
+            val googleUser = googleTokenVerifier.verify(idToken)
             val user = userService.loginWithGoogle(googleUser)
             ResponseEntity.ok(
                 ApiResponse(success = true, message = "Google login successful", data = authPayload(user))
             )
         } catch (e: Exception) {
+            logger.warn(
+                "Google auth request rejected: reasonClass={} reasonMessage={}",
+                e::class.java.simpleName,
+                e.message
+            )
             ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(
                 ApiResponse(success = false, message = "Invalid Google token", data = null)
             )

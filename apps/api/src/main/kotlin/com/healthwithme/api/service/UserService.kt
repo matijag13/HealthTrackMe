@@ -9,6 +9,7 @@ import com.healthwithme.api.model.User
 import com.healthwithme.api.model.UserType
 import com.healthwithme.api.repository.UserRepository
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
+import org.slf4j.LoggerFactory
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.stereotype.Service
 import java.time.LocalDateTime
@@ -19,6 +20,7 @@ class UserService(
     private val passwordEncoder: PasswordEncoder
 ) {
     private val objectMapper = jacksonObjectMapper()
+    private val logger = LoggerFactory.getLogger(UserService::class.java)
 
     fun createUser(request: CreateUserRequest): UserDto {
         if (userRepository.existsByEmail(request.email)) {
@@ -73,8 +75,10 @@ class UserService(
         }
 
         val existingByGoogleSub = userRepository.findByGoogleSub(googleUser.sub)
+        logger.info("Google login user lookup: existsByGoogleSub={}", existingByGoogleSub.isPresent)
         if (existingByGoogleSub.isPresent) {
             val user = existingByGoogleSub.get()
+            logger.info("Google login user status: inactive={}", !user.isActive)
             if (!user.isActive) {
                 throw IllegalArgumentException("Invalid Google token")
             }
@@ -82,11 +86,14 @@ class UserService(
         }
 
         val existingByEmail = userRepository.findByEmail(googleUser.email)
+        logger.info("Google login user lookup: existsByEmail={}", existingByEmail.isPresent)
         if (existingByEmail.isPresent) {
             val user = existingByEmail.get()
+            logger.info("Google login user status: inactive={}", !user.isActive)
             if (!user.isActive) {
                 throw IllegalArgumentException("Invalid Google token")
             }
+            logger.info("Google login flow: linkingExistingEmailUserWithGoogleSub=true")
             val linkedUser = user.copy(
                 googleSub = googleUser.sub,
                 authProvider = when (user.authProvider) {
@@ -98,6 +105,7 @@ class UserService(
             return toUserDto(userRepository.save(linkedUser))
         }
 
+        logger.info("Google login flow: creatingNewUser=true")
         val fallbackName = googleUser.email.substringBefore("@").ifBlank { "Google" }
         val user = User(
             email = googleUser.email,
