@@ -153,6 +153,8 @@ class _DashboardScreenState extends State<DashboardScreen>
   StreakResult _streak = StreakResult.empty;
   int _waterToday = 0;
   static const int _waterGoalMl = 2500;
+  bool _hydrationDismissed = false;
+  static const _prefsHydrationDismissed = 'dashboard_hydration_dismissed';
 
   @override
   bool get wantKeepAlive => true;
@@ -161,6 +163,7 @@ class _DashboardScreenState extends State<DashboardScreen>
   void initState() {
     super.initState();
     unawaited(_loadFavoriteKeys());
+    unawaited(_loadHydrationPref());
     _loadAll();
     // Refresh automatically when a background/foreground sync uploads new data.
     SyncEvents.instance.revision.addListener(_onSynced);
@@ -346,7 +349,21 @@ class _DashboardScreenState extends State<DashboardScreen>
     } catch (_) {}
   }
 
+  Future<void> _loadHydrationPref() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
+    setState(() =>
+        _hydrationDismissed = prefs.getBool(_prefsHydrationDismissed) ?? false);
+  }
+
+  Future<void> _dismissHydration() async {
+    setState(() => _hydrationDismissed = true);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_prefsHydrationDismissed, true);
+  }
+
   Widget _buildHydrationCard() {
+    if (_hydrationDismissed) return const SizedBox.shrink();
     const goal = _waterGoalMl;
     final progress = (_waterToday / goal).clamp(0.0, 1.0);
     const water = Color(0xFF3FA9F5);
@@ -398,6 +415,17 @@ class _DashboardScreenState extends State<DashboardScreen>
                           color: water,
                           fontSize: 16,
                           fontWeight: FontWeight.w900)),
+                  const SizedBox(width: 4),
+                  InkWell(
+                    onTap: _dismissHydration,
+                    borderRadius: BorderRadius.circular(20),
+                    child: Padding(
+                      padding: const EdgeInsets.all(4),
+                      child: Icon(Icons.close_rounded,
+                          size: 18,
+                          color: _secondaryText.withValues(alpha: 0.85)),
+                    ),
+                  ),
                 ],
               ),
               const SizedBox(height: 12),
@@ -1385,8 +1413,8 @@ class _DashboardScreenState extends State<DashboardScreen>
                   const SizedBox(height: 18),
                   _buildFavoritesSection(),
                   const SizedBox(height: 24),
-                  _buildHydrationCard(),
                   _buildOnPaceCard(),
+                  _buildHydrationCard(),
                   _buildFeed(),
                   const SizedBox(height: 22),
                 ]),
