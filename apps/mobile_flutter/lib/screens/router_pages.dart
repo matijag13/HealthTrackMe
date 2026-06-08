@@ -2681,11 +2681,7 @@ class _HealthActivityPageState extends State<HealthActivityPage> {
 
   Future<List<Map<String, dynamic>>> _loadActivities() async {
     final activities = await _api.getSportActivities();
-    activities.sort((a, b) {
-      final aDate = _activityDate(a) ?? DateTime.fromMillisecondsSinceEpoch(0);
-      final bDate = _activityDate(b) ?? DateTime.fromMillisecondsSinceEpoch(0);
-      return bDate.compareTo(aDate);
-    });
+    activities.sort(_byRecencyDesc);
     return activities;
   }
 
@@ -2735,6 +2731,28 @@ class _HealthActivityPageState extends State<HealthActivityPage> {
   DateTime? _activityDate(Map<String, dynamic> activity) {
     final raw = activity['activityDate'] ?? activity['start'];
     return raw == null ? null : DateTime.tryParse(raw.toString());
+  }
+
+  /// Full timestamp for "most recent first" ordering — uses createdAt (when it
+  /// was logged) so multiple entries on the same day still sort newest-first,
+  /// falling back to the activity date.
+  DateTime _activityTimestamp(Map<String, dynamic> activity) {
+    final created = activity['createdAt'];
+    if (created != null) {
+      final dt = DateTime.tryParse(created.toString());
+      if (dt != null) return dt;
+    }
+    return _activityDate(activity) ?? DateTime.fromMillisecondsSinceEpoch(0);
+  }
+
+  /// Newest-first comparator: by timestamp desc, breaking ties with the higher
+  /// (newer) id.
+  int _byRecencyDesc(Map<String, dynamic> a, Map<String, dynamic> b) {
+    final cmp = _activityTimestamp(b).compareTo(_activityTimestamp(a));
+    if (cmp != 0) return cmp;
+    final aId = (a['id'] as num?)?.toInt() ?? 0;
+    final bId = (b['id'] as num?)?.toInt() ?? 0;
+    return bId.compareTo(aId);
   }
 
   int _activityDuration(Map<String, dynamic> activity) {
@@ -3101,11 +3119,7 @@ class _HealthActivityPageState extends State<HealthActivityPage> {
           _isActivityInSelectedRange(date);
     }).toList(growable: false);
 
-    filtered.sort((a, b) {
-      final aDate = _activityDate(a) ?? DateTime.fromMillisecondsSinceEpoch(0);
-      final bDate = _activityDate(b) ?? DateTime.fromMillisecondsSinceEpoch(0);
-      return bDate.compareTo(aDate);
-    });
+    filtered.sort(_byRecencyDesc);
 
     return filtered;
   }
