@@ -438,6 +438,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           onTap: () => _openEditProfile(user),
                         ),
                         _ProfileTile(
+                          icon: Icons.emoji_events_outlined,
+                          accent: _orange,
+                          title: 'Friends & leaderboard',
+                          subtitle:
+                              'Compare streaks & Shield points with friends',
+                          onTap: () => context.pushNamed('friends'),
+                        ),
+                        _ProfileTile(
                           icon: Icons.upload_file_outlined,
                           accent: _green,
                           title: 'Export data',

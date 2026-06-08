@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/models.dart';
+import '../models/social_models.dart';
 
 class ApiService {
   ApiService._internal();
@@ -903,6 +904,109 @@ class ApiService {
     try {
       final response = await _putRaw('/health-alerts/$alertId/read');
       return response.statusCode >= 200 && response.statusCode < 300;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  // ===========================
+  // Friends + gamification leaderboard
+  // ===========================
+
+  Future<List<LeaderboardEntry>> getLeaderboard({int? userId}) async {
+    final id = _effectiveUserId(userId: userId);
+    if (id == null) return const [];
+    try {
+      final r = await _getRaw('/friends/users/$id/leaderboard');
+      if (r.statusCode >= 200 && r.statusCode < 300) {
+        return _parseList(r, LeaderboardEntry.fromJson);
+      }
+      return const [];
+    } catch (_) {
+      return const [];
+    }
+  }
+
+  Future<List<Friend>> getFriends({int? userId}) async {
+    final id = _effectiveUserId(userId: userId);
+    if (id == null) return const [];
+    try {
+      final r = await _getRaw('/friends/users/$id');
+      if (r.statusCode >= 200 && r.statusCode < 300) {
+        return _parseList(r, Friend.fromJson);
+      }
+      return const [];
+    } catch (_) {
+      return const [];
+    }
+  }
+
+  Future<List<Friend>> getIncomingRequests({int? userId}) async {
+    final id = _effectiveUserId(userId: userId);
+    if (id == null) return const [];
+    try {
+      final r = await _getRaw('/friends/users/$id/requests/incoming');
+      if (r.statusCode >= 200 && r.statusCode < 300) {
+        return _parseList(r, Friend.fromJson);
+      }
+      return const [];
+    } catch (_) {
+      return const [];
+    }
+  }
+
+  Future<List<Friend>> getOutgoingRequests({int? userId}) async {
+    final id = _effectiveUserId(userId: userId);
+    if (id == null) return const [];
+    try {
+      final r = await _getRaw('/friends/users/$id/requests/outgoing');
+      if (r.statusCode >= 200 && r.statusCode < 300) {
+        return _parseList(r, Friend.fromJson);
+      }
+      return const [];
+    } catch (_) {
+      return const [];
+    }
+  }
+
+  /// Sends a friend request by email. Returns null on success, or an error
+  /// message (e.g. "No user with that email") to show the user.
+  Future<String?> sendFriendRequest(String email, {int? userId}) async {
+    final id = _effectiveUserId(userId: userId);
+    if (id == null) return 'Not signed in';
+    try {
+      final r = await _postRaw(
+        '/friends/users/$id/requests',
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'email': email}),
+      );
+      if (r.statusCode >= 200 && r.statusCode < 300) return null;
+      return _responseMessage(r) ?? 'Could not send request';
+    } catch (_) {
+      return 'Could not send request';
+    }
+  }
+
+  Future<bool> respondToFriendRequest(int friendshipId, bool accept,
+      {int? userId}) async {
+    final id = _effectiveUserId(userId: userId);
+    if (id == null) return false;
+    final action = accept ? 'accept' : 'decline';
+    try {
+      final r =
+          await _postRaw('/friends/users/$id/requests/$friendshipId/$action');
+      return r.statusCode >= 200 && r.statusCode < 300;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<bool> removeFriend(int friendshipId, {int? userId}) async {
+    final id = _effectiveUserId(userId: userId);
+    if (id == null) return false;
+    try {
+      final r = await _deleteRaw('/friends/users/$id/$friendshipId');
+      return r.statusCode >= 200 && r.statusCode < 300;
     } catch (_) {
       return false;
     }

@@ -11,6 +11,7 @@ import '../screens/router_pages.dart';
 import '../screens/health_screen.dart';
 import '../screens/health_shield_screen.dart';
 import '../screens/alerts_screen.dart';
+import '../screens/friends_screen.dart';
 import '../screens/onboarding_screen.dart';
 import '../screens/wearables_screen.dart';
 import '../services/api_service.dart';
@@ -55,6 +56,11 @@ GoRouter createAppRouter() {
         path: '/alerts',
         name: 'alerts',
         builder: (context, state) => const AlertsScreen(),
+      ),
+      GoRoute(
+        path: '/friends',
+        name: 'friends',
+        builder: (context, state) => const FriendsScreen(),
       ),
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) =>
