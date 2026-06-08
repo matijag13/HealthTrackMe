@@ -110,27 +110,35 @@ class _HealthShieldScreenState extends State<HealthShieldScreen> {
     var takenToday = false;
     final todayKey = _dateKey(DateTime.now());
 
-    for (final medicine in activeMedicines) {
-      try {
-        final adherence = await _api.getMedicineAdherence(medicine.id, days: 1);
-        adherenceReliable = true;
-        final breakdown = adherence['dailyBreakdown'];
-        if (breakdown is List) {
-          takenToday = takenToday ||
-              breakdown.any((point) {
-                if (point is! Map) return false;
-                final status = point['status']?.toString().toUpperCase();
-                return point['date']?.toString() == todayKey &&
-                    (status == 'TAKEN' || status == 'TRACKED');
-              });
-        } else {
-          final rate = num.tryParse(
-            (adherence['adherenceRate'] ?? adherence['percentage'] ?? '')
-                .toString(),
-          );
-          takenToday = takenToday || (rate != null && rate > 0);
-        }
-      } catch (_) {}
+    // Fetch every medicine's adherence in parallel — doing this sequentially was
+    // the main reason the Shield screen felt slow to load.
+    final adherences = await Future.wait(
+      activeMedicines.map(
+        (medicine) => _safe<Map<String, dynamic>?>(
+          () => _api.getMedicineAdherence(medicine.id, days: 1),
+          null,
+        ),
+      ),
+    );
+    for (final adherence in adherences) {
+      if (adherence == null) continue;
+      adherenceReliable = true;
+      final breakdown = adherence['dailyBreakdown'];
+      if (breakdown is List) {
+        takenToday = takenToday ||
+            breakdown.any((point) {
+              if (point is! Map) return false;
+              final status = point['status']?.toString().toUpperCase();
+              return point['date']?.toString() == todayKey &&
+                  (status == 'TAKEN' || status == 'TRACKED');
+            });
+      } else {
+        final rate = num.tryParse(
+          (adherence['adherenceRate'] ?? adherence['percentage'] ?? '')
+              .toString(),
+        );
+        takenToday = takenToday || (rate != null && rate > 0);
+      }
     }
 
     if (!adherenceReliable) {
