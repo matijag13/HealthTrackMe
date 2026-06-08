@@ -8,6 +8,13 @@
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.ACTIVITY_RECOGNITION" />
 
+    <!-- Background sleep detection runs in a persistent foreground service so
+         Android keeps it alive overnight. The "health" service type avoids the
+         Android 15 dataSync 6-hour timeout and can auto-start on boot. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_HEALTH" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+
     <!-- Health Connect permissions -->
     <uses-permission android:name="android.permission.health.READ_STEPS" />
     <uses-permission android:name="android.permission.health.READ_HEART_RATE" />
@@ -20,6 +27,8 @@
     <uses-permission android:name="android.permission.health.WRITE_STEPS" />
     <uses-permission android:name="android.permission.health.WRITE_EXERCISE" />
     <uses-permission android:name="android.permission.health.WRITE_DISTANCE" />
+    <!-- Write phone-detected sleep sessions into Health Connect. -->
+    <uses-permission android:name="android.permission.health.WRITE_SLEEP" />
 
     <application
         android:label="healthtrackme"
@@ -81,6 +90,13 @@
         <receiver
             android:exported="false"
             android:name="com.dexterous.flutterlocalnotifications.ActionBroadcastReceiver" />
+
+        <!-- flutter_foreground_task: the persistent service that hosts the
+             overnight sleep detector. Name must not change. -->
+        <service
+            android:name="com.pravera.flutter_foreground_task.service.ForegroundService"
+            android:foregroundServiceType="health"
+            android:exported="false" />
     </application>
 
     <queries>

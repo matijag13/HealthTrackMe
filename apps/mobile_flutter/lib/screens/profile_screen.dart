@@ -11,6 +11,7 @@ import '../services/activity_tracking_service.dart';
 import '../services/api_service.dart';
 import '../services/notification_service.dart';
 import '../services/phone_sensor_service.dart';
+import '../services/sleep_tracking_service.dart';
 import '../services/wearable_service.dart';
 import '../widgets/dark_time_picker.dart';
 import '../widgets/export_sheet.dart';
@@ -477,6 +478,28 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               await ActivityTrackingService.instance.start();
                             } else {
                               await ActivityTrackingService.instance.stop();
+                            }
+                          },
+                        ),
+                        _PreferenceToggleTile(
+                          prefKey: SleepTrackingService.prefEnabled,
+                          defaultValue: false,
+                          icon: Icons.bedtime_rounded,
+                          accent: _orange,
+                          title: 'Detect sleep in the background',
+                          subtitle:
+                              'Notices long overnight rest and logs your sleep — keeps a quiet notification running',
+                          onChanged: (value) async {
+                            if (value) {
+                              await WearableService().requestPermissions();
+                              final ok =
+                                  await SleepTrackingService.instance.start();
+                              if (!ok) {
+                                _showSnack(
+                                    'Could not start sleep tracking — check notification permission');
+                              }
+                            } else {
+                              await SleepTrackingService.instance.stop();
                             }
                           },
                         ),

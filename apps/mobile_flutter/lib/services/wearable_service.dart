@@ -96,6 +96,7 @@ class WearableService {
         HealthDataType.STEPS,
         HealthDataType.WORKOUT,
         HealthDataType.DISTANCE_WALKING_RUNNING,
+        HealthDataType.SLEEP_SESSION,
       };
       final permissions = types
           .map((t) => writeTypes.contains(t)

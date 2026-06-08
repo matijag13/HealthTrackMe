@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'services/api_service.dart';
 import 'services/background_sync_service.dart';
 import 'services/notification_service.dart';
+import 'services/sleep_tracking_service.dart';
 import 'config/theme.dart';
 import 'config/app_router.dart';
 
@@ -14,6 +15,9 @@ Future<void> main() async {
   await NotificationService.instance.initialize();
   await BackgroundSyncService.init();
   await BackgroundSyncService.schedulePeriodicSync();
+  // Set up the port the sleep-detector foreground service uses to hand a
+  // detected session back to the app for upload.
+  SleepTrackingService.instance.initMain();
 
   // Configure system UI overlay style (status bar)
   SystemChrome.setSystemUIOverlayStyle(

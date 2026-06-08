@@ -37,6 +37,7 @@ dependencies:
   flutter_timezone: ^5.1.0
   pedometer: ^4.0.1
   flutter_activity_recognition: ^4.0.0
+  flutter_foreground_task: ^9.2.2
 
 dev_dependencies:
   flutter_test:
