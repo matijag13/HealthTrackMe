@@ -1,13 +1,14 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import '../models/social_models.dart';
 import '../services/api_service.dart';
 
 /// Friends + gamification leaderboard. Friends compare Health Shield points and
-/// logging streaks — no health data is shared. Two tabs: the ranked leaderboard,
-/// and friend management (add by email, accept/decline requests, remove).
+/// logging streaks — no health data is shared. Styled to match the app's dark
+/// design system (same palette/cards as the dashboard + Health Shield screens).
 class FriendsScreen extends StatefulWidget {
   const FriendsScreen({super.key});
 
@@ -30,8 +31,23 @@ class _FriendsData {
 }
 
 class _FriendsScreenState extends State<FriendsScreen> {
+  static const _bg = Color(0xFF070B13);
+  static const _surface = Color(0xFF0F1624);
+  static const _surfaceAlt = Color(0xFF121B2C);
+  static const _border = Color(0xFF243047);
+  static const _primaryText = Color(0xFFF5F7FB);
+  static const _secondaryText = Color(0xFF94A3B8);
+  static const _accent = Color(0xFF5B8DEF);
+  static const _green = Color(0xFF5FB878);
+  static const _orange = Color(0xFFD4956A);
+  static const _danger = Color(0xFFFF6B6B);
+  static const _gold = Color(0xFFE3B341);
+  static const _silver = Color(0xFFAAB4BE);
+  static const _bronze = Color(0xFFCD7F32);
+
   final ApiService _api = ApiService.instance;
   late Future<_FriendsData> _future;
+  int _tab = 0;
 
   @override
   void initState() {
@@ -62,7 +78,17 @@ class _FriendsScreenState extends State<FriendsScreen> {
 
   void _snack(String msg) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(msg, style: const TextStyle(color: _primaryText)),
+        backgroundColor: _surfaceAlt,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: const BorderSide(color: _border),
+        ),
+      ),
+    );
   }
 
   Future<void> _addFriend() async {
@@ -70,23 +96,45 @@ class _FriendsScreenState extends State<FriendsScreen> {
     final email = await showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Add a friend'),
+        backgroundColor: _surfaceAlt,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+          side: const BorderSide(color: _border),
+        ),
+        title: const Text('Add a friend',
+            style: TextStyle(color: _primaryText, fontWeight: FontWeight.w800)),
         content: TextField(
           controller: controller,
           autofocus: true,
           keyboardType: TextInputType.emailAddress,
-          decoration: const InputDecoration(
-            labelText: 'Their email',
+          style: const TextStyle(color: _primaryText),
+          cursorColor: _accent,
+          decoration: InputDecoration(
+            labelText: "Their email",
+            labelStyle: const TextStyle(color: _secondaryText),
             hintText: 'friend@example.com',
+            hintStyle: TextStyle(color: _secondaryText.withValues(alpha: 0.6)),
+            filled: true,
+            fillColor: _bg,
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: _border),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: _accent),
+            ),
           ),
           onSubmitted: (v) => Navigator.of(ctx).pop(v.trim()),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Cancel'),
+            child:
+                const Text('Cancel', style: TextStyle(color: _secondaryText)),
           ),
           FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: _accent),
             onPressed: () => Navigator.of(ctx).pop(controller.text.trim()),
             child: const Text('Send request'),
           ),
@@ -114,14 +162,23 @@ class _FriendsScreenState extends State<FriendsScreen> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Remove friend?'),
-        content: Text('Remove ${f.name} from your friends?'),
+        backgroundColor: _surfaceAlt,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+          side: const BorderSide(color: _border),
+        ),
+        title: const Text('Remove friend?',
+            style: TextStyle(color: _primaryText, fontWeight: FontWeight.w800)),
+        content: Text('Remove ${f.name} from your friends?',
+            style: const TextStyle(color: _secondaryText)),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Cancel'),
+            child:
+                const Text('Cancel', style: TextStyle(color: _secondaryText)),
           ),
           FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: _danger),
             onPressed: () => Navigator.of(ctx).pop(true),
             child: const Text('Remove'),
           ),
@@ -140,188 +197,280 @@ class _FriendsScreenState extends State<FriendsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return DefaultTabController(
-      length: 2,
-      child: Scaffold(
-        appBar: AppBar(
-          title: const Text('Friends'),
-          bottom: const TabBar(
-            tabs: [
-              Tab(text: 'Leaderboard'),
-              Tab(text: 'Friends'),
-            ],
-          ),
-          actions: [
-            IconButton(
-              tooltip: 'Add friend',
-              icon: const Icon(Icons.person_add_alt_1_rounded),
-              onPressed: _addFriend,
+    return Scaffold(
+      backgroundColor: _bg,
+      body: SafeArea(
+        bottom: false,
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
+              child: _topBar(),
+            ),
+            const SizedBox(height: 16),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: _segmented(),
+            ),
+            const SizedBox(height: 14),
+            Expanded(
+              child: FutureBuilder<_FriendsData>(
+                future: _future,
+                builder: (context, snap) {
+                  if (snap.connectionState == ConnectionState.waiting) {
+                    return const Center(
+                      child: CircularProgressIndicator(
+                          color: _accent, strokeWidth: 2),
+                    );
+                  }
+                  final data = snap.data;
+                  if (data == null) {
+                    return const Center(
+                      child: Text('Could not load friends',
+                          style: TextStyle(color: _secondaryText)),
+                    );
+                  }
+                  return RefreshIndicator(
+                    color: _accent,
+                    backgroundColor: _surface,
+                    onRefresh: _refresh,
+                    child: _tab == 0
+                        ? _leaderboardView(data.leaderboard)
+                        : _friendsView(data),
+                  );
+                },
+              ),
             ),
           ],
-        ),
-        body: FutureBuilder<_FriendsData>(
-          future: _future,
-          builder: (context, snap) {
-            if (snap.connectionState == ConnectionState.waiting) {
-              return const Center(child: CircularProgressIndicator());
-            }
-            final data = snap.data;
-            if (data == null) {
-              return const Center(child: Text('Could not load friends'));
-            }
-            return TabBarView(
-              children: [
-                _LeaderboardTab(entries: data.leaderboard, onRefresh: _refresh),
-                _FriendsTab(
-                  data: data,
-                  onRefresh: _refresh,
-                  onRespond: _respond,
-                  onRemove: _remove,
-                  onAdd: _addFriend,
-                ),
-              ],
-            );
-          },
         ),
       ),
     );
   }
-}
 
-class _LeaderboardTab extends StatelessWidget {
-  final List<LeaderboardEntry> entries;
-  final Future<void> Function() onRefresh;
-
-  const _LeaderboardTab({required this.entries, required this.onRefresh});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return RefreshIndicator(
-      onRefresh: onRefresh,
-      child: entries.length <= 1
-          ? ListView(
-              children: [
-                const SizedBox(height: 100),
-                Icon(Icons.emoji_events_outlined,
-                    size: 64,
-                    color: theme.colorScheme.primary.withValues(alpha: 0.6)),
-                const SizedBox(height: 16),
-                Center(
-                    child: Text('Add friends to compete',
-                        style: theme.textTheme.titleMedium)),
-                const SizedBox(height: 8),
-                Center(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 40),
-                    child: Text(
-                      'Your Health Shield points and streak go head-to-head with your friends. No health data is shared.',
-                      textAlign: TextAlign.center,
-                      style: theme.textTheme.bodySmall,
-                    ),
-                  ),
-                ),
-              ],
-            )
-          : ListView.separated(
-              padding: const EdgeInsets.all(16),
-              itemCount: entries.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 8),
-              itemBuilder: (context, i) => _LeaderboardRow(entry: entries[i]),
+  Widget _topBar() {
+    return Row(
+      children: [
+        IconButton(
+          tooltip: 'Back',
+          onPressed: () {
+            if (context.canPop()) {
+              context.pop();
+            } else {
+              context.goNamed('home');
+            }
+          },
+          icon: const Icon(Icons.arrow_back_ios_new_rounded),
+          color: _primaryText,
+          style: IconButton.styleFrom(
+            backgroundColor: _surface,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(14),
+              side: const BorderSide(color: _border),
             ),
+          ),
+        ),
+        const SizedBox(width: 12),
+        const Expanded(
+          child: Text(
+            'Friends',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: _primaryText,
+              fontSize: 22,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+        ),
+        IconButton(
+          tooltip: 'Add friend',
+          onPressed: _addFriend,
+          icon: const Icon(Icons.person_add_alt_1_rounded),
+          color: _primaryText,
+          style: IconButton.styleFrom(
+            backgroundColor: _surface,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(14),
+              side: const BorderSide(color: _border),
+            ),
+          ),
+        ),
+      ],
     );
   }
-}
 
-class _LeaderboardRow extends StatelessWidget {
-  final LeaderboardEntry entry;
-
-  const _LeaderboardRow({required this.entry});
-
-  Color? _medalColor() {
-    switch (entry.rank) {
-      case 1:
-        return const Color(0xFFD4AF37);
-      case 2:
-        return const Color(0xFFAAB4BE);
-      case 3:
-        return const Color(0xFFCD7F32);
-      default:
-        return null;
-    }
+  Widget _segmented() {
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: _surface,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: _border),
+      ),
+      child: Row(
+        children: [
+          _segItem('Leaderboard', 0),
+          _segItem('Friends', 1),
+        ],
+      ),
+    );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final medal = _medalColor();
-    final highlight = entry.isMe;
+  Widget _segItem(String label, int index) {
+    final selected = _tab == index;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => setState(() => _tab = index),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 160),
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          decoration: BoxDecoration(
+            color: selected ? _accent : Colors.transparent,
+            borderRadius: BorderRadius.circular(11),
+          ),
+          alignment: Alignment.center,
+          child: Text(
+            label,
+            style: TextStyle(
+              color: selected ? Colors.white : _secondaryText,
+              fontWeight: FontWeight.w700,
+              fontSize: 13.5,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ---- Leaderboard -------------------------------------------------------
+
+  Widget _leaderboardView(List<LeaderboardEntry> entries) {
+    if (entries.length <= 1) {
+      return ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
+        children: [
+          const SizedBox(height: 70),
+          _emptyIcon(Icons.emoji_events_rounded, _gold),
+          const SizedBox(height: 18),
+          const Text(
+            'Add friends to compete',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+                color: _primaryText, fontSize: 17, fontWeight: FontWeight.w800),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Your Health Shield points and streak go head-to-head with friends. No health data is shared.',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: _secondaryText, height: 1.4),
+          ),
+          const SizedBox(height: 22),
+          Center(child: _addButton()),
+        ],
+      );
+    }
+    return ListView.separated(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(20, 4, 20, 28),
+      itemCount: entries.length,
+      separatorBuilder: (_, __) => const SizedBox(height: 10),
+      itemBuilder: (context, i) => _leaderboardRow(entries[i]),
+    );
+  }
+
+  Widget _leaderboardRow(LeaderboardEntry e) {
+    final medal = switch (e.rank) {
+      1 => _gold,
+      2 => _silver,
+      3 => _bronze,
+      _ => null,
+    };
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
       decoration: BoxDecoration(
-        color: highlight
-            ? theme.colorScheme.primary.withValues(alpha: 0.10)
-            : theme.cardColor,
-        borderRadius: BorderRadius.circular(14),
+        color: e.isMe ? _accent.withValues(alpha: 0.10) : _surface,
+        borderRadius: BorderRadius.circular(18),
         border: Border.all(
-          color: highlight
-              ? theme.colorScheme.primary.withValues(alpha: 0.5)
-              : theme.dividerColor.withValues(alpha: 0.4),
+          color: e.isMe
+              ? _accent.withValues(alpha: 0.55)
+              : (medal ?? _border)
+                  .withValues(alpha: medal != null ? 0.5 : 0.85),
         ),
       ),
       child: Row(
         children: [
           SizedBox(
-            width: 28,
+            width: 30,
             child: medal != null
                 ? Icon(Icons.emoji_events_rounded, color: medal, size: 24)
                 : Text(
-                    '${entry.rank}',
+                    '${e.rank}',
                     textAlign: TextAlign.center,
-                    style: theme.textTheme.titleMedium
-                        ?.copyWith(color: theme.hintColor),
+                    style: const TextStyle(
+                        color: _secondaryText,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 16),
                   ),
           ),
-          const SizedBox(width: 8),
-          _Avatar(name: entry.name, photoBase64: entry.profilePhotoBase64),
+          const SizedBox(width: 10),
+          _avatar(e.name, e.profilePhotoBase64, size: 44),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        e.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                            color: _primaryText,
+                            fontWeight: FontWeight.w800,
+                            fontSize: 15),
+                      ),
+                    ),
+                    if (e.isMe) ...[
+                      const SizedBox(width: 6),
+                      _youPill(),
+                    ],
+                  ],
+                ),
+                const SizedBox(height: 3),
                 Text(
-                  entry.isMe ? '${entry.name} (you)' : entry.name,
+                  'Lvl ${e.level} · ${e.levelName}',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.titleSmall
-                      ?.copyWith(fontWeight: FontWeight.w700),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  'Lvl ${entry.level} · ${entry.levelName}',
-                  style: theme.textTheme.labelSmall
-                      ?.copyWith(color: theme.hintColor),
+                  style: const TextStyle(color: _secondaryText, fontSize: 12),
                 ),
               ],
             ),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 10),
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(
-                '${entry.points}',
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w800,
-                  color: theme.colorScheme.primary,
+                '${e.points}',
+                style: const TextStyle(
+                  color: _accent,
+                  fontWeight: FontWeight.w900,
+                  fontSize: 20,
+                  height: 1,
                 ),
               ),
-              Text('pts',
-                  style: theme.textTheme.labelSmall
-                      ?.copyWith(color: theme.hintColor)),
-              if (entry.streak > 0) ...[
-                const SizedBox(height: 2),
-                Text('🔥 ${entry.streak}', style: theme.textTheme.labelSmall),
+              const Text('pts',
+                  style: TextStyle(color: _secondaryText, fontSize: 11)),
+              if (e.streak > 0) ...[
+                const SizedBox(height: 4),
+                Text('🔥 ${e.streak}',
+                    style: const TextStyle(
+                        color: _orange,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700)),
               ],
             ],
           ),
@@ -329,183 +478,239 @@ class _LeaderboardRow extends StatelessWidget {
       ),
     );
   }
-}
 
-class _FriendsTab extends StatelessWidget {
-  final _FriendsData data;
-  final Future<void> Function() onRefresh;
-  final Future<void> Function(Friend, bool) onRespond;
-  final Future<void> Function(Friend) onRemove;
-  final VoidCallback onAdd;
+  // ---- Friends -----------------------------------------------------------
 
-  const _FriendsTab({
-    required this.data,
-    required this.onRefresh,
-    required this.onRespond,
-    required this.onRemove,
-    required this.onAdd,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return RefreshIndicator(
-      onRefresh: onRefresh,
-      child: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          if (data.incoming.isNotEmpty) ...[
-            _sectionTitle(theme, 'Requests'),
-            ...data.incoming.map((f) => _RequestRow(
-                  friend: f,
-                  onAccept: () => onRespond(f, true),
-                  onDecline: () => onRespond(f, false),
-                )),
-            const SizedBox(height: 16),
-          ],
-          _sectionTitle(theme, 'Your friends'),
-          if (data.friends.isEmpty)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              child: Center(
-                child: Column(
-                  children: [
-                    Text('No friends yet', style: theme.textTheme.titleSmall),
-                    const SizedBox(height: 6),
-                    Text('Add someone by their email to get started.',
-                        style: theme.textTheme.bodySmall),
-                    const SizedBox(height: 12),
-                    FilledButton.icon(
-                      onPressed: onAdd,
-                      icon:
-                          const Icon(Icons.person_add_alt_1_rounded, size: 18),
-                      label: const Text('Add a friend'),
-                    ),
-                  ],
-                ),
-              ),
-            )
-          else
-            ...data.friends.map((f) => _FriendRow(
-                  friend: f,
-                  onRemove: () => onRemove(f),
-                )),
-          if (data.outgoing.isNotEmpty) ...[
-            const SizedBox(height: 16),
-            _sectionTitle(theme, 'Pending'),
-            ...data.outgoing.map((f) => ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading:
-                      _Avatar(name: f.name, photoBase64: f.profilePhotoBase64),
-                  title: Text(f.name),
-                  subtitle: const Text('Request sent'),
-                  trailing:
-                      Text('Pending', style: TextStyle(color: theme.hintColor)),
-                )),
-          ],
+  Widget _friendsView(_FriendsData data) {
+    return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(20, 4, 20, 28),
+      children: [
+        if (data.incoming.isNotEmpty) ...[
+          _sectionLabel('Requests'),
+          ...data.incoming.map(_incomingCard),
+          const SizedBox(height: 18),
         ],
-      ),
+        _sectionLabel('Your friends'),
+        if (data.friends.isEmpty)
+          _friendsEmpty()
+        else
+          ...data.friends.map(_friendCard),
+        if (data.outgoing.isNotEmpty) ...[
+          const SizedBox(height: 18),
+          _sectionLabel('Pending'),
+          ...data.outgoing.map(_pendingCard),
+        ],
+      ],
     );
   }
 
-  Widget _sectionTitle(ThemeData theme, String text) => Padding(
-        padding: const EdgeInsets.only(bottom: 8),
-        child: Text(text.toUpperCase(),
-            style: theme.textTheme.labelSmall?.copyWith(
-              color: theme.hintColor,
-              letterSpacing: 1,
-              fontWeight: FontWeight.w700,
-            )),
-      );
-}
-
-class _RequestRow extends StatelessWidget {
-  final Friend friend;
-  final VoidCallback onAccept;
-  final VoidCallback onDecline;
-
-  const _RequestRow({
-    required this.friend,
-    required this.onAccept,
-    required this.onDecline,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return ListTile(
-      contentPadding: EdgeInsets.zero,
-      leading:
-          _Avatar(name: friend.name, photoBase64: friend.profilePhotoBase64),
-      title: Text(friend.name),
-      subtitle: Text(friend.email),
+  Widget _incomingCard(Friend f) {
+    return _personCard(
+      f,
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          IconButton(
-            tooltip: 'Accept',
-            icon: const Icon(Icons.check_circle, color: Color(0xFF5FB878)),
-            onPressed: onAccept,
-          ),
-          IconButton(
-            tooltip: 'Decline',
-            icon: const Icon(Icons.cancel, color: Color(0xFFE25555)),
-            onPressed: onDecline,
-          ),
+          _circleAction(Icons.check_rounded, _green, () => _respond(f, true)),
+          const SizedBox(width: 8),
+          _circleAction(Icons.close_rounded, _danger, () => _respond(f, false)),
         ],
       ),
     );
   }
-}
 
-class _FriendRow extends StatelessWidget {
-  final Friend friend;
-  final VoidCallback onRemove;
+  Widget _friendCard(Friend f) {
+    return _personCard(
+      f,
+      trailing: _circleAction(
+          Icons.person_remove_alt_1_outlined, _secondaryText, () => _remove(f)),
+    );
+  }
 
-  const _FriendRow({required this.friend, required this.onRemove});
-
-  @override
-  Widget build(BuildContext context) {
-    return ListTile(
-      contentPadding: EdgeInsets.zero,
-      leading:
-          _Avatar(name: friend.name, photoBase64: friend.profilePhotoBase64),
-      title: Text(friend.name),
-      subtitle: Text(friend.email),
-      trailing: IconButton(
-        tooltip: 'Remove',
-        icon: const Icon(Icons.person_remove_alt_1_outlined),
-        onPressed: onRemove,
+  Widget _pendingCard(Friend f) {
+    return _personCard(
+      f,
+      trailing: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        decoration: BoxDecoration(
+          color: _surfaceAlt,
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(color: _border),
+        ),
+        child: const Text('Pending',
+            style: TextStyle(color: _secondaryText, fontSize: 11.5)),
       ),
     );
   }
-}
 
-class _Avatar extends StatelessWidget {
-  final String name;
-  final String? photoBase64;
+  Widget _personCard(Friend f, {required Widget trailing}) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: _surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: _border.withValues(alpha: 0.85)),
+      ),
+      child: Row(
+        children: [
+          _avatar(f.name, f.profilePhotoBase64, size: 42),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(f.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                        color: _primaryText,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 14.5)),
+                const SizedBox(height: 2),
+                Text(f.email,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style:
+                        const TextStyle(color: _secondaryText, fontSize: 12)),
+              ],
+            ),
+          ),
+          const SizedBox(width: 10),
+          trailing,
+        ],
+      ),
+    );
+  }
 
-  const _Avatar({required this.name, this.photoBase64});
+  Widget _friendsEmpty() {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 26, horizontal: 16),
+      decoration: BoxDecoration(
+        color: _surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: _border.withValues(alpha: 0.85)),
+      ),
+      child: Column(
+        children: [
+          const Text('No friends yet',
+              style:
+                  TextStyle(color: _primaryText, fontWeight: FontWeight.w800)),
+          const SizedBox(height: 6),
+          const Text('Add someone by their email to get started.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: _secondaryText, fontSize: 13)),
+          const SizedBox(height: 14),
+          _addButton(),
+        ],
+      ),
+    );
+  }
 
-  @override
-  Widget build(BuildContext context) {
+  // ---- Small shared pieces ----------------------------------------------
+
+  Widget _addButton() {
+    return FilledButton.icon(
+      style: FilledButton.styleFrom(
+        backgroundColor: _accent,
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+      onPressed: _addFriend,
+      icon: const Icon(Icons.person_add_alt_1_rounded, size: 18),
+      label: const Text('Add a friend'),
+    );
+  }
+
+  Widget _circleAction(IconData icon, Color color, VoidCallback onTap) {
+    return Material(
+      color: color.withValues(alpha: 0.14),
+      shape: const CircleBorder(),
+      child: InkWell(
+        customBorder: const CircleBorder(),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(8),
+          child: Icon(icon, color: color, size: 20),
+        ),
+      ),
+    );
+  }
+
+  Widget _youPill() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+      decoration: BoxDecoration(
+        color: _accent.withValues(alpha: 0.2),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: const Text('You',
+          style: TextStyle(
+              color: _accent, fontSize: 10, fontWeight: FontWeight.w800)),
+    );
+  }
+
+  Widget _sectionLabel(String text) => Padding(
+        padding: const EdgeInsets.only(bottom: 10, left: 2),
+        child: Text(
+          text.toUpperCase(),
+          style: const TextStyle(
+            color: _secondaryText,
+            fontSize: 11.5,
+            letterSpacing: 1.1,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+      );
+
+  Widget _emptyIcon(IconData icon, Color color) => Center(
+        child: Container(
+          width: 84,
+          height: 84,
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.12),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(icon, color: color, size: 40),
+        ),
+      );
+
+  Widget _avatar(String name, String? photoBase64, {double size = 42}) {
     ImageProvider? image;
-    final photo = photoBase64;
-    if (photo != null && photo.isNotEmpty) {
+    if (photoBase64 != null && photoBase64.isNotEmpty) {
       try {
-        image = MemoryImage(base64Decode(photo));
+        image = MemoryImage(base64Decode(photoBase64));
       } catch (_) {
         image = null;
       }
     }
-    final initials = name.isNotEmpty
-        ? name.trim().split(RegExp(r'\s+')).take(2).map((p) => p[0]).join()
+    final initials = name.trim().isNotEmpty
+        ? name
+            .trim()
+            .split(RegExp(r'\s+'))
+            .take(2)
+            .map((p) => p[0])
+            .join()
+            .toUpperCase()
         : '?';
-    return CircleAvatar(
-      radius: 20,
-      backgroundImage: image,
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: _surfaceAlt,
+        border: Border.all(color: _border),
+        image: image != null
+            ? DecorationImage(image: image, fit: BoxFit.cover)
+            : null,
+      ),
+      alignment: Alignment.center,
       child: image == null
-          ? Text(initials.toUpperCase(),
-              style: const TextStyle(fontWeight: FontWeight.w700))
+          ? Text(initials,
+              style: const TextStyle(
+                  color: _primaryText,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 14))
           : null,
     );
   }
