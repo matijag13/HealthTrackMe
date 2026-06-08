@@ -153,8 +153,8 @@ class _DashboardScreenState extends State<DashboardScreen>
   StreakResult _streak = StreakResult.empty;
   int _waterToday = 0;
   static const int _waterGoalMl = 2500;
-  bool _hydrationDismissed = false;
-  static const _prefsHydrationDismissed = 'dashboard_hydration_dismissed';
+  bool _onPaceDismissed = false;
+  static const _prefsOnPaceDismissed = 'dashboard_onpace_dismissed';
 
   @override
   bool get wantKeepAlive => true;
@@ -163,7 +163,7 @@ class _DashboardScreenState extends State<DashboardScreen>
   void initState() {
     super.initState();
     unawaited(_loadFavoriteKeys());
-    unawaited(_loadHydrationPref());
+    unawaited(_loadOnPacePref());
     _loadAll();
     // Refresh automatically when a background/foreground sync uploads new data.
     SyncEvents.instance.revision.addListener(_onSynced);
@@ -349,21 +349,20 @@ class _DashboardScreenState extends State<DashboardScreen>
     } catch (_) {}
   }
 
-  Future<void> _loadHydrationPref() async {
+  Future<void> _loadOnPacePref() async {
     final prefs = await SharedPreferences.getInstance();
     if (!mounted) return;
-    setState(() =>
-        _hydrationDismissed = prefs.getBool(_prefsHydrationDismissed) ?? false);
+    setState(
+        () => _onPaceDismissed = prefs.getBool(_prefsOnPaceDismissed) ?? false);
   }
 
-  Future<void> _dismissHydration() async {
-    setState(() => _hydrationDismissed = true);
+  Future<void> _dismissOnPace() async {
+    setState(() => _onPaceDismissed = true);
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_prefsHydrationDismissed, true);
+    await prefs.setBool(_prefsOnPaceDismissed, true);
   }
 
   Widget _buildHydrationCard() {
-    if (_hydrationDismissed) return const SizedBox.shrink();
     const goal = _waterGoalMl;
     final progress = (_waterToday / goal).clamp(0.0, 1.0);
     const water = Color(0xFF3FA9F5);
@@ -415,17 +414,6 @@ class _DashboardScreenState extends State<DashboardScreen>
                           color: water,
                           fontSize: 16,
                           fontWeight: FontWeight.w900)),
-                  const SizedBox(width: 4),
-                  InkWell(
-                    onTap: _dismissHydration,
-                    borderRadius: BorderRadius.circular(20),
-                    child: Padding(
-                      padding: const EdgeInsets.all(4),
-                      child: Icon(Icons.close_rounded,
-                          size: 18,
-                          color: _secondaryText.withValues(alpha: 0.85)),
-                    ),
-                  ),
                 ],
               ),
               const SizedBox(height: 12),
@@ -480,6 +468,7 @@ class _DashboardScreenState extends State<DashboardScreen>
   /// activity count from days elapsed, and compares the week's average sleep to
   /// a 7h goal. Returns an empty box when there's nothing to project.
   Widget _buildOnPaceCard() {
+    if (_onPaceDismissed) return const SizedBox.shrink();
     final now = DateTime.now();
     final todayMidnight = DateTime(now.year, now.month, now.day);
     final insights = <_PaceInsight>[];
@@ -541,16 +530,27 @@ class _DashboardScreenState extends State<DashboardScreen>
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Row(
+              Row(
                 children: [
-                  Icon(Icons.insights_rounded, color: _accent, size: 18),
-                  SizedBox(width: 8),
-                  Text(
+                  const Icon(Icons.insights_rounded, color: _accent, size: 18),
+                  const SizedBox(width: 8),
+                  const Text(
                     'On pace',
                     style: TextStyle(
                       color: _primaryText,
                       fontSize: 14,
                       fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const Spacer(),
+                  InkWell(
+                    onTap: _dismissOnPace,
+                    borderRadius: BorderRadius.circular(20),
+                    child: Padding(
+                      padding: const EdgeInsets.all(4),
+                      child: Icon(Icons.close_rounded,
+                          size: 18,
+                          color: _secondaryText.withValues(alpha: 0.85)),
                     ),
                   ),
                 ],
