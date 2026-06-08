@@ -505,6 +505,27 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         ),
                         const _DiaryReminderTile(),
                         _PreferenceToggleTile(
+                          prefKey: 'pref_streak_reminder',
+                          defaultValue: false,
+                          icon: Icons.local_fire_department_rounded,
+                          accent: _orange,
+                          title: 'Morning streak reminder',
+                          subtitle:
+                              'A 9 AM nudge to log today and keep your streak alive',
+                          onChanged: (value) async {
+                            if (value) {
+                              await NotificationService.instance
+                                  .requestPermissions();
+                              await NotificationService.instance
+                                  .scheduleDailyStreakReminder(
+                                      const TimeOfDay(hour: 9, minute: 0));
+                            } else {
+                              await NotificationService.instance
+                                  .cancelDailyStreakReminder();
+                            }
+                          },
+                        ),
+                        _PreferenceToggleTile(
                           prefKey: 'pref_medicine_reminders',
                           defaultValue: true,
                           icon: Icons.medication_outlined,

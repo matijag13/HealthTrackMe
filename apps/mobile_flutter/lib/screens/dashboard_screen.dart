@@ -7,8 +7,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../config/theme.dart';
 import '../models/models.dart';
+import '../services/alert_notifier.dart';
 import '../services/api_service.dart';
 import '../services/sync_events.dart';
+import '../utils/streak.dart';
 import '../widgets/ai_assistant.dart';
 import '../widgets/app_logo.dart';
 
@@ -34,6 +36,18 @@ class _DashboardStateModel {
     this.shield,
     this.homeShield = const _HomeShieldSnapshot.empty(),
     this.sportActivities = const [],
+  });
+}
+
+class _PaceInsight {
+  final IconData icon;
+  final String text;
+  final bool onTrack;
+
+  const _PaceInsight({
+    required this.icon,
+    required this.text,
+    required this.onTrack,
   });
 }
 
@@ -137,6 +151,8 @@ class _DashboardScreenState extends State<DashboardScreen>
   _DashboardStateModel _state = const _DashboardStateModel();
   List<String> _favoriteKeys = List<String>.from(_defaultFavoriteKeys);
   bool _loading = true;
+  int _unreadAlerts = 0;
+  StreakResult _streak = StreakResult.empty;
 
   @override
   bool get wantKeepAlive => true;
@@ -237,6 +253,8 @@ class _DashboardScreenState extends State<DashboardScreen>
         backendShield: shield,
       );
 
+      final streak = computeLoggingStreak(entries);
+
       if (!mounted) return;
       setState(() {
         _state = _DashboardStateModel(
@@ -247,12 +265,248 @@ class _DashboardScreenState extends State<DashboardScreen>
           homeShield: homeShield,
           sportActivities: sportActivities,
         );
+        _streak = streak;
         _loading = false;
       });
+      _refreshAlertCount();
+      _maybeCelebrateStreak(streak.current);
     } catch (e) {
       debugPrint('Dashboard load error: $e');
       setState(() => _loading = false);
     }
+  }
+
+  /// Pulls unread alerts (and posts a notification for any new ones) without
+  /// blocking the dashboard render. Updates the header bell badge.
+  Future<void> _refreshAlertCount() async {
+    final count = await AlertNotifier.instance.checkAndNotify();
+    if (!mounted) return;
+    setState(() => _unreadAlerts = count);
+  }
+
+  /// Shows a one-time celebration when the logging streak hits a milestone.
+  Future<void> _maybeCelebrateStreak(int current) async {
+    final milestone = milestoneFor(current);
+    if (milestone == null) return;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      const key = 'streak_celebrated_milestone';
+      if (prefs.getInt(key) == milestone) return; // already celebrated this one
+      await prefs.setInt(key, milestone);
+      if (!mounted) return;
+      showDialog<void>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          backgroundColor: _surfaceAlt,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+            side: const BorderSide(color: _border),
+          ),
+          title: const Row(
+            children: [
+              Icon(Icons.local_fire_department_rounded,
+                  color: Color(0xFFE8924A), size: 28),
+              SizedBox(width: 10),
+              Text('Streak milestone!', style: TextStyle(color: _primaryText)),
+            ],
+          ),
+          content: Text(
+            "You've logged your health $milestone days in a row. Keep the fire going! 🔥",
+            style: TextStyle(color: _primaryText.withValues(alpha: 0.8)),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('Nice!'),
+            ),
+          ],
+        ),
+      );
+    } catch (_) {}
+  }
+
+  /// Rule-based "on pace" projections (no ML): projects the calendar-week
+  /// activity count from days elapsed, and compares the week's average sleep to
+  /// a 7h goal. Returns an empty box when there's nothing to project.
+  Widget _buildOnPaceCard() {
+    final now = DateTime.now();
+    final todayMidnight = DateTime(now.year, now.month, now.day);
+    final insights = <_PaceInsight>[];
+
+    // Active days this week, projected to the full week.
+    final monday = todayMidnight.subtract(Duration(days: now.weekday - 1));
+    final activeDays = <DateTime>{};
+    for (final a in _state.sportActivities) {
+      final d = _sportActivityDate(a);
+      if (d != null && !d.isBefore(monday) && _sportActivityDuration(a) > 0) {
+        activeDays.add(DateTime(d.year, d.month, d.day));
+      }
+    }
+    if (activeDays.isNotEmpty) {
+      const weeklyGoal = 5;
+      final projected = (activeDays.length / now.weekday * 7).round();
+      final onTrack = projected >= weeklyGoal;
+      insights.add(_PaceInsight(
+        icon: Icons.directions_run_rounded,
+        text: onTrack
+            ? '${activeDays.length} active day(s) so far — on pace for $projected this week 💪'
+            : '${activeDays.length} active day(s) — on pace for $projected of $weeklyGoal this week',
+        onTrack: onTrack,
+      ));
+    }
+
+    // This week's average sleep vs a 7h goal.
+    final weekAgo = todayMidnight.subtract(const Duration(days: 6));
+    final sleeps = _state.entries
+        .where((e) => !e.entryDate.isBefore(weekAgo) && (e.sleepHours ?? 0) > 0)
+        .map((e) => e.sleepHours!)
+        .toList();
+    if (sleeps.isNotEmpty) {
+      const sleepGoal = 7.0;
+      final avg = sleeps.reduce((a, b) => a + b) / sleeps.length;
+      final onTrack = avg >= sleepGoal;
+      final gap = (sleepGoal - avg).abs().toStringAsFixed(1);
+      insights.add(_PaceInsight(
+        icon: Icons.bedtime_rounded,
+        text: onTrack
+            ? 'Sleeping ${avg.toStringAsFixed(1)}h on average — on track for your ${sleepGoal.toStringAsFixed(0)}h goal'
+            : 'Sleeping ${avg.toStringAsFixed(1)}h on average — ${gap}h below your ${sleepGoal.toStringAsFixed(0)}h goal',
+        onTrack: onTrack,
+      ));
+    }
+
+    if (insights.isEmpty) return const SizedBox.shrink();
+
+    return Column(
+      children: [
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: _surface,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: _border.withValues(alpha: 0.9)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Row(
+                children: [
+                  Icon(Icons.insights_rounded, color: _accent, size: 18),
+                  SizedBox(width: 8),
+                  Text(
+                    'On pace',
+                    style: TextStyle(
+                      color: _primaryText,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              for (var i = 0; i < insights.length; i++) ...[
+                if (i > 0) const SizedBox(height: 10),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(
+                      insights[i].icon,
+                      color: insights[i].onTrack
+                          ? _green
+                          : const Color(0xFFD9933A),
+                      size: 18,
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        insights[i].text,
+                        style: TextStyle(
+                          color: _primaryText.withValues(alpha: 0.85),
+                          fontSize: 13,
+                          height: 1.3,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ],
+          ),
+        ),
+        const SizedBox(height: 24),
+      ],
+    );
+  }
+
+  Widget _buildStreakBanner() {
+    final s = _streak;
+    final hasStreak = s.current > 0;
+    final title = hasStreak ? '${s.current}-day streak' : 'Start your streak';
+    final subtitle = hasStreak
+        ? (s.loggedToday
+            ? 'Logged today ✓   •   best ${s.best}'
+            : 'Log today to keep it alive')
+        : 'Log your health today to begin';
+    const fire = Color(0xFFE8924A);
+    return GestureDetector(
+      onTap: () => context.pushNamed('healthShield'),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          color: _surface,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: hasStreak
+                ? fire.withValues(alpha: 0.45)
+                : _border.withValues(alpha: 0.9),
+          ),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                color: fire.withValues(alpha: 0.16),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.local_fire_department_rounded,
+                color: hasStreak ? fire : _primaryText.withValues(alpha: 0.5),
+                size: 24,
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      color: _primaryText,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      color: _primaryText.withValues(alpha: 0.6),
+                      fontSize: 12.5,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(Icons.chevron_right_rounded,
+                color: _primaryText.withValues(alpha: 0.4)),
+          ],
+        ),
+      ),
+    );
   }
 
   Future<void> _refresh() => _loadAll();
@@ -1004,8 +1258,11 @@ class _DashboardScreenState extends State<DashboardScreen>
               padding: const EdgeInsets.fromLTRB(20, 22, 20, 30),
               sliver: SliverList(
                 delegate: SliverChildListDelegate([
+                  _buildStreakBanner(),
+                  const SizedBox(height: 18),
                   _buildFavoritesSection(),
                   const SizedBox(height: 24),
+                  _buildOnPaceCard(),
                   _buildFeed(),
                   const SizedBox(height: 22),
                 ]),
@@ -1034,8 +1291,50 @@ class _DashboardScreenState extends State<DashboardScreen>
             ),
           ),
         ),
-        const SizedBox(width: 16),
+        const SizedBox(width: 8),
+        _buildAlertBell(),
+        const SizedBox(width: 8),
         _buildAvatar(),
+      ],
+    );
+  }
+
+  Widget _buildAlertBell() {
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        IconButton(
+          tooltip: 'Health alerts',
+          icon: const Icon(Icons.notifications_none_rounded,
+              color: _primaryText, size: 26),
+          onPressed: () async {
+            await context.pushNamed('alerts');
+            _refreshAlertCount();
+          },
+        ),
+        if (_unreadAlerts > 0)
+          Positioned(
+            right: 6,
+            top: 6,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+              constraints: const BoxConstraints(minWidth: 16),
+              decoration: BoxDecoration(
+                color: const Color(0xFFE25555),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: _bg, width: 1.5),
+              ),
+              child: Text(
+                _unreadAlerts > 9 ? '9+' : '$_unreadAlerts',
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ),
       ],
     );
   }

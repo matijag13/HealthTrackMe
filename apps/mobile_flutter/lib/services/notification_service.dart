@@ -24,6 +24,16 @@ class NotificationService {
   static const String _diaryChannelName = 'Daily Diary Reminders';
   static const String _diaryChannelDesc = 'Daily reminder to log health entry';
 
+  static const String _alertChannelId = 'health_alerts';
+  static const String _alertChannelName = 'Health Alerts';
+  static const String _alertChannelDesc =
+      'Important changes detected in your health data';
+
+  static const String _streakChannelId = 'streak_reminders';
+  static const String _streakChannelName = 'Streak Reminders';
+  static const String _streakChannelDesc =
+      'Morning nudge to keep your logging streak alive';
+
   Future<void> initialize() async {
     tz_data.initializeTimeZones();
     // tz.local defaults to UTC after initializeTimeZones(). We must explicitly
@@ -154,6 +164,41 @@ class NotificationService {
       } catch (e2) {
         debugPrint('Test reminder scheduling failed: $e2');
       }
+    }
+  }
+
+  // =========================
+  // HEALTH ALERTS (immediate)
+  // =========================
+
+  static const NotificationDetails _alertDetails = NotificationDetails(
+    android: AndroidNotificationDetails(
+      _alertChannelId,
+      _alertChannelName,
+      channelDescription: _alertChannelDesc,
+      importance: Importance.high,
+      priority: Priority.high,
+    ),
+    iOS: DarwinNotificationDetails(),
+  );
+
+  /// Posts a health alert immediately. [id] is derived from the alert's id so
+  /// the same alert never stacks duplicate notifications.
+  Future<void> showAlertNotification({
+    required int id,
+    required String title,
+    required String body,
+  }) async {
+    try {
+      await _plugin.show(
+        700000000 + (id % 100000000),
+        title,
+        body,
+        _alertDetails,
+        payload: 'health_alert',
+      );
+    } catch (e) {
+      debugPrint('Alert notification failed: $e');
     }
   }
 
@@ -364,6 +409,51 @@ class NotificationService {
 
   Future<void> cancelDailyDiaryReminder() async {
     await _plugin.cancel(999999);
+  }
+
+  // =========================
+  // STREAK MORNING REMINDER
+  // =========================
+
+  static const int _streakReminderId = 999998;
+
+  static const NotificationDetails _streakDetails = NotificationDetails(
+    android: AndroidNotificationDetails(
+      _streakChannelId,
+      _streakChannelName,
+      channelDescription: _streakChannelDesc,
+      importance: Importance.high,
+      priority: Priority.high,
+    ),
+    iOS: DarwinNotificationDetails(),
+  );
+
+  /// Schedules a daily morning nudge to log today and keep the streak alive.
+  Future<void> scheduleDailyStreakReminder(TimeOfDay time) async {
+    final now = tz.TZDateTime.now(tz.local);
+    var scheduled = tz.TZDateTime(
+      tz.local,
+      now.year,
+      now.month,
+      now.day,
+      time.hour,
+      time.minute,
+    );
+    if (scheduled.isBefore(now)) {
+      scheduled = scheduled.add(const Duration(days: 1));
+    }
+    await _zonedScheduleDailyWithFallback(
+      id: _streakReminderId,
+      title: 'Good morning! ☀️',
+      body: 'Log your sleep & vitals to keep your streak alive.',
+      when: scheduled,
+      payload: 'streak_reminder',
+      details: _streakDetails,
+    );
+  }
+
+  Future<void> cancelDailyStreakReminder() async {
+    await _plugin.cancel(_streakReminderId);
   }
 
   /// Cancels every pending medicine reminder regardless of medicine id — used

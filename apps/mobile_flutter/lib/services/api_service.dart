@@ -898,6 +898,16 @@ class ApiService {
     }
   }
 
+  /// Marks a single alert as read. Returns true on success.
+  Future<bool> markAlertRead(int alertId) async {
+    try {
+      final response = await _putRaw('/health-alerts/$alertId/read');
+      return response.statusCode >= 200 && response.statusCode < 300;
+    } catch (_) {
+      return false;
+    }
+  }
+
   Future<HealthReport> getMonthlyReport(DateTime month, {int? userId}) async {
     final id = _effectiveUserId(userId: userId);
     if (id == null) {
