@@ -148,13 +148,13 @@ class _FriendsScreenState extends State<FriendsScreen> {
   }
 
   Future<void> _respond(Friend f, bool accept) async {
-    final ok = await _api.respondToFriendRequest(f.friendshipId, accept);
-    if (ok) {
+    final error = await _api.respondToFriendRequest(f.friendshipId, accept);
+    if (error == null) {
       _snack(
           accept ? 'You are now friends with ${f.name}' : 'Request declined');
       await _refresh();
     } else {
-      _snack('Something went wrong');
+      _snack(error);
     }
   }
 

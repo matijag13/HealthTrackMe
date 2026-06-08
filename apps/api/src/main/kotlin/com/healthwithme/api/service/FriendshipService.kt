@@ -89,7 +89,7 @@ class FriendshipService(
     }
 
     fun listFriends(userId: Long): List<FriendDto> =
-        friendshipRepository.findAcceptedForUser(userId).map { toFriendDto(it, userId) }
+        friendshipRepository.findForUserWithStatus(userId, FriendshipStatus.ACCEPTED).map { toFriendDto(it, userId) }
 
     fun listIncoming(userId: Long): List<FriendDto> =
         friendshipRepository.findByAddresseeIdAndStatus(userId, FriendshipStatus.PENDING)
@@ -101,7 +101,7 @@ class FriendshipService(
 
     /** Ranks the user and their accepted friends by Health Shield points (streak breaks ties). */
     fun leaderboard(userId: Long): List<LeaderboardEntryDto> {
-        val friends = friendshipRepository.findAcceptedForUser(userId)
+        val friends = friendshipRepository.findForUserWithStatus(userId, FriendshipStatus.ACCEPTED)
             .mapNotNull { other(it, userId) }
         val me = userRepository.findById(userId).orElseThrow { IllegalArgumentException("User not found") }
 

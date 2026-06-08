@@ -977,17 +977,20 @@ class ApiService {
     }
   }
 
-  Future<bool> respondToFriendRequest(int friendshipId, bool accept,
+  /// Accept/decline a friend request. Returns null on success, or an error
+  /// message (from the backend when available) to show the user.
+  Future<String?> respondToFriendRequest(int friendshipId, bool accept,
       {int? userId}) async {
     final id = _effectiveUserId(userId: userId);
-    if (id == null) return false;
+    if (id == null) return 'Not signed in';
     final action = accept ? 'accept' : 'decline';
     try {
       final r =
           await _postRaw('/friends/users/$id/requests/$friendshipId/$action');
-      return r.statusCode >= 200 && r.statusCode < 300;
+      if (r.statusCode >= 200 && r.statusCode < 300) return null;
+      return _responseMessage(r) ?? 'Could not $action request';
     } catch (_) {
-      return false;
+      return 'Could not $action request';
     }
   }
 

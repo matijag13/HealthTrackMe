@@ -15,15 +15,18 @@ interface FriendshipRepository : JpaRepository<Friendship, Long> {
 
     fun findByRequesterIdAndStatus(requesterId: Long, status: FriendshipStatus): List<Friendship>
 
-    /** Accepted friendships involving [userId] on either side. */
+    /** Friendships with [status] involving [userId] on either side. */
     @Query(
         """
         SELECT f FROM Friendship f
-        WHERE f.status = com.healthwithme.api.model.FriendshipStatus.ACCEPTED
+        WHERE f.status = :status
           AND (f.requester.id = :userId OR f.addressee.id = :userId)
         """
     )
-    fun findAcceptedForUser(@Param("userId") userId: Long): List<Friendship>
+    fun findForUserWithStatus(
+        @Param("userId") userId: Long,
+        @Param("status") status: FriendshipStatus
+    ): List<Friendship>
 
     @Modifying
     @Query(
