@@ -6,6 +6,7 @@ on:
       - develop
     paths:
       - "apps/mobile_flutter/**"
+      - ".github/workflows/android-distribute.yml"
 
 jobs:
   distribute:
