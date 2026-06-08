@@ -54,10 +54,12 @@ class _HealthScreenTabbedState extends State<HealthScreenTabbed>
       // This ensures the activity tab shows steps even when sport-activity records aren't created.
       final today = DateTime.now();
       final todaysEntries = entries
-          .where((e) =>
-              e.entryDate.year == today.year &&
-              e.entryDate.month == today.month &&
-              e.entryDate.day == today.day)
+          .where(
+            (e) =>
+                e.entryDate.year == today.year &&
+                e.entryDate.month == today.month &&
+                e.entryDate.day == today.day,
+          )
           .toList();
       if (todaysEntries.isNotEmpty) {
         final e = todaysEntries.first;
@@ -124,14 +126,17 @@ class _HealthScreenTabbedState extends State<HealthScreenTabbed>
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(
               onRefresh: _loadAll,
-              child: TabBarView(controller: _tabController, children: [
-                _vitalsTab(context),
-                _activityTab(context),
-                _sleepTab(context),
-                _bodyTab(context),
-                _historyTab(context),
-                const _DevicesTab(),
-              ]),
+              child: TabBarView(
+                controller: _tabController,
+                children: [
+                  _vitalsTab(context),
+                  _activityTab(context),
+                  _sleepTab(context),
+                  _bodyTab(context),
+                  _historyTab(context),
+                  const _DevicesTab(),
+                ],
+              ),
             ),
     );
   }
@@ -156,7 +161,7 @@ class _HealthScreenTabbedState extends State<HealthScreenTabbed>
         'unit': '%',
         'icon': Icons.bolt,
         'normalMin': 30,
-        'normalMax': 80
+        'normalMax': 80,
       },
       {
         'key': 'sleep',
@@ -164,7 +169,7 @@ class _HealthScreenTabbedState extends State<HealthScreenTabbed>
         'unit': 'h',
         'icon': Icons.bedtime,
         'normalMin': 4,
-        'normalMax': 9
+        'normalMax': 9,
       },
       {
         'key': 'steps',
@@ -172,7 +177,7 @@ class _HealthScreenTabbedState extends State<HealthScreenTabbed>
         'unit': '',
         'icon': Icons.directions_walk,
         'normalMin': 0,
-        'normalMax': 10000
+        'normalMax': 10000,
       },
       {
         'key': 'stress',
@@ -180,7 +185,7 @@ class _HealthScreenTabbedState extends State<HealthScreenTabbed>
         'unit': '%',
         'icon': Icons.psychology,
         'normalMin': 0,
-        'normalMax': 50
+        'normalMax': 50,
       },
       {
         'key': 'wellbeing',
@@ -188,7 +193,7 @@ class _HealthScreenTabbedState extends State<HealthScreenTabbed>
         'unit': '/10',
         'icon': Icons.emoji_emotions,
         'normalMin': 5,
-        'normalMax': 10
+        'normalMax': 10,
       },
     ];
 
@@ -201,28 +206,38 @@ class _HealthScreenTabbedState extends State<HealthScreenTabbed>
         final series = _lastReadingsForKey(v['key'] as String, count: 14);
         final current = _currentValueForKey(v['key'] as String);
         final color = _colorForValue(
-            v['normalMin'] as num?, v['normalMax'] as num?, current);
+          v['normalMin'] as num?,
+          v['normalMax'] as num?,
+          current,
+        );
         return Card(
           child: ListTile(
             leading: CircleAvatar(
-                backgroundColor: color.withValues(alpha: 0.12),
-                child: Icon(v['icon'] as IconData, color: color)),
+              backgroundColor: color.withValues(alpha: 0.12),
+              child: Icon(v['icon'] as IconData, color: color),
+            ),
             title: Text(v['label'] as String),
-            subtitle:
-                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(current != null ? '$current ${v['unit']}' : '—'),
-              const SizedBox(height: 6),
-              SizedBox(height: 36, child: _miniSparkline(series, color)),
-            ]),
+            subtitle: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(current != null ? '$current ${v['unit']}' : '—'),
+                const SizedBox(height: 6),
+                SizedBox(height: 36, child: _miniSparkline(series, color)),
+              ],
+            ),
             trailing: Text(_daysAgoLabelForKey(v['key'] as String)),
-            onTap: () => Navigator.of(context).push(MaterialPageRoute(
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(
                 builder: (_) => VitalDetailPage(
-                    keyName: v['key'] as String,
-                    label: v['label'] as String,
-                    unit: v['unit'] as String,
-                    entries: _entries,
-                    normalMin: v['normalMin'] as num?,
-                    normalMax: v['normalMax'] as num?))),
+                  keyName: v['key'] as String,
+                  label: v['label'] as String,
+                  unit: v['unit'] as String,
+                  entries: _entries,
+                  normalMin: v['normalMin'] as num?,
+                  normalMax: v['normalMax'] as num?,
+                ),
+              ),
+            ),
           ),
         );
       },
@@ -235,19 +250,26 @@ class _HealthScreenTabbedState extends State<HealthScreenTabbed>
     final now = DateTime.now();
     final startOfWeek = now.subtract(Duration(days: now.weekday - 1)); // Monday
     final days = List.generate(
-        7,
-        (i) =>
-            DateTime(startOfWeek.year, startOfWeek.month, startOfWeek.day + i));
+      7,
+      (i) => DateTime(startOfWeek.year, startOfWeek.month, startOfWeek.day + i),
+    );
     final stepsThisWeek = days.map((d) => _sumStepsForDay(d)).toList();
     final prevWeekStart = startOfWeek.subtract(const Duration(days: 7));
     final prevDays = List.generate(
-        7,
-        (i) => DateTime(
-            prevWeekStart.year, prevWeekStart.month, prevWeekStart.day + i));
+      7,
+      (i) => DateTime(
+        prevWeekStart.year,
+        prevWeekStart.month,
+        prevWeekStart.day + i,
+      ),
+    );
     final stepsPrevWeek = prevDays.map((d) => _sumStepsForDay(d)).toList();
 
-    final totalSteps = _sportActivities.fold<int>(
-            0, (s, a) => s + ((a['steps'] as num?)?.toInt() ?? 0)) +
+    final totalSteps =
+        _sportActivities.fold<int>(
+          0,
+          (s, a) => s + ((a['steps'] as num?)?.toInt() ?? 0),
+        ) +
         _stepsFromEntries;
     final activeDays = stepsThisWeek.where((s) => s > 0).length;
     final avg = totalSteps > 0 ? (totalSteps / 7).round() : 0;
@@ -256,118 +278,147 @@ class _HealthScreenTabbedState extends State<HealthScreenTabbed>
     return RefreshIndicator(
       onRefresh: _loadAll,
       child: ListView(
-          padding: const EdgeInsets.all(12),
-          physics: const AlwaysScrollableScrollPhysics(),
-          children: [
-            const SectionHeader(
-                title: 'Weekly steps', subtitle: 'This week vs previous week'),
-            const SizedBox(height: 12),
-            SizedBox(
-                height: 180,
-                child: _weeklyBarChart(stepsThisWeek, stepsPrevWeek)),
-            const SizedBox(height: 12),
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(12),
-                child: Column(
+        padding: const EdgeInsets.all(12),
+        physics: const AlwaysScrollableScrollPhysics(),
+        children: [
+          const SectionHeader(
+            title: 'Weekly steps',
+            subtitle: 'This week vs previous week',
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            height: 180,
+            child: _weeklyBarChart(stepsThisWeek, stepsPrevWeek),
+          ),
+          const SizedBox(height: 12),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: StatItem(
+                          icon: '👟',
+                          value: totalSteps.toString(),
+                          label: 'Total steps',
+                          valueColor: AppColors.info,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: StatItem(
+                          icon: '📅',
+                          value: activeDays.toString(),
+                          label: 'Active days',
+                          valueColor: AppColors.success,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: StatItem(
+                          icon: '📈',
+                          value: avg.toString(),
+                          label: 'Avg (daily)',
+                          valueColor: AppColors.weight,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: StatItem(
+                          icon: '🔥',
+                          value: streak.toString(),
+                          label: 'Longest streak',
+                          valueColor: AppColors.teal,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          const SectionHeader(title: 'Workouts', subtitle: 'Recent activities'),
+          const SizedBox(height: 8),
+          if (_sportActivities.isEmpty)
+            EmptyState(
+              animationUrl: '',
+              title: 'No workouts yet',
+              subtitle: 'Log a workout to see your stats',
+              buttonLabel: 'Log workout',
+              onPressed: () => context.goNamed('log'),
+            )
+          else
+            ..._sportActivities.map(
+              (act) => Slidable(
+                key: ValueKey(act['id'] ?? act.hashCode),
+                endActionPane: ActionPane(
+                  motion: const ScrollMotion(),
                   children: [
-                    Row(children: [
-                      Expanded(
-                          child: StatItem(
-                              icon: '👟',
-                              value: totalSteps.toString(),
-                              label: 'Total steps',
-                              valueColor: AppColors.info)),
-                      const SizedBox(width: 12),
-                      Expanded(
-                          child: StatItem(
-                              icon: '📅',
-                              value: activeDays.toString(),
-                              label: 'Active days',
-                              valueColor: AppColors.success)),
-                    ]),
-                    const SizedBox(height: 12),
-                    Row(children: [
-                      Expanded(
-                          child: StatItem(
-                              icon: '📈',
-                              value: avg.toString(),
-                              label: 'Avg (daily)',
-                              valueColor: AppColors.weight)),
-                      const SizedBox(width: 12),
-                      Expanded(
-                          child: StatItem(
-                              icon: '🔥',
-                              value: streak.toString(),
-                              label: 'Longest streak',
-                              valueColor: AppColors.teal)),
-                    ])
+                    SlidableAction(
+                      onPressed: (_) => _deleteActivity(act),
+                      backgroundColor: AppColors.danger,
+                      icon: Icons.delete,
+                      label: 'Delete',
+                    ),
                   ],
+                ),
+                child: ListTile(
+                  leading: const Icon(Icons.directions_run),
+                  title: Text(
+                    act['activityType']?.toString() ??
+                        act['type']?.toString() ??
+                        'Activity',
+                  ),
+                  subtitle: Text(
+                    '${act['duration'] ?? act['durationMinutes'] ?? 0} min · ${act['distance'] ?? act['distanceKm'] ?? '—'} km · ${act['caloriesBurned'] ?? act['calories'] ?? '—'} kcal${(act['steps'] as num?)?.toInt() != null ? ' · ${(act['steps'] as num).toInt()} steps' : ''}',
+                  ),
+                  trailing: Text(
+                    (act['activityDate'] ?? act['start']) != null
+                        ? DateTime.tryParse(
+                                (act['activityDate'] ?? act['start'])
+                                    .toString(),
+                              )?.toLocal().toIso8601String().split('T').first ??
+                              ''
+                        : '',
+                  ),
                 ),
               ),
             ),
-            const SizedBox(height: 12),
-            const SectionHeader(
-                title: 'Workouts', subtitle: 'Recent activities'),
-            const SizedBox(height: 8),
-            if (_sportActivities.isEmpty)
-              EmptyState(
-                  animationUrl: '',
-                  title: 'No workouts yet',
-                  subtitle: 'Log a workout to see your stats',
-                  buttonLabel: 'Log workout',
-                  onPressed: () => context.goNamed('log'))
-            else
-              ..._sportActivities.map((act) => Slidable(
-                    key: ValueKey(act['id'] ?? act.hashCode),
-                    endActionPane:
-                        ActionPane(motion: const ScrollMotion(), children: [
-                      SlidableAction(
-                          onPressed: (_) => _deleteActivity(act),
-                          backgroundColor: AppColors.danger,
-                          icon: Icons.delete,
-                          label: 'Delete')
-                    ]),
-                    child: ListTile(
-                      leading: const Icon(Icons.directions_run),
-                      title: Text(act['activityType']?.toString() ??
-                          act['type']?.toString() ??
-                          'Activity'),
-                      subtitle: Text(
-                          '${act['duration'] ?? act['durationMinutes'] ?? 0} min · ${act['distance'] ?? act['distanceKm'] ?? '—'} km · ${act['caloriesBurned'] ?? act['calories'] ?? '—'} kcal${(act['steps'] as num?)?.toInt() != null ? ' · ${(act['steps'] as num).toInt()} steps' : ''}'),
-                      trailing: Text(
-                        (act['activityDate'] ?? act['start']) != null
-                            ? DateTime.tryParse(
-                                        (act['activityDate'] ?? act['start'])
-                                            .toString())
-                                    ?.toLocal()
-                                    .toIso8601String()
-                                    .split('T')
-                                    .first ??
-                                ''
-                            : '',
-                      ),
+          const SizedBox(height: 20),
+          const SectionHeader(
+            title: 'Goal',
+            subtitle: 'Weekly step goal progress',
+          ),
+          const SizedBox(height: 8),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                children: [
+                  CircularPercentIndicator(
+                    radius: 72,
+                    lineWidth: 10,
+                    percent: (totalSteps / (70000)).clamp(0.0, 1.0),
+                    center: Text(
+                      '${((totalSteps / 70000) * 100).clamp(0, 100).round()}%',
                     ),
-                  )),
-            const SizedBox(height: 20),
-            const SectionHeader(
-                title: 'Goal', subtitle: 'Weekly step goal progress'),
-            const SizedBox(height: 8),
-            Card(
-                child: Padding(
-                    padding: const EdgeInsets.all(12),
-                    child: Column(children: [
-                      CircularPercentIndicator(
-                          radius: 72,
-                          lineWidth: 10,
-                          percent: (totalSteps / (70000)).clamp(0.0, 1.0),
-                          center: Text(
-                              '${((totalSteps / 70000) * 100).clamp(0, 100).round()}%'),
-                          progressColor: AppColors.teal),
-                      const SizedBox(height: 8),
-                      const Text('Goal: 70 000 steps / week (default)')
-                    ])))
-          ]),
+                    progressColor: AppColors.teal,
+                  ),
+                  const SizedBox(height: 8),
+                  const Text('Goal: 70 000 steps / week (default)'),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -388,12 +439,14 @@ class _HealthScreenTabbedState extends State<HealthScreenTabbed>
         if (!mounted) return;
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Could not delete activity')));
+          const SnackBar(content: Text('Could not delete activity')),
+        );
       }
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('Network error')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Network error')));
     }
   }
 
@@ -402,54 +455,65 @@ class _HealthScreenTabbedState extends State<HealthScreenTabbed>
     final sleepEntries = _entries.where((e) => e.sleepHours != null).toList();
     if (sleepEntries.isEmpty) {
       return const Center(
-          child: Text('No sleep readings yet — log sleep in the daily diary'));
+        child: Text('No sleep readings yet — log sleep in the daily diary'),
+      );
     }
     final last14 = sleepEntries.take(14).toList().reversed.toList();
     return ListView(
-        padding: const EdgeInsets.all(12),
-        physics: const AlwaysScrollableScrollPhysics(),
-        children: [
-          const SectionHeader(
-              title: 'Sleep (last 14 nights)',
-              subtitle: 'Hours per night and quality'),
-          const SizedBox(height: 12),
-          SizedBox(height: 220, child: _sleepBarChart(last14)),
-          const SizedBox(height: 12),
-          Row(children: [
+      padding: const EdgeInsets.all(12),
+      physics: const AlwaysScrollableScrollPhysics(),
+      children: [
+        const SectionHeader(
+          title: 'Sleep (last 14 nights)',
+          subtitle: 'Hours per night and quality',
+        ),
+        const SizedBox(height: 12),
+        SizedBox(height: 220, child: _sleepBarChart(last14)),
+        const SizedBox(height: 12),
+        Row(
+          children: [
             Expanded(
-                child: StatItem(
-                    icon: '😴',
-                    value: last14
-                                    .map((e) => e.sleepHours ?? 0)
-                                    .fold(0.0, (a, b) => a + b) /
-                                last14.length >
-                            0
-                        ? (last14
-                                    .map((e) => e.sleepHours ?? 0)
-                                    .fold(0.0, (a, b) => a + b) /
-                                last14.length)
-                            .toStringAsFixed(1)
-                        : '—',
-                    label: 'Avg sleep',
-                    valueColor: AppColors.sleep)),
+              child: StatItem(
+                icon: '😴',
+                value:
+                    last14
+                                .map((e) => e.sleepHours ?? 0)
+                                .fold(0.0, (a, b) => a + b) /
+                            last14.length >
+                        0
+                    ? (last14
+                                  .map((e) => e.sleepHours ?? 0)
+                                  .fold(0.0, (a, b) => a + b) /
+                              last14.length)
+                          .toStringAsFixed(1)
+                    : '—',
+                label: 'Avg sleep',
+                valueColor: AppColors.sleep,
+              ),
+            ),
             const SizedBox(width: 12),
             Expanded(
-                child: StatItem(
-                    icon: '🌙',
-                    value: last14
-                        .map((e) => e.sleepHours ?? 0)
-                        .reduce((a, b) => a > b ? a : b)
-                        .toStringAsFixed(1),
-                    label: 'Best night',
-                    valueColor: AppColors.success))
-          ]),
-          const SizedBox(height: 12),
-          const SectionHeader(
-              title: 'Bedtime consistency',
-              subtitle: 'When you went to bed each night'),
-          const SizedBox(height: 12),
-          SizedBox(height: 120, child: _bedtimePlot(last14)),
-        ]);
+              child: StatItem(
+                icon: '🌙',
+                value: last14
+                    .map((e) => e.sleepHours ?? 0)
+                    .reduce((a, b) => a > b ? a : b)
+                    .toStringAsFixed(1),
+                label: 'Best night',
+                valueColor: AppColors.success,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        const SectionHeader(
+          title: 'Bedtime consistency',
+          subtitle: 'When you went to bed each night',
+        ),
+        const SizedBox(height: 12),
+        SizedBox(height: 120, child: _bedtimePlot(last14)),
+      ],
+    );
   }
 
   // Body tab implementation
@@ -472,24 +536,36 @@ class _HealthScreenTabbedState extends State<HealthScreenTabbed>
 
     if (weightEntries.isEmpty) {
       return Center(
-          child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          const Icon(Icons.monitor_weight_outlined,
-              size: 64, color: Colors.grey),
-          const SizedBox(height: 16),
-          const Text('No weight data yet',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
-          const SizedBox(height: 8),
-          const Text('Log your weight in the daily diary',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.grey)),
-          const SizedBox(height: 24),
-          ElevatedButton(
-              onPressed: () => context.goNamed('log'),
-              child: const Text('Log now')),
-        ]),
-      ));
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(
+                Icons.monitor_weight_outlined,
+                size: 64,
+                color: Colors.grey,
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'No weight data yet',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Log your weight in the daily diary',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.grey),
+              ),
+              const SizedBox(height: 24),
+              ElevatedButton(
+                onPressed: () => context.goNamed('log'),
+                child: const Text('Log now'),
+              ),
+            ],
+          ),
+        ),
+      );
     }
 
     weightEntries.sort((a, b) => b.key.compareTo(a.key));
@@ -498,134 +574,167 @@ class _HealthScreenTabbedState extends State<HealthScreenTabbed>
     final change = latest - oldest;
 
     return ListView(
-        padding: const EdgeInsets.all(16),
-        physics: const AlwaysScrollableScrollPhysics(),
-        children: [
-          // Current weight card
-          Card(
-              child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Row(children: [
-                    const Icon(Icons.monitor_weight,
-                        size: 40, color: Colors.blue),
-                    const SizedBox(width: 16),
-                    Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('${latest.toStringAsFixed(1)} kg',
-                              style: const TextStyle(
-                                  fontSize: 28, fontWeight: FontWeight.w800)),
-                          Text(
-                              change == 0
-                                  ? 'No change'
-                                  : '${change > 0 ? '+' : ''}${change.toStringAsFixed(1)} kg since first entry',
-                              style: TextStyle(
-                                  color: change > 0
-                                      ? Colors.orange
-                                      : Colors.green)),
-                        ]),
-                  ]))),
-          const SizedBox(height: 12),
-          // Weight trend chart
-          Card(
-              child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text('Weight trend',
-                          style: TextStyle(fontWeight: FontWeight.w700)),
-                      const SizedBox(height: 12),
-                      SizedBox(
-                          height: 180,
-                          child: LineChart(LineChartData(
-                            gridData: const FlGridData(
-                                show: true, drawVerticalLine: false),
-                            titlesData: const FlTitlesData(
-                              leftTitles: AxisTitles(
-                                  sideTitles: SideTitles(
-                                      showTitles: true, interval: 5)),
-                              bottomTitles: AxisTitles(
-                                  sideTitles: SideTitles(showTitles: false)),
-                              topTitles: AxisTitles(
-                                  sideTitles: SideTitles(showTitles: false)),
-                              rightTitles: AxisTitles(
-                                  sideTitles: SideTitles(showTitles: false)),
+      padding: const EdgeInsets.all(16),
+      physics: const AlwaysScrollableScrollPhysics(),
+      children: [
+        // Current weight card
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                const Icon(Icons.monitor_weight, size: 40, color: Colors.blue),
+                const SizedBox(width: 16),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '${latest.toStringAsFixed(1)} kg',
+                      style: const TextStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    Text(
+                      change == 0
+                          ? 'No change'
+                          : '${change > 0 ? '+' : ''}${change.toStringAsFixed(1)} kg since first entry',
+                      style: TextStyle(
+                        color: change > 0 ? Colors.orange : Colors.green,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        // Weight trend chart
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Weight trend',
+                  style: TextStyle(fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 12),
+                SizedBox(
+                  height: 180,
+                  child: LineChart(
+                    LineChartData(
+                      gridData: const FlGridData(
+                        show: true,
+                        drawVerticalLine: false,
+                      ),
+                      titlesData: const FlTitlesData(
+                        leftTitles: AxisTitles(
+                          sideTitles: SideTitles(showTitles: true, interval: 5),
+                        ),
+                        bottomTitles: AxisTitles(
+                          sideTitles: SideTitles(showTitles: false),
+                        ),
+                        topTitles: AxisTitles(
+                          sideTitles: SideTitles(showTitles: false),
+                        ),
+                        rightTitles: AxisTitles(
+                          sideTitles: SideTitles(showTitles: false),
+                        ),
+                      ),
+                      borderData: FlBorderData(show: false),
+                      lineBarsData: [
+                        LineChartBarData(
+                          spots: List.generate(
+                            weightEntries.length,
+                            (i) => FlSpot(
+                              i.toDouble(),
+                              weightEntries.reversed.toList()[i].value,
                             ),
-                            borderData: FlBorderData(show: false),
-                            lineBarsData: [
-                              LineChartBarData(
-                                spots: List.generate(
-                                    weightEntries.length,
-                                    (i) => FlSpot(
-                                        i.toDouble(),
-                                        weightEntries.reversed
-                                            .toList()[i]
-                                            .value)),
-                                isCurved: true,
-                                color: Colors.blue,
-                                barWidth: 3,
-                                dotData:
-                                    FlDotData(show: weightEntries.length < 10),
-                              )
-                            ],
-                          ))),
-                    ],
-                  ))),
-        ]);
+                          ),
+                          isCurved: true,
+                          color: Colors.blue,
+                          barWidth: 3,
+                          dotData: FlDotData(show: weightEntries.length < 10),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
   }
 
   // History tab implementation
   Widget _historyTab(BuildContext context) {
     return FutureBuilder<List<HealthEntry>>(
-        future: _api.getHealthEntries(),
-        builder: (context, snapshot) {
-          final entries = snapshot.data ?? const [];
-          return ListView(
-              padding: const EdgeInsets.all(12),
-              physics: const AlwaysScrollableScrollPhysics(),
+      future: _api.getHealthEntries(),
+      builder: (context, snapshot) {
+        final entries = snapshot.data ?? const [];
+        return ListView(
+          padding: const EdgeInsets.all(12),
+          physics: const AlwaysScrollableScrollPhysics(),
+          children: [
+            const SectionHeader(
+              title: 'History & export',
+              subtitle: 'Filter, view and export your diary history',
+            ),
+            const SizedBox(height: 12),
+            Row(
               children: [
-                const SectionHeader(
-                    title: 'History & export',
-                    subtitle: 'Filter, view and export your diary history'),
-                const SizedBox(height: 12),
-                Row(children: [
-                  ElevatedButton(
-                      onPressed: _exportCsv, child: const Text('Export CSV')),
-                  const SizedBox(width: 8),
-                  ElevatedButton(
-                      onPressed: _exportPdf, child: const Text('Export PDF'))
-                ]),
-                const SizedBox(height: 12),
-                ...entries
-                    .map((e) => ExpansionTile(
-                          title: Text(
-                              '${e.entryDate.toLocal().toIso8601String().split('T').first} · ${e.mood ?? '—'}'),
+                ElevatedButton(
+                  onPressed: _exportCsv,
+                  child: const Text('Export CSV'),
+                ),
+                const SizedBox(width: 8),
+                ElevatedButton(
+                  onPressed: _exportPdf,
+                  child: const Text('Export PDF'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            ...entries
+                .map(
+                  (e) => ExpansionTile(
+                    title: Text(
+                      '${e.entryDate.toLocal().toIso8601String().split('T').first} · ${e.mood ?? '—'}',
+                    ),
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Padding(
-                              padding: const EdgeInsets.all(12),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                      'Wellbeing: ${e.effectiveWellbeingScore}'),
-                                  Text('Energy: ${e.energyLevel ?? '—'}'),
-                                  Text('Stress: ${e.stressLevel ?? '—'}'),
-                                  Text(
-                                      'Sleep: ${e.sleepHours?.toStringAsFixed(1) ?? '—'} h'),
-                                  const SizedBox(height: 8),
-                                  Text(
-                                      'Symptoms: ${e.symptoms.isEmpty ? 'None' : e.symptoms.join(', ')}'),
-                                  const SizedBox(height: 8),
-                                  Text('Notes: ${extractNote(e.notes)}'),
-                                ],
-                              ),
-                            )
+                            Text('Wellbeing: ${e.effectiveWellbeingScore}'),
+                            Text('Energy: ${e.energyLevel ?? '—'}'),
+                            Text('Stress: ${e.stressLevel ?? '—'}'),
+                            Text(
+                              'Sleep: ${e.sleepHours?.toStringAsFixed(1) ?? '—'} h',
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Symptoms: ${e.symptoms.isEmpty ? 'None' : e.symptoms.join(', ')}',
+                            ),
+                            const SizedBox(height: 8),
+                            Text('Notes: ${extractNote(e.notes)}'),
                           ],
-                        ))
-                    .toList(),
-              ]);
-        });
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+                .toList(),
+          ],
+        );
+      },
+    );
   }
 
   // Helpers
@@ -714,7 +823,8 @@ class _HealthScreenTabbedState extends State<HealthScreenTabbed>
     }
     // find last entry with that key
     for (final e in _entries) {
-      final has = (key == 'energy' && e.energyLevel != null) ||
+      final has =
+          (key == 'energy' && e.energyLevel != null) ||
           (key == 'sleep' && e.sleepHours != null) ||
           (key == 'stress' && e.stressLevel != null) ||
           (key == 'wellbeing');
@@ -730,20 +840,26 @@ class _HealthScreenTabbedState extends State<HealthScreenTabbed>
     if (values.isEmpty) {
       return const SizedBox();
     }
-    final spots =
-        List.generate(values.length, (i) => FlSpot(i.toDouble(), values[i]));
-    return LineChart(LineChartData(
+    final spots = List.generate(
+      values.length,
+      (i) => FlSpot(i.toDouble(), values[i]),
+    );
+    return LineChart(
+      LineChartData(
         gridData: const FlGridData(show: false),
         titlesData: const FlTitlesData(show: false),
         borderData: FlBorderData(show: false),
         lineBarsData: [
           LineChartBarData(
-              spots: spots,
-              isCurved: true,
-              color: color,
-              dotData: const FlDotData(show: false),
-              barWidth: 2)
-        ]));
+            spots: spots,
+            isCurved: true,
+            color: color,
+            dotData: const FlDotData(show: false),
+            barWidth: 2,
+          ),
+        ],
+      ),
+    );
   }
 
   /// Parse activity date from either 'activityDate' (backend DTO) or 'start' (legacy)
@@ -842,7 +958,7 @@ class _HealthScreenTabbedState extends State<HealthScreenTabbed>
   Widget _weeklyBarChart(List<int> thisWeek, List<int> prevWeek) {
     final maxY =
         (thisWeek + prevWeek).fold<int>(0, (a, b) => a > b ? a : b).toDouble() +
-            1000;
+        1000;
     final groups = List.generate(
       7,
       (i) => BarChartGroupData(
@@ -850,8 +966,9 @@ class _HealthScreenTabbedState extends State<HealthScreenTabbed>
         barRods: [
           BarChartRodData(toY: thisWeek[i].toDouble(), color: AppColors.teal),
           BarChartRodData(
-              toY: prevWeek[i].toDouble(),
-              color: AppColors.muted.withValues(alpha: 0.35)),
+            toY: prevWeek[i].toDouble(),
+            color: AppColors.muted.withValues(alpha: 0.35),
+          ),
         ],
       ),
     );
@@ -868,18 +985,24 @@ class _HealthScreenTabbedState extends State<HealthScreenTabbed>
                 const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
                 final now = DateTime.now();
                 final dayIndex = value.toInt();
-                final date = DateTime(now.year, now.month, now.day)
-                    .subtract(Duration(days: 6 - dayIndex));
+                final date = DateTime(
+                  now.year,
+                  now.month,
+                  now.day,
+                ).subtract(Duration(days: 6 - dayIndex));
                 return SideTitleWidget(
                   axisSide: meta.axisSide,
-                  child: Text(days[date.weekday - 1],
-                      style: const TextStyle(fontSize: 10)),
+                  child: Text(
+                    days[date.weekday - 1],
+                    style: const TextStyle(fontSize: 10),
+                  ),
                 );
               },
             ),
           ),
-          leftTitles:
-              const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          leftTitles: const AxisTitles(
+            sideTitles: SideTitles(showTitles: false),
+          ),
         ),
         gridData: const FlGridData(show: false),
         borderData: FlBorderData(show: false),
@@ -890,22 +1013,30 @@ class _HealthScreenTabbedState extends State<HealthScreenTabbed>
 
   Widget _sleepBarChart(List<HealthEntry> entries) {
     final spots = List.generate(
-        entries.length,
-        (i) => BarChartGroupData(x: i, barRods: [
-              BarChartRodData(
-                  toY: entries[i].sleepHours ?? 0,
-                  color: (entries[i].sleepHours ?? 0) >= 7
-                      ? AppColors.success
-                      : ((entries[i].sleepHours ?? 0) >= 5
-                          ? AppColors.warning
-                          : AppColors.danger))
-            ]));
-    return BarChart(BarChartData(
+      entries.length,
+      (i) => BarChartGroupData(
+        x: i,
+        barRods: [
+          BarChartRodData(
+            toY: entries[i].sleepHours ?? 0,
+            color: (entries[i].sleepHours ?? 0) >= 7
+                ? AppColors.success
+                : ((entries[i].sleepHours ?? 0) >= 5
+                      ? AppColors.warning
+                      : AppColors.danger),
+          ),
+        ],
+      ),
+    );
+    return BarChart(
+      BarChartData(
         barGroups: spots,
         titlesData: const FlTitlesData(show: false),
         gridData: const FlGridData(show: false),
         borderData: FlBorderData(show: false),
-        alignment: BarChartAlignment.spaceAround));
+        alignment: BarChartAlignment.spaceAround,
+      ),
+    );
   }
 
   Widget _bedtimePlot(List<HealthEntry> entries) {
@@ -920,21 +1051,27 @@ class _HealthScreenTabbedState extends State<HealthScreenTabbed>
     // Simple dots showing bedtime if notes contained bedtime (best-effort). We'll fallback to random for demo.
     final spots = <Widget>[];
     for (var i = 0; i < uniqueEntries.length; i++) {
-      final label = uniqueEntries[i]
-          .entryDate
+      final label = uniqueEntries[i].entryDate
           .toLocal()
           .toIso8601String()
           .split('T')
           .first;
       final text = extractNote(uniqueEntries[i].notes);
-      spots.add(Row(children: [
-        Text(label),
-        const SizedBox(width: 8),
-        const Icon(Icons.circle, size: 8, color: AppColors.navy),
-        const SizedBox(width: 8),
-        Expanded(
-            child: Text(text.length > 60 ? '${text.substring(0, 60)}…' : text))
-      ]));
+      spots.add(
+        Row(
+          children: [
+            Text(label),
+            const SizedBox(width: 8),
+            const Icon(Icons.circle, size: 8, color: AppColors.navy),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                text.length > 60 ? '${text.substring(0, 60)}…' : text,
+              ),
+            ),
+          ],
+        ),
+      );
     }
     return ListView(children: spots);
   }
@@ -949,17 +1086,23 @@ class _HealthScreenTabbedState extends State<HealthScreenTabbed>
       final resp = await http.get(uri);
       if (!mounted) return;
       if (resp.statusCode >= 200 && resp.statusCode < 300) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
             content: Text(
-                'Export ready — check Downloads or implement share integration.')));
+              'Export ready — check Downloads or implement share integration.',
+            ),
+          ),
+        );
       } else {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('Export failed.')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Export failed.')));
       }
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Network error while exporting.')));
+        const SnackBar(content: Text('Network error while exporting.')),
+      );
     }
   }
 
@@ -969,17 +1112,23 @@ class _HealthScreenTabbedState extends State<HealthScreenTabbed>
       final resp = await http.get(uri);
       if (!mounted) return;
       if (resp.statusCode >= 200 && resp.statusCode < 300) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
             content: Text(
-                'PDF export ready — check Downloads or implement share integration.')));
+              'PDF export ready — check Downloads or implement share integration.',
+            ),
+          ),
+        );
       } else {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('Export failed.')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Export failed.')));
       }
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Network error while exporting.')));
+        const SnackBar(content: Text('Network error while exporting.')),
+      );
     }
   }
 }
@@ -992,25 +1141,29 @@ class VitalDetailPage extends StatelessWidget {
   final num? normalMin;
   final num? normalMax;
 
-  const VitalDetailPage(
-      {required this.keyName,
-      required this.label,
-      required this.unit,
-      required this.entries,
-      this.normalMin,
-      this.normalMax,
-      super.key});
+  const VitalDetailPage({
+    required this.keyName,
+    required this.label,
+    required this.unit,
+    required this.entries,
+    this.normalMin,
+    this.normalMax,
+    super.key,
+  });
 
   @override
   Widget build(BuildContext context) {
     final data = _mapValuesForKey();
     if (data.isEmpty) {
       return Scaffold(
-          appBar: AppBar(title: Text(label)),
-          body: const Center(child: Text('No data yet')));
+        appBar: AppBar(title: Text(label)),
+        body: const Center(child: Text('No data yet')),
+      );
     }
-    final spots =
-        List.generate(data.length, (i) => FlSpot(i.toDouble(), data[i]));
+    final spots = List.generate(
+      data.length,
+      (i) => FlSpot(i.toDouble(), data[i]),
+    );
     final chartMax =
         (spots.map((s) => s.y).fold(0.0, (a, b) => a > b ? a : b) + 5);
     return Scaffold(
@@ -1028,24 +1181,26 @@ class VitalDetailPage extends StatelessWidget {
                   gridData: const FlGridData(show: true),
                   titlesData: const FlTitlesData(
                     show: true,
-                    bottomTitles:
-                        AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                    bottomTitles: AxisTitles(
+                      sideTitles: SideTitles(showTitles: false),
+                    ),
                   ),
                   borderData: FlBorderData(show: false),
                   lineBarsData: [
                     LineChartBarData(
-                        spots: spots,
-                        isCurved: true,
-                        color: AppColors.navy,
-                        barWidth: 3,
-                        dotData: const FlDotData(show: false)),
+                      spots: spots,
+                      isCurved: true,
+                      color: AppColors.navy,
+                      barWidth: 3,
+                      dotData: const FlDotData(show: false),
+                    ),
                   ],
                 ),
               ),
             ),
             const SizedBox(height: 12),
             if (normalMin != null && normalMax != null)
-              Text('Normal range: $normalMin - $normalMax $unit')
+              Text('Normal range: $normalMin - $normalMax $unit'),
           ],
         ),
       ),
@@ -1122,7 +1277,7 @@ class _DevicesTabState extends State<_DevicesTab> {
   // Shared key for the last-sync timestamp — must match wearables_screen.dart.
   static const String _kLastSyncKey = 'health_last_sync_ms';
 
-  Future<void> _sync() async {
+  Future<void> _sync({bool fullResync = false}) async {
     setState(() => _syncing = true);
     try {
       final userId = _api.activeUserId;
@@ -1131,10 +1286,10 @@ class _DevicesTabState extends State<_DevicesTab> {
         if (!hasPermission) {
           await _wearableService.requestPermissions();
         }
-        // Use the shared last-sync timestamp so incremental syncs only pull new
-        // data. Fall back to 30 days on first use so historical HR, sleep and
-        // workouts are imported — NOT just the last 24 h.
+        // Full re-sync clears the last-sync key so the 30-day fallback fires.
         final prefs = await SharedPreferences.getInstance();
+        if (fullResync) await prefs.remove(_kLastSyncKey);
+
         final lastMs = prefs.getInt(_kLastSyncKey);
         final startDate = lastMs != null
             ? DateTime.fromMillisecondsSinceEpoch(lastMs)
@@ -1144,10 +1299,13 @@ class _DevicesTabState extends State<_DevicesTab> {
           startDate: startDate,
         );
         await prefs.setInt(
-            _kLastSyncKey, DateTime.now().millisecondsSinceEpoch);
+          _kLastSyncKey,
+          DateTime.now().millisecondsSinceEpoch,
+        );
         await _load();
         if (mounted) {
-          WearableService.showSyncStatus(context, 'Sync complete', true);
+          final label = fullResync ? 'Full re-sync complete' : 'Sync complete';
+          WearableService.showSyncStatus(context, label, true);
         }
       }
     } catch (e) {
@@ -1156,6 +1314,31 @@ class _DevicesTabState extends State<_DevicesTab> {
       }
     }
     if (mounted) setState(() => _syncing = false);
+  }
+
+  Future<void> _confirmFullResync() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Full re-sync'),
+        content: const Text(
+          'This will re-import the last 30 days of heart rate, sleep and '
+          'activity data from Health Connect. Existing entries will be '
+          'updated (not duplicated).\n\nContinue?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Re-sync 30 days'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true) await _sync(fullResync: true);
   }
 
   Future<void> _addDevice() async {
@@ -1178,10 +1361,7 @@ class _DevicesTabState extends State<_DevicesTab> {
               initialValue: selectedType,
               decoration: const InputDecoration(labelText: 'Type'),
               items: WearableDeviceType.values
-                  .map((t) => DropdownMenuItem(
-                        value: t,
-                        child: Text(t.name),
-                      ))
+                  .map((t) => DropdownMenuItem(value: t, child: Text(t.name)))
                   .toList(),
               onChanged: (v) {
                 if (v != null) selectedType = v;
@@ -1191,11 +1371,13 @@ class _DevicesTabState extends State<_DevicesTab> {
         ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Cancel')),
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
           FilledButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Add')),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Add'),
+          ),
         ],
       ),
     );
@@ -1205,13 +1387,17 @@ class _DevicesTabState extends State<_DevicesTab> {
         final userId = _api.activeUserId;
         if (userId != null) {
           await _wearableService.addDevice(
-              userId, nameController.text.trim(), selectedType);
+            userId,
+            nameController.text.trim(),
+            selectedType,
+          );
           await _load();
         }
       } catch (_) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Could not add device')));
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('Could not add device')));
         }
       }
     }
@@ -1225,11 +1411,13 @@ class _DevicesTabState extends State<_DevicesTab> {
         content: Text('Remove ${device.name}?'),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Cancel')),
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
           FilledButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Remove')),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Remove'),
+          ),
         ],
       ),
     );
@@ -1258,16 +1446,20 @@ class _DevicesTabState extends State<_DevicesTab> {
           Row(
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
-              TextButton.icon(
-                icon: _syncing
-                    ? const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.sync_rounded, size: 18),
-                label: const Text('Sync'),
-                onPressed: _syncing ? null : _sync,
+              Tooltip(
+                message: 'Long-press for full 30-day re-sync',
+                child: TextButton.icon(
+                  icon: _syncing
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.sync_rounded, size: 18),
+                  label: const Text('Sync'),
+                  onPressed: _syncing ? null : _sync,
+                  onLongPress: _syncing ? null : _confirmFullResync,
+                ),
               ),
               TextButton.icon(
                 icon: const Icon(Icons.add_rounded, size: 18),
@@ -1283,11 +1475,16 @@ class _DevicesTabState extends State<_DevicesTab> {
                 padding: const EdgeInsets.all(20),
                 child: Column(
                   children: [
-                    const Icon(Icons.watch_outlined,
-                        size: 48, color: AppColors.muted),
+                    const Icon(
+                      Icons.watch_outlined,
+                      size: 48,
+                      color: AppColors.muted,
+                    ),
                     const SizedBox(height: 12),
-                    const Text('No devices connected',
-                        style: TextStyle(fontWeight: FontWeight.w600)),
+                    const Text(
+                      'No devices connected',
+                      style: TextStyle(fontWeight: FontWeight.w600),
+                    ),
                     const SizedBox(height: 6),
                     const Text(
                       'Add your wearable to start syncing health data',
@@ -1310,14 +1507,18 @@ class _DevicesTabState extends State<_DevicesTab> {
                 child: ListTile(
                   leading: CircleAvatar(
                     backgroundColor: AppColors.teal.withValues(alpha: 0.12),
-                    child:
-                        const Icon(Icons.watch_rounded, color: AppColors.teal),
+                    child: const Icon(
+                      Icons.watch_rounded,
+                      color: AppColors.teal,
+                    ),
                   ),
                   title: Text(device.name),
                   subtitle: Text(device.type.name),
                   trailing: IconButton(
-                    icon: const Icon(Icons.remove_circle_outline,
-                        color: AppColors.danger),
+                    icon: const Icon(
+                      Icons.remove_circle_outline,
+                      color: AppColors.danger,
+                    ),
                     onPressed: () => _removeDevice(device),
                   ),
                 ),
@@ -1334,11 +1535,14 @@ class _DevicesTabState extends State<_DevicesTab> {
               child: Padding(
                 padding: EdgeInsets.all(16),
                 child: Text(
-                    'No syncs yet — tap sync to pull data from your device'),
+                  'No syncs yet — tap sync to pull data from your device',
+                ),
               ),
             )
           else
-            ..._syncHistory.take(10).map(
+            ..._syncHistory
+                .take(10)
+                .map(
                   (event) => Card(
                     child: ListTile(
                       leading: Icon(

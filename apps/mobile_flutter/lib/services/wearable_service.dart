@@ -30,8 +30,9 @@ class WearableService {
 
   Uri _uri(String path, {Map<String, String>? queryParameters}) {
     final cleanPath = path.startsWith('/') ? path : '/$path';
-    return Uri.parse('${_api.baseUrl}$cleanPath')
-        .replace(queryParameters: queryParameters);
+    return Uri.parse(
+      '${_api.baseUrl}$cleanPath',
+    ).replace(queryParameters: queryParameters);
   }
 
   Future<Map<String, String>> _headers({Map<String, String>? extra}) async {
@@ -99,9 +100,11 @@ class WearableService {
         HealthDataType.SLEEP_SESSION,
       };
       final permissions = types
-          .map((t) => writeTypes.contains(t)
-              ? HealthDataAccess.READ_WRITE
-              : HealthDataAccess.READ)
+          .map(
+            (t) => writeTypes.contains(t)
+                ? HealthDataAccess.READ_WRITE
+                : HealthDataAccess.READ,
+          )
           .toList();
       await health.requestAuthorization(types, permissions: permissions);
       final coreGranted =
@@ -146,7 +149,12 @@ class WearableService {
     }
   }
 
-  /// Sync health data from wearable device for date range
+  /// Sync health data from wearable device for date range.
+  ///
+  /// Workouts are synced as individual sport activities (already per-session).
+  /// Vitals (HR, sleep, calories) are synced **per calendar day** so that the
+  /// health history charts get one real data point per day, and the dashboard
+  /// sleep/HR cards are never polluted by an accumulated multi-day total.
   Future<WearableSyncData> syncWearableData({
     required int userId,
     required DateTime startDate,
@@ -154,19 +162,16 @@ class WearableService {
   }) async {
     try {
       if (kIsWeb) {
-        return WearableSyncData(
-          date: DateTime.now(),
-        );
+        return WearableSyncData(date: DateTime.now());
       }
 
       endDate ??= DateTime.now();
 
       debugPrint(
-          '🔄 Syncing health data from ${startDate.toLocal()} to ${endDate.toLocal()}');
+        '🔄 Syncing health data from ${startDate.toLocal()} to ${endDate.toLocal()}',
+      );
 
-      // If phone-sensor tracking is on, record this phone's steps into Health
-      // Connect first, so the read below includes them (no Samsung Health
-      // needed). Best-effort — failures don't block the rest of the sync.
+      // Record phone steps into HC first (best-effort).
       try {
         final prefs = await SharedPreferences.getInstance();
         if (prefs.getBool('pref_phone_tracking') ?? false) {
@@ -174,42 +179,145 @@ class WearableService {
         }
       } catch (_) {}
 
-      // Fetch data from Health package
-      final steps = await _getSteps(startDate, endDate);
-      final heartRate = await _getHeartRate(startDate, endDate);
-      final sleep = await _getSleep(startDate, endDate);
-      final calories = await _getCalories(startDate, endDate);
-      final distanceKm = await _getDistance(startDate, endDate);
+      final resolvedUserId = await _api.ensureActiveUserId();
+      if (resolvedUserId == null) throw Exception('No active user');
+      final source = _isIOS ? 'Apple Health' : 'Health Connect';
+
+      // ── Workouts ──────────────────────────────────────────────────────────
+      // Already per-session (each has its own date + duration) — upload first
+      // so the dashboard activity card can show today's exercise after sync.
       final workouts = await _getWorkouts(startDate, endDate);
-
-      final syncData = WearableSyncData(
-        date: DateTime.now(),
-        steps: steps,
-        activeMinutes: null,
-        calories: calories,
-        heartRateAvg: heartRate != null ? heartRate['avg'] as double? : null,
-        heartRateMax: heartRate != null ? heartRate['max'] as int? : null,
-        heartRateMin: heartRate != null ? heartRate['min'] as int? : null,
-        sleepHours: sleep != null ? sleep['hours'] as double? : null,
-        sleepQuality: sleep != null ? sleep['quality'] as String? : null,
-      );
-
-      debugPrint('📊 Sync data: steps=$steps, distanceKm=$distanceKm, '
-          'heartRate=$heartRate, sleep=$sleep, calories=$calories, '
-          'workouts=${workouts.length}');
-
-      // Upload to backend
-      await _uploadSyncData(syncData,
-          workouts: workouts, distanceKm: distanceKm);
-
-      // Notify open screens (e.g. the dashboard) so freshly synced data appears
-      // without a manual pull-to-refresh.
-      if (syncData.hasData || workouts.isNotEmpty) {
-        SyncEvents.instance.notifySynced();
+      final distanceKm = await _getDistance(startDate, endDate);
+      for (final w in workouts) {
+        final wDate = (w['date'] as DateTime).toIso8601String().split('T')[0];
+        final payload = <String, dynamic>{
+          'activityType': w['activityType'],
+          'activityDate': wDate,
+          'duration': w['durationMinutes'],
+          'notes': 'Synced from $source',
+        };
+        if (w['caloriesBurned'] != null) {
+          payload['caloriesBurned'] = w['caloriesBurned'];
+        }
+        if (w['distanceKm'] != null) payload['distance'] = w['distanceKm'];
+        if (w['steps'] != null) payload['steps'] = w['steps'];
+        await _api.createSportActivity(payload, userId: resolvedUserId);
       }
 
+      // ── Per-day vitals ────────────────────────────────────────────────────
+      // Fetch raw points once for the full window (efficient — one HC call per
+      // type), then slice them per calendar day in Dart.
+      final sleepType = _isAndroid
+          ? HealthDataType.SLEEP_SESSION
+          : HealthDataType.SLEEP_IN_BED;
+      final allHrPts = await _fetchRawPoints(
+        startDate,
+        endDate,
+        HealthDataType.HEART_RATE,
+      );
+      final allSleepPts = await _fetchRawPoints(startDate, endDate, sleepType);
+      final allCalPts = await _fetchRawPoints(
+        startDate,
+        endDate,
+        HealthDataType.ACTIVE_ENERGY_BURNED,
+      );
+
+      debugPrint(
+        '📊 Raw points — HR: ${allHrPts.length}, '
+        'sleep: ${allSleepPts.length}, calories: ${allCalPts.length}, '
+        'workouts: ${workouts.length}',
+      );
+
+      WearableSyncData todayData = WearableSyncData(date: endDate);
+      bool anySyncedData = workouts.isNotEmpty;
+
+      final endDay = DateTime(endDate.year, endDate.month, endDate.day);
+      var day = DateTime(startDate.year, startDate.month, startDate.day);
+
+      while (!day.isAfter(endDay)) {
+        final nextDay = day.add(const Duration(days: 1));
+        final isToday =
+            day.year == endDay.year &&
+            day.month == endDay.month &&
+            day.day == endDay.day;
+
+        // HR: readings whose timestamp falls within [day, nextDay)
+        final hr = _hrForWindow(allHrPts, day, nextDay);
+
+        // Sleep: sessions overlapping a noon→noon window centred on [day].
+        // This captures overnight sleep (e.g. 22:00 day-1 → 07:00 day) that
+        // would otherwise fall outside a strict midnight→midnight boundary.
+        final sleepFrom = day.subtract(const Duration(hours: 12));
+        final sleepTo = day.add(const Duration(hours: 12));
+        final sleep = _sleepForWindow(allSleepPts, sleepFrom, sleepTo);
+
+        // Calories: readings within [day, nextDay)
+        final dayCal = _sumForWindow(allCalPts, day, nextDay);
+
+        if (hr != null || sleep != null || dayCal > 0) {
+          anySyncedData = true;
+          final dateStr = day.toIso8601String().split('T')[0];
+          final vitalsPayload = <String, dynamic>{
+            'entryDate': dateStr,
+            'notes': 'Synced from $source',
+          };
+          if (hr != null) {
+            vitalsPayload['heartRate'] = (hr['avg']! as double).toInt();
+          }
+          if (sleep != null) {
+            vitalsPayload['sleepHours'] = sleep['hours'];
+            vitalsPayload['sleepQuality'] = sleep['quality'];
+          }
+          if (dayCal > 0) {
+            vitalsPayload['caloriesConsumed'] = dayCal.toInt();
+          }
+          await _api.syncHealthVitals(vitalsPayload, userId: resolvedUserId);
+
+          if (isToday) {
+            todayData = WearableSyncData(
+              date: day,
+              calories: dayCal > 0 ? dayCal.toInt() : null,
+              heartRateAvg: hr != null ? hr['avg'] as double? : null,
+              heartRateMax: hr != null ? hr['max'] as int? : null,
+              heartRateMin: hr != null ? hr['min'] as int? : null,
+              sleepHours: sleep != null ? sleep['hours'] as double? : null,
+              sleepQuality: sleep != null ? sleep['quality'] as String? : null,
+            );
+          }
+        }
+
+        // Steps fallback for today only: if no workout sessions were synced,
+        // create a WALKING sport activity so the dashboard step count is visible.
+        if (isToday && workouts.isEmpty) {
+          final todaySteps = await _getSteps(day, nextDay);
+          if (todaySteps != null && todaySteps > 0) {
+            anySyncedData = true;
+            final stepPayload = <String, dynamic>{
+              'activityType': 'WALKING',
+              'activityDate': day.toIso8601String().split('T')[0],
+              'steps': todaySteps,
+            };
+            if (distanceKm != null) stepPayload['distance'] = distanceKm;
+            await _api.createSportActivity(stepPayload, userId: resolvedUserId);
+            todayData = WearableSyncData(
+              date: day,
+              steps: todaySteps,
+              calories: todayData.calories,
+              heartRateAvg: todayData.heartRateAvg,
+              heartRateMax: todayData.heartRateMax,
+              heartRateMin: todayData.heartRateMin,
+              sleepHours: todayData.sleepHours,
+              sleepQuality: todayData.sleepQuality,
+            );
+          }
+        }
+
+        day = nextDay;
+      }
+
+      if (anySyncedData) SyncEvents.instance.notifySynced();
       debugPrint('✅ Health data synced successfully');
-      return syncData;
+      return todayData;
     } catch (e) {
       debugPrint('❌ Error syncing health data: $e');
       rethrow;
@@ -224,12 +332,7 @@ class WearableService {
     return 0;
   }
 
-  /// Get steps from health data.
-  ///
-  /// Uses the platform's aggregated step total, which de-duplicates overlapping
-  /// records from multiple Health Connect sources (Samsung Health, the phone's
-  /// own counter, Google Fit, ...). Summing the raw STEPS records instead would
-  /// double/triple-count and produce wildly inflated totals (e.g. 74k for a day).
+  /// Get steps using the platform aggregated total (de-duplicates multiple sources).
   Future<int?> _getSteps(DateTime startDate, DateTime endDate) async {
     try {
       final total = await health.getTotalStepsInInterval(startDate, endDate);
@@ -240,71 +343,86 @@ class WearableService {
     }
   }
 
-  /// Get heart rate statistics
-  Future<Map<String, dynamic>?> _getHeartRate(
-    DateTime startDate,
-    DateTime endDate,
+  /// Fetch all raw HealthDataPoints for [type] in [start]..[end]. Never throws.
+  Future<List<HealthDataPoint>> _fetchRawPoints(
+    DateTime start,
+    DateTime end,
+    HealthDataType type,
   ) async {
     try {
-      final data = await health.getHealthDataFromTypes(
-        types: [HealthDataType.HEART_RATE],
-        startTime: startDate,
-        endTime: endDate,
+      return await health.getHealthDataFromTypes(
+        types: [type],
+        startTime: start,
+        endTime: end,
       );
-      if (data.isEmpty) return null;
-      final values = data.map(_numericValue).toList();
-      final avg = values.reduce((a, b) => a + b) / values.length;
-      final max = values.reduce((a, b) => a > b ? a : b);
-      final min = values.reduce((a, b) => a < b ? a : b);
-      return {'avg': avg, 'max': max.toInt(), 'min': min.toInt()};
-    } catch (e) {
-      debugPrint('⚠️ Error fetching heart rate: $e');
-      return null;
+    } catch (_) {
+      return [];
     }
   }
 
-  /// Get sleep data
-  Future<Map<String, dynamic>?> _getSleep(
-    DateTime startDate,
-    DateTime endDate,
-  ) async {
-    try {
-      final sleepType = _isAndroid
-          ? HealthDataType.SLEEP_SESSION
-          : HealthDataType.SLEEP_IN_BED;
-      final data = await health.getHealthDataFromTypes(
-        types: [sleepType],
-        startTime: startDate,
-        endTime: endDate,
-      );
-      if (data.isEmpty) return null;
-      final totalMinutes = data.fold<double>(0, (s, p) => s + _numericValue(p));
-      final hours = totalMinutes / 60;
-      String quality = 'FAIR';
-      if (hours >= 7.5) quality = 'EXCELLENT';
-      if (hours >= 7) quality = 'GOOD';
-      if (hours < 5) quality = 'POOR';
-      return {'hours': hours, 'quality': quality};
-    } catch (e) {
-      debugPrint('⚠️ Error fetching sleep: $e');
-      return null;
-    }
+  /// Heart-rate avg / min / max for readings whose timestamp falls in [from, to).
+  /// Returns null when there are no valid readings in the window.
+  Map<String, dynamic>? _hrForWindow(
+    List<HealthDataPoint> pts,
+    DateTime from,
+    DateTime to,
+  ) {
+    final inWin = pts
+        .where((p) => !p.dateFrom.isBefore(from) && p.dateFrom.isBefore(to))
+        .toList();
+    if (inWin.isEmpty) return null;
+    final vals = inWin
+        .map(_numericValue)
+        .where((v) => v > 0)
+        .toList(growable: false);
+    if (vals.isEmpty) return null;
+    final avg = vals.reduce((a, b) => a + b) / vals.length;
+    final max = vals.reduce((a, b) => a > b ? a : b);
+    final min = vals.reduce((a, b) => a < b ? a : b);
+    return {'avg': avg, 'max': max.toInt(), 'min': min.toInt()};
   }
 
-  /// Get calories burned
-  Future<int?> _getCalories(DateTime startDate, DateTime endDate) async {
-    try {
-      final data = await health.getHealthDataFromTypes(
-        types: [HealthDataType.ACTIVE_ENERGY_BURNED],
-        startTime: startDate,
-        endTime: endDate,
-      );
-      final total = data.fold<double>(0, (s, p) => s + _numericValue(p));
-      return total > 0 ? total.toInt() : null;
-    } catch (e) {
-      debugPrint('⚠️ Error fetching calories: $e');
-      return null;
-    }
+  /// Sleep hours / quality for sessions overlapping [from, to).
+  ///
+  /// Duration is computed from [dateFrom, dateTo] on each data point.
+  /// SLEEP_SESSION / SLEEP_IN_BED carry the sleep-stage code in their numeric
+  /// value — NOT the duration in minutes — so using _numericValue() here would
+  /// always return ~0. The real duration is the time span of the record.
+  Map<String, dynamic>? _sleepForWindow(
+    List<HealthDataPoint> pts,
+    DateTime from,
+    DateTime to,
+  ) {
+    // Include sessions that overlap the window (start before [to], end after [from])
+    final inWin = pts
+        .where((p) => p.dateFrom.isBefore(to) && p.dateTo.isAfter(from))
+        .toList();
+    if (inWin.isEmpty) return null;
+    // Clamp each session to the window boundaries so the noon→noon approach
+    // never double-counts minutes that belong to the previous/next day's window.
+    final totalMins = inWin.fold<double>(0, (s, p) {
+      final effFrom = p.dateFrom.isBefore(from) ? from : p.dateFrom;
+      final effTo = p.dateTo.isAfter(to) ? to : p.dateTo;
+      final mins = effTo.difference(effFrom).inMinutes.toDouble();
+      return s + (mins > 0 ? mins : 0);
+    });
+    if (totalMins <= 0) return null;
+    final hours = totalMins / 60;
+    final quality = hours >= 7.5
+        ? 'EXCELLENT'
+        : hours >= 7
+        ? 'GOOD'
+        : hours < 5
+        ? 'POOR'
+        : 'FAIR';
+    return {'hours': hours, 'quality': quality};
+  }
+
+  /// Sum numeric values for readings in [from, to).
+  double _sumForWindow(List<HealthDataPoint> pts, DateTime from, DateTime to) {
+    return pts
+        .where((p) => !p.dateFrom.isBefore(from) && p.dateFrom.isBefore(to))
+        .fold<double>(0, (s, p) => s + _numericValue(p));
   }
 
   /// Get total walking/running distance in km.
@@ -332,7 +450,9 @@ class WearableService {
   /// We pre-fetch all step and distance points for the window and attribute them to each
   /// workout by their overlapping time range, so we always capture as much data as possible.
   Future<List<Map<String, dynamic>>> _getWorkouts(
-      DateTime startDate, DateTime endDate) async {
+    DateTime startDate,
+    DateTime endDate,
+  ) async {
     try {
       final data = await health.getHealthDataFromTypes(
         types: [HealthDataType.WORKOUT],
@@ -365,8 +485,9 @@ class WearableService {
         if (v is! WorkoutHealthValue) continue;
 
         // Use seconds to avoid dropping legitimate short sessions (< 1 min).
-        final durationSeconds =
-            point.dateTo.difference(point.dateFrom).inSeconds;
+        final durationSeconds = point.dateTo
+            .difference(point.dateFrom)
+            .inSeconds;
         if (durationSeconds <= 0) continue;
         final durationMinutes = (durationSeconds / 60).round().clamp(1, 9999);
 
@@ -374,17 +495,20 @@ class WearableService {
         double? distanceKm = v.totalDistance != null
             ? v.totalDistance! / 1000.0
             : _sumPointsInWindow(distancePoints, point.dateFrom, point.dateTo) >
-                    0
-                ? _sumPointsInWindow(
-                        distancePoints, point.dateFrom, point.dateTo) /
-                    1000.0
-                : null;
+                  0
+            ? _sumPointsInWindow(distancePoints, point.dateFrom, point.dateTo) /
+                  1000.0
+            : null;
 
         // Steps: use embedded value first, fall back to STEPS data points.
-        final int? steps = v.totalSteps ??
+        final int? steps =
+            v.totalSteps ??
             (_sumPointsInWindow(stepsPoints, point.dateFrom, point.dateTo) > 0
-                ? _sumPointsInWindow(stepsPoints, point.dateFrom, point.dateTo)
-                    .toInt()
+                ? _sumPointsInWindow(
+                    stepsPoints,
+                    point.dateFrom,
+                    point.dateTo,
+                  ).toInt()
                 : null);
 
         // Skip workouts that were written to HC by our own app.  We log those
@@ -404,7 +528,7 @@ class WearableService {
         // meaningful steps or distance.
         final isWalkRun =
             v.workoutActivityType == HealthWorkoutActivityType.WALKING ||
-                v.workoutActivityType == HealthWorkoutActivityType.RUNNING;
+            v.workoutActivityType == HealthWorkoutActivityType.RUNNING;
         if (isWalkRun && (steps ?? 0) < 100 && (distanceKm ?? 0) < 0.1) {
           continue;
         }
@@ -428,7 +552,10 @@ class WearableService {
 
   /// Sum numeric values from [points] whose time window overlaps [from]–[to].
   double _sumPointsInWindow(
-      List<HealthDataPoint> points, DateTime from, DateTime to) {
+    List<HealthDataPoint> points,
+    DateTime from,
+    DateTime to,
+  ) {
     return points
         .where((p) => p.dateFrom.isBefore(to) && p.dateTo.isAfter(from))
         .fold<double>(0, (acc, p) => acc + _numericValue(p));
@@ -480,98 +607,6 @@ class WearableService {
     }
   }
 
-  /// Upload synced data to backend.
-  /// Workout sessions → individual sport activities with type, duration, calories, distance, steps
-  /// Daily steps total → WALKING sport activity (if no workout sessions were found)
-  /// Vitals (HR, sleep, calories) → health entry
-  Future<void> _uploadSyncData(
-    WearableSyncData data, {
-    List<Map<String, dynamic>> workouts = const [],
-    double? distanceKm,
-  }) async {
-    try {
-      final userId = await _api.ensureActiveUserId();
-      if (userId == null) throw Exception('No active user');
-
-      final source = _isIOS ? 'Apple Health' : 'Health Connect';
-      final dateStr = data.date.toIso8601String().split('T')[0];
-
-      debugPrint('📤 Uploading: steps=${data.steps}, '
-          'hr=${data.heartRateAvg}, sleep=${data.sleepHours}, '
-          'calories=${data.calories}, workouts=${workouts.length}');
-
-      // Save each workout session as its own sport activity (with duration, type, etc.)
-      for (final w in workouts) {
-        final wDate = (w['date'] as DateTime).toIso8601String().split('T')[0];
-        final payload = <String, dynamic>{
-          'activityType': w['activityType'],
-          'activityDate': wDate,
-          'duration': w['durationMinutes'],
-          'notes': 'Synced from $source',
-        };
-        if (w['caloriesBurned'] != null) {
-          payload['caloriesBurned'] = w['caloriesBurned'];
-        }
-        if (w['distanceKm'] != null) {
-          payload['distance'] = w['distanceKm'];
-        }
-        if (w['steps'] != null) {
-          payload['steps'] = w['steps'];
-        }
-        await _api.createSportActivity(payload, userId: userId);
-      }
-
-      // Save total daily steps as a WALKING entry only when no workout sessions
-      // were synced (avoids double-counting steps that are already in workouts).
-      // Include distance when available from DISTANCE_WALKING_RUNNING.
-      if (data.steps != null && data.steps! > 0 && workouts.isEmpty) {
-        final payload = <String, dynamic>{
-          'activityType': 'WALKING',
-          'activityDate': dateStr,
-          'steps': data.steps,
-          'caloriesBurned': data.calories,
-          'notes': 'Synced from $source',
-        };
-        if (distanceKm != null) {
-          payload['distance'] = distanceKm;
-        }
-        await _api.createSportActivity(payload, userId: userId);
-      }
-
-      // Save vitals as a health entry via the idempotent /sync endpoint so repeated
-      // foreground syncs upsert the day's row instead of stacking duplicates. We no
-      // longer send a hardcoded wellbeingScore — that's the user's to log.
-      final hasVitals = data.heartRateAvg != null ||
-          data.sleepHours != null ||
-          data.calories != null;
-
-      if (hasVitals) {
-        final payload = <String, dynamic>{
-          'entryDate': dateStr,
-          'notes': 'Synced from $source',
-        };
-        if (data.heartRateAvg != null) {
-          payload['heartRate'] = data.heartRateAvg!.toInt();
-        }
-        if (data.sleepHours != null) payload['sleepHours'] = data.sleepHours;
-        if (data.sleepQuality != null) {
-          payload['sleepQuality'] = data.sleepQuality;
-        }
-        if (data.calories != null) payload['caloriesConsumed'] = data.calories;
-
-        final ok = await _api.syncHealthVitals(payload, userId: userId);
-        if (!ok) {
-          debugPrint('⚠️ Vitals sync upsert failed');
-        }
-      }
-
-      debugPrint('✅ Data uploaded to backend');
-    } catch (e) {
-      debugPrint('⚠️ Error uploading sync data: $e');
-      rethrow;
-    }
-  }
-
   /// Get list of connected wearable devices
   Future<List<WearableDevice>> getConnectedDevices(int userId) async {
     try {
@@ -586,7 +621,8 @@ class WearableService {
       if (data['success'] == true && data['data'] != null) {
         return (data['data'] as List)
             .map(
-                (item) => WearableDevice.fromJson(item as Map<String, dynamic>))
+              (item) => WearableDevice.fromJson(item as Map<String, dynamic>),
+            )
             .toList();
       }
       return [];
@@ -621,8 +657,9 @@ class WearableService {
 
       final data = jsonDecode(response.body) as Map<String, dynamic>;
       if (data['success'] == true && data['data'] != null) {
-        final device =
-            WearableDevice.fromJson(data['data'] as Map<String, dynamic>);
+        final device = WearableDevice.fromJson(
+          data['data'] as Map<String, dynamic>,
+        );
         debugPrint('✅ Device added: ${device.name}');
         return device;
       }
