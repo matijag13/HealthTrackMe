@@ -51,16 +51,14 @@ jobs:
         run: |
           base_delay=5
           for attempt in 1 2 3; do
-            docker build -t healthtrackme-api . && exit 0
-            if [ "${attempt}" -eq 3 ]; then
-              break
+            if docker build -t healthtrackme-api .; then
+              exit 0
             fi
-            case "${attempt}" in
-              1) delay=${base_delay} ;;
-              2) delay=$((base_delay * 3)) ;;
-            esac
-            echo "Docker build failed on attempt ${attempt}. Retrying in ${delay}s..."
-            sleep "${delay}"
+            if [ "${attempt}" -lt 3 ]; then
+              delay=$((base_delay * attempt))
+              echo "Docker build failed on attempt ${attempt}. Retrying in ${delay}s..."
+              sleep "${delay}"
+            fi
           done
           echo "Docker build failed after 3 attempts."
           exit 1
