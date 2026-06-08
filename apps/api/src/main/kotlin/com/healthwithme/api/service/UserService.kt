@@ -7,17 +7,20 @@ import com.healthwithme.api.dto.UserDto
 import com.healthwithme.api.model.AuthProvider
 import com.healthwithme.api.model.User
 import com.healthwithme.api.model.UserType
+import com.healthwithme.api.repository.FriendshipRepository
 import com.healthwithme.api.repository.UserRepository
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import org.slf4j.LoggerFactory
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.stereotype.Service
+import org.springframework.transaction.annotation.Transactional
 import java.time.LocalDateTime
 
 @Service
 class UserService(
     private val userRepository: UserRepository,
-    private val passwordEncoder: PasswordEncoder
+    private val passwordEncoder: PasswordEncoder,
+    private val friendshipRepository: FriendshipRepository
 ) {
     private val objectMapper = jacksonObjectMapper()
     private val logger = LoggerFactory.getLogger(UserService::class.java)
@@ -198,9 +201,17 @@ class UserService(
         return true
     }
 
+    @Transactional
     fun deleteUser(id: Long): Boolean {
         val user = userRepository.findById(id)
             .orElseThrow { IllegalArgumentException("User not found") }
+
+        val deletedFriendships = friendshipRepository.deleteAllForUser(id)
+        logger.info(
+            "Deleting user account data: userId={} deletedFriendships={}",
+            id,
+            deletedFriendships
+        )
 
         userRepository.delete(user)
         return true

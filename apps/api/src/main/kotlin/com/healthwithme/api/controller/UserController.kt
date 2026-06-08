@@ -6,6 +6,7 @@ import com.healthwithme.api.dto.UpdateUserRequest
 import com.healthwithme.api.dto.UserDto
 import com.healthwithme.api.dto.ApiResponse
 import com.healthwithme.api.service.UserService
+import org.slf4j.LoggerFactory
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
@@ -15,6 +16,7 @@ import org.springframework.http.MediaType
 @RestController
 @RequestMapping("/api/v1/users")
 class UserController(private val userService: UserService) {
+    private val logger = LoggerFactory.getLogger(UserController::class.java)
 
     @PostMapping
     fun createUser(@RequestBody request: CreateUserRequest): ResponseEntity<ApiResponse<UserDto>> {
@@ -114,12 +116,31 @@ class UserController(private val userService: UserService) {
     @DeleteMapping("/{id}")
     fun deleteUser(@PathVariable id: Long): ResponseEntity<ApiResponse<Boolean>> {
         return try {
+            logger.info("Delete user request received: userId={}", id)
             val deleted = userService.deleteUser(id)
             ResponseEntity.ok().body(
                 ApiResponse(success = true, message = "User deleted", data = deleted)
             )
+        } catch (e: IllegalArgumentException) {
+            logger.warn(
+                "Delete user request rejected: userId={} reasonClass={} reasonMessage={}",
+                id,
+                e::class.java.simpleName,
+                e.message
+            )
+            ResponseEntity.status(HttpStatus.NOT_FOUND).body(
+                ApiResponse(success = false, message = (e.message ?: "User not found"), data = false)
+            )
         } catch (e: Exception) {
-            ResponseEntity.notFound().build()
+            logger.warn(
+                "Delete user request failed: userId={} reasonClass={} reasonMessage={}",
+                id,
+                e::class.java.simpleName,
+                e.message
+            )
+            ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
+                ApiResponse(success = false, message = "Could not delete user", data = false)
+            )
         }
     }
 

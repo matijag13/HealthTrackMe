@@ -3,6 +3,7 @@ package com.healthwithme.api.service
 import com.healthwithme.api.model.User
 import com.healthwithme.api.model.AuthProvider
 import com.healthwithme.api.model.UserType
+import com.healthwithme.api.repository.FriendshipRepository
 import com.healthwithme.api.repository.UserRepository
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
@@ -19,8 +20,9 @@ import java.util.Optional
 class UserServiceTest {
 
     private val userRepository: UserRepository = mock(UserRepository::class.java)
+    private val friendshipRepository: FriendshipRepository = mock(FriendshipRepository::class.java)
     private val passwordEncoder = BCryptPasswordEncoder()
-    private val userService = UserService(userRepository, passwordEncoder)
+    private val userService = UserService(userRepository, passwordEncoder, friendshipRepository)
 
     @Test
     fun `login returns user when password matches bcrypt hash`() {

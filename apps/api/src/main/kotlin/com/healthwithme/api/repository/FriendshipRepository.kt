@@ -3,6 +3,7 @@ package com.healthwithme.api.repository
 import com.healthwithme.api.model.Friendship
 import com.healthwithme.api.model.FriendshipStatus
 import org.springframework.data.jpa.repository.JpaRepository
+import org.springframework.data.jpa.repository.Modifying
 import org.springframework.data.jpa.repository.Query
 import org.springframework.data.repository.query.Param
 
@@ -23,4 +24,13 @@ interface FriendshipRepository : JpaRepository<Friendship, Long> {
         """
     )
     fun findAcceptedForUser(@Param("userId") userId: Long): List<Friendship>
+
+    @Modifying
+    @Query(
+        """
+        DELETE FROM Friendship f
+        WHERE f.requester.id = :userId OR f.addressee.id = :userId
+        """
+    )
+    fun deleteAllForUser(@Param("userId") userId: Long): Int
 }
