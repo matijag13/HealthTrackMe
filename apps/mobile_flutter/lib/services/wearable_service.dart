@@ -387,6 +387,17 @@ class WearableService {
                     .toInt()
                 : null);
 
+        // Skip workouts that were written to HC by our own app.  We log those
+        // directly to the backend already (via createSportActivity), so picking
+        // them up here again would create a duplicate entry on every sync.
+        // HC stores the source app's package name in sourceId.
+        const ownPkg = 'com.example.healthtrackme';
+        if (point.sourceId.toLowerCase().contains('healthtrackme') ||
+            point.sourceName.toLowerCase().contains('healthtrackme') ||
+            point.sourceId == ownPkg) {
+          continue;
+        }
+
         // Skip trivial walk/run sessions. Samsung Health writes lots of tiny
         // auto-detected walking segments to Health Connect (a few steps each);
         // importing every one floods the log with junk. A real walk/run has

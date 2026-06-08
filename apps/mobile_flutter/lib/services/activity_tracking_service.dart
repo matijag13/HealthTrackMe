@@ -198,21 +198,11 @@ class ActivityTrackingService {
       debugPrint('Auto-session upload failed: $e');
     }
 
-    try {
-      await _health.writeWorkoutData(
-        activityType: isRun
-            ? HealthWorkoutActivityType.RUNNING
-            : HealthWorkoutActivityType.WALKING,
-        start: start,
-        end: end,
-        totalDistance:
-            bestDistanceKm > 0 ? (bestDistanceKm * 1000).round() : null,
-        totalEnergyBurned: calories > 0 ? calories : null,
-        recordingMethod: RecordingMethod.automatic,
-      );
-    } catch (e) {
-      debugPrint('Health Connect workout write failed: $e');
-    }
+    // NOTE: we intentionally do NOT write this session back to Health Connect.
+    // Samsung (and other wearables) already write the same walk/run to HC, and
+    // if we also write one the wearable sync would re-import it and create a
+    // third duplicate entry in the backend.  The backend already has the session
+    // from the direct createSportActivity call above.
 
     if (uploaded) {
       // Notify the user so they see the auto-log immediately.

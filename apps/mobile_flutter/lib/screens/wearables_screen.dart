@@ -85,7 +85,7 @@ class _WearablesScreenState extends State<WearablesScreen> {
         final lastMs = prefs.getInt(_kLastSyncKey);
         final startDate = lastMs != null
             ? DateTime.fromMillisecondsSinceEpoch(lastMs)
-            : DateTime.now().subtract(const Duration(days: 7));
+            : DateTime.now().subtract(const Duration(days: 30));
         final result = await _wearableService.syncWearableData(
           userId: userId,
           startDate: startDate,
@@ -132,12 +132,12 @@ class _WearablesScreenState extends State<WearablesScreen> {
           }
         }
         // Use last-sync timestamp so we only pull new data and avoid
-        // creating duplicate entries. First sync falls back to 7 days.
+        // creating duplicate entries. First sync falls back to 30 days.
         final prefs = await SharedPreferences.getInstance();
         final lastMs = prefs.getInt(_kLastSyncKey);
         final startDate = lastMs != null
             ? DateTime.fromMillisecondsSinceEpoch(lastMs)
-            : DateTime.now().subtract(const Duration(days: 7));
+            : DateTime.now().subtract(const Duration(days: 30));
 
         final result = await _wearableService.syncWearableData(
           userId: userId,

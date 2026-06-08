@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:percent_indicator/percent_indicator.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
@@ -1118,6 +1119,9 @@ class _DevicesTabState extends State<_DevicesTab> {
     if (mounted) setState(() => _loading = false);
   }
 
+  // Shared key for the last-sync timestamp — must match wearables_screen.dart.
+  static const String _kLastSyncKey = 'health_last_sync_ms';
+
   Future<void> _sync() async {
     setState(() => _syncing = true);
     try {
@@ -1127,10 +1131,20 @@ class _DevicesTabState extends State<_DevicesTab> {
         if (!hasPermission) {
           await _wearableService.requestPermissions();
         }
+        // Use the shared last-sync timestamp so incremental syncs only pull new
+        // data. Fall back to 30 days on first use so historical HR, sleep and
+        // workouts are imported — NOT just the last 24 h.
+        final prefs = await SharedPreferences.getInstance();
+        final lastMs = prefs.getInt(_kLastSyncKey);
+        final startDate = lastMs != null
+            ? DateTime.fromMillisecondsSinceEpoch(lastMs)
+            : DateTime.now().subtract(const Duration(days: 30));
         await _wearableService.syncWearableData(
           userId: userId,
-          startDate: DateTime.now().subtract(const Duration(days: 1)),
+          startDate: startDate,
         );
+        await prefs.setInt(
+            _kLastSyncKey, DateTime.now().millisecondsSinceEpoch);
         await _load();
         if (mounted) {
           WearableService.showSyncStatus(context, 'Sync complete', true);

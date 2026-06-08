@@ -17,7 +17,23 @@ class SportActivityService(
     fun createActivity(userId: Long, request: CreateSportActivityRequest): SportActivityDto {
         val user = userRepository.findById(userId)
             .orElseThrow { IllegalArgumentException("User not found") }
-        
+
+        // Idempotency guard: if an entry with the same user + type + date +
+        // notes source + duration (within 5 min) already exists, return it
+        // instead of creating a duplicate.  This prevents "sync ran three times
+        // → three identical Samsung walks" and the auto-detect feedback loop.
+        if (request.notes != null && request.duration != null) {
+            val existing = activityRepository.findByUserIdAndActivityTypeAndActivityDate(
+                userId, request.activityType, request.activityDate
+            )
+            val duplicate = existing.firstOrNull { ex ->
+                ex.notes == request.notes &&
+                ex.duration != null &&
+                kotlin.math.abs(ex.duration!! - request.duration!!) <= 5
+            }
+            if (duplicate != null) return toActivityDto(duplicate)
+        }
+
         val activity = SportActivity(
             user = user,
             activityType = request.activityType,
@@ -32,7 +48,7 @@ class SportActivityService(
             createdAt = LocalDateTime.now(),
             updatedAt = LocalDateTime.now()
         )
-        
+
         val savedActivity = activityRepository.save(activity)
         return toActivityDto(savedActivity)
     }
