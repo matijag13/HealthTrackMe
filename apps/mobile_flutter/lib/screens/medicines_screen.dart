@@ -325,6 +325,73 @@ class _MedicinesScreenState extends State<MedicinesScreen>
     }
   }
 
+  /// Removes the most recent TAKEN dose of [id] for today.
+  Future<void> _undoDose(int id) async {
+    if (_loggingMedicineIds.contains(id)) return;
+    setState(() => _loggingMedicineIds.add(id));
+    try {
+      await _api.undoLatestDose(id);
+      if (mounted) {
+        setState(() {
+          final cur = _doseCount(id);
+          _doseCountToday[id] = (cur - 1).clamp(0, 99);
+          _takenToday.remove(id);
+        });
+      }
+      await _refresh();
+      if (mounted) {
+        _hasChanges = true;
+        _showMedicineToast(context, 'Dose removed',
+            type: _MedicineToastType.warning);
+      }
+    } catch (e) {
+      if (mounted) {
+        _showMedicineToast(context, 'Could not undo dose',
+            type: _MedicineToastType.error);
+      }
+    } finally {
+      if (mounted) setState(() => _loggingMedicineIds.remove(id));
+    }
+  }
+
+  void _showUndoDoseDialog(Medicine m) {
+    showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: _surface,
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text(
+          'Undo dose?',
+          style: TextStyle(
+            color: _primaryText,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        content: Text(
+          "Remove today's last logged dose of ${m.name}?",
+          style: const TextStyle(color: _mutedText),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: FilledButton.styleFrom(
+              backgroundColor: const Color(0xFFF5B941),
+              foregroundColor: Colors.black87,
+            ),
+            child: const Text('Undo'),
+          ),
+        ],
+      ),
+    ).then((confirmed) async {
+      if (confirmed == true && mounted) await _undoDose(m.id);
+    });
+  }
+
   Map<String, List<Medicine>> _groupByTime(List<Medicine> meds) {
     final groups = <String, List<Medicine>>{
       'Morning': [],
@@ -772,11 +839,7 @@ class _MedicinesScreenState extends State<MedicinesScreen>
         trailing: GestureDetector(
           onTap: () async {
             if (taken) {
-              _showMedicineToast(
-                context,
-                'All doses taken today',
-                type: _MedicineToastType.warning,
-              );
+              _showUndoDoseDialog(m);
             } else {
               await _postDose(m.id);
             }
@@ -865,17 +928,23 @@ class _MedicinesScreenState extends State<MedicinesScreen>
             padding: EdgeInsets.zero,
             backgroundColor: Colors.transparent,
             onPressed: (_) {
-              if (!taken) _postDose(m.id);
+              if (taken) {
+                _undoDose(m.id);
+              } else {
+                _postDose(m.id);
+              }
             },
             child: _ActionSegment(
               label: taken
-                  ? 'Taken'
+                  ? 'Undo'
                   : (multiDose ? '$doseCount/$expected' : 'Take'),
-              icon: taken ? Icons.check_circle_rounded : Icons.check_rounded,
+              icon: taken ? Icons.undo_rounded : Icons.check_rounded,
               backgroundColor:
-                  taken ? const Color(0xFF10251D) : const Color(0xFF11141B),
-              foregroundColor: _success,
-              borderColor: _success.withValues(alpha: 0.38),
+                  taken ? const Color(0xFF241B0D) : const Color(0xFF11141B),
+              foregroundColor: taken ? const Color(0xFFF5B941) : _success,
+              borderColor: taken
+                  ? const Color(0xFFF5B941).withValues(alpha: 0.38)
+                  : _success.withValues(alpha: 0.38),
               busy: logging,
               isFirst: true,
               isLast: true,

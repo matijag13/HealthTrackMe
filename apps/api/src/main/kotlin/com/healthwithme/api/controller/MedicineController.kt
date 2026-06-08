@@ -126,6 +126,30 @@ class MedicineController(private val medicineService: MedicineService) {
         }
     }
 
+    @DeleteMapping("/{id}/dose/today")
+    fun undoDoseToday(@PathVariable id: Long): ResponseEntity<ApiResponse<AdherenceResponse>> {
+        return try {
+            val result = medicineService.undoLatestDoseToday(id)
+
+            val dailyBreakdown = (result["dailyBreakdown"] as? List<Map<String, String>>)?.map {
+                AdherenceDailyPoint(date = it["date"] ?: "", status = it["status"] ?: "SCHEDULED")
+            } ?: emptyList()
+
+            val response = AdherenceResponse(
+                percentage = (result["percentage"] as? Double) ?: 0.0,
+                takenCount = (result["takenCount"] as? Int) ?: 0,
+                missedCount = (result["missedCount"] as? Int) ?: 0,
+                dailyBreakdown = dailyBreakdown
+            )
+            ResponseEntity.ok().body(ApiResponse(success = true, message = "Dose undone", data = response))
+        } catch (e: IllegalStateException) {
+            ResponseEntity.badRequest().body(ApiResponse(success = false, message = (e.message ?: "No dose to undo"), data = null))
+        } catch (e: Exception) {
+            ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(ApiResponse(success = false, message = (e.message ?: "Server error"), data = null))
+        }
+    }
+
     @DeleteMapping("/{medicineId}")
     fun deleteMedicine(@PathVariable("medicineId") medicineId: Long): ResponseEntity<ApiResponse<Boolean>> {
         return try {

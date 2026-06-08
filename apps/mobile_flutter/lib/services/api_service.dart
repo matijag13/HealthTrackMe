@@ -1109,6 +1109,15 @@ class ApiService {
     await logMedicineDose(medicineId, takenAt, status);
   }
 
+  /// Deletes the most recent TAKEN dose for today for [medicineId].
+  /// Throws if the backend returns an error (e.g. no dose taken today).
+  Future<void> undoLatestDose(int medicineId) async {
+    final response = await _deleteRaw('/medicines/$medicineId/dose/today');
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw Exception(_responseMessage(response) ?? 'Failed to undo dose');
+    }
+  }
+
   Future<void> deleteMedicine(int medicineId) async {
     final response = await _deleteRaw(
       '/medicines/$medicineId',

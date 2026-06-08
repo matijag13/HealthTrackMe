@@ -10,7 +10,9 @@ import com.healthwithme.api.model.DoseLog
 import com.healthwithme.api.model.DoseStatus
 import com.healthwithme.api.repository.UserRepository
 import org.springframework.stereotype.Service
+import java.time.LocalDate
 import java.time.LocalDateTime
+import java.time.LocalTime
 
 @Service
 class MedicineService(
@@ -149,6 +151,29 @@ class MedicineService(
             "missedCount" to missedCount,
             "dailyBreakdown" to dailyBreakdown
         )
+    }
+
+    /**
+     * Deletes the most recent TAKEN dose for [medicineId] logged today, then
+     * returns updated 1-day adherence so the caller can refresh the UI.
+     * Throws [IllegalStateException] when no TAKEN dose exists today.
+     */
+    fun undoLatestDoseToday(medicineId: Long): Map<String, Any> {
+        medicineRepository.findById(medicineId)
+            .orElseThrow { IllegalArgumentException("Medicine not found") }
+
+        val startOfDay = LocalDateTime.of(LocalDate.now(), LocalTime.MIDNIGHT)
+        val endOfDay = startOfDay.plusDays(1)
+
+        val takenToday = doseLogRepository.findByMedicineIdAndStatusBetween(
+            medicineId, DoseStatus.TAKEN, startOfDay, endOfDay
+        )
+        if (takenToday.isEmpty()) {
+            throw IllegalStateException("No dose taken today to undo")
+        }
+
+        doseLogRepository.delete(takenToday.first())
+        return getAdherence(medicineId, 1)
     }
 
     fun deleteMedicine(id: Long): Boolean {
