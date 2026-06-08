@@ -210,14 +210,25 @@ class WearableService {
       final sleepType = _isAndroid
           ? HealthDataType.SLEEP_SESSION
           : HealthDataType.SLEEP_IN_BED;
+
+      // Vitals are aggregated over each *full* calendar day below, so raw points
+      // must be fetched from the start of the first day — NOT from the raw
+      // [startDate], which on an incremental foreground sync is only minutes ago.
+      // Fetching from [startDate] would recompute today's HR/calories from just
+      // that latest slice and clobber the full-day value already on the
+      // dashboard. The extra 12h look-back captures overnight sleep that began
+      // the previous evening (matching the noon→noon window in _sleepForWindow).
+      final vitalsStart =
+          DateTime(startDate.year, startDate.month, startDate.day)
+              .subtract(const Duration(hours: 12));
       final allHrPts = await _fetchRawPoints(
-        startDate,
+        vitalsStart,
         endDate,
         HealthDataType.HEART_RATE,
       );
-      final allSleepPts = await _fetchRawPoints(startDate, endDate, sleepType);
+      final allSleepPts = await _fetchRawPoints(vitalsStart, endDate, sleepType);
       final allCalPts = await _fetchRawPoints(
-        startDate,
+        vitalsStart,
         endDate,
         HealthDataType.ACTIVE_ENERGY_BURNED,
       );

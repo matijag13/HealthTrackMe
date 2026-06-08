@@ -82,10 +82,7 @@ class _WearablesScreenState extends State<WearablesScreen> {
           await _wearableService.requestPermissions();
       if (granted) {
         final prefs = await SharedPreferences.getInstance();
-        final lastMs = prefs.getInt(_kLastSyncKey);
-        final startDate = lastMs != null
-            ? DateTime.fromMillisecondsSinceEpoch(lastMs)
-            : DateTime.now().subtract(const Duration(days: 30));
+        final startDate = _manualSyncStartDate(prefs.getInt(_kLastSyncKey));
         final result = await _wearableService.syncWearableData(
           userId: userId,
           startDate: startDate,
@@ -118,6 +115,22 @@ class _WearablesScreenState extends State<WearablesScreen> {
     }
   }
 
+  /// Start date for an explicit, user-triggered sync (the Sync button and the
+  /// Connect-device flow). Unlike the silent 2-minute foreground sync, this
+  /// always backfills a solid window so pressing Sync reliably imports recent
+  /// data — otherwise the foreground ticker keeps advancing the last-sync time
+  /// and a manual sync would only ever look back a few minutes and find nothing.
+  /// First-ever sync backfills 30 days; later syncs cover at least the last 7.
+  /// Re-syncing is safe: vitals are upserted per day and workouts are
+  /// de-duplicated server-side.
+  DateTime _manualSyncStartDate(int? lastMs) {
+    final now = DateTime.now();
+    if (lastMs == null) return now.subtract(const Duration(days: 30));
+    final lastSync = DateTime.fromMillisecondsSinceEpoch(lastMs);
+    final minLookback = now.subtract(const Duration(days: 7));
+    return lastSync.isBefore(minLookback) ? lastSync : minLookback;
+  }
+
   Future<void> _sync() async {
     setState(() => _syncing = true);
     try {
@@ -131,13 +144,11 @@ class _WearablesScreenState extends State<WearablesScreen> {
             return;
           }
         }
-        // Use last-sync timestamp so we only pull new data and avoid
-        // creating duplicate entries. First sync falls back to 30 days.
+        // Explicit user action: always backfill a solid window (see
+        // _manualSyncStartDate) rather than only since the last silent sync,
+        // so pressing Sync reliably imports recent data.
         final prefs = await SharedPreferences.getInstance();
-        final lastMs = prefs.getInt(_kLastSyncKey);
-        final startDate = lastMs != null
-            ? DateTime.fromMillisecondsSinceEpoch(lastMs)
-            : DateTime.now().subtract(const Duration(days: 30));
+        final startDate = _manualSyncStartDate(prefs.getInt(_kLastSyncKey));
 
         final result = await _wearableService.syncWearableData(
           userId: userId,

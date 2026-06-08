@@ -321,15 +321,28 @@ class _DashboardScreenState extends State<DashboardScreen>
     } catch (_) {}
   }
 
+  /// Today's water intake, read from the most-recently-touched entry for today.
+  ///
+  /// That is the same entry the backend `/sync` upsert writes to (it targets the
+  /// newest entry for the day). Taking the MAX across all of the day's entries
+  /// instead would break the −250 / −500 buttons: subtracting writes a smaller
+  /// value to that one entry while an older entry (e.g. a manual log) keeps its
+  /// higher value, so the MAX snaps the total straight back up. We only fall back
+  /// to the max when the newest entry has no water logged yet.
   int _todayWaterFromEntries(List<HealthEntry> entries) {
     final today = DateTime.now();
-    var maxMl = 0;
-    for (final e in entries) {
-      if (_sameDay(e.entryDate, today) && (e.waterIntakeMl ?? 0) > maxMl) {
-        maxMl = e.waterIntakeMl!;
-      }
-    }
-    return maxMl;
+    final todays = entries
+        .where((e) => _sameDay(e.entryDate, today))
+        .toList(growable: false);
+    if (todays.isEmpty) return 0;
+    final latest = todays.reduce(
+      (a, b) => _entrySortKey(a).isBefore(_entrySortKey(b)) ? b : a,
+    );
+    if (latest.waterIntakeMl != null) return latest.waterIntakeMl!;
+    return todays.fold<int>(
+      0,
+      (m, e) => (e.waterIntakeMl ?? 0) > m ? e.waterIntakeMl! : m,
+    );
   }
 
   /// Adds water to today's total and upserts the day's entry. Optimistic so the
