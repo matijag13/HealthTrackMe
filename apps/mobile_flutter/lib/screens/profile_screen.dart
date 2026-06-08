@@ -457,6 +457,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       _section('Preferences', [
                         const _UnitsTile(),
                         _StartOfWeekTile(showSnack: _showSnack),
+                      ]),
+                      const SizedBox(height: 22),
+                      _section('Manage permissions', [
                         _PreferenceToggleTile(
                           prefKey: 'pref_phone_tracking',
                           defaultValue: false,
@@ -511,6 +514,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             }
                           },
                         ),
+                      ]),
+                      const SizedBox(height: 22),
+                      _section('Reminders', [
                         const _DiaryReminderTile(),
                         _PreferenceToggleTile(
                           prefKey: 'pref_streak_reminder',

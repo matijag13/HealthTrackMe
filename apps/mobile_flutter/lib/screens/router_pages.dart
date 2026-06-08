@@ -3144,25 +3144,25 @@ class _HealthActivityPageState extends State<HealthActivityPage> {
   }
 
   void _openActivityDetails(Map<String, dynamic> activity) {
-    final typeLabel = _activityTypeLabel(activity);
-    final date = _activityDate(activity);
-    final steps = _activitySteps(activity);
+    final rawLabel = _activityTypeLabel(activity);
+    final matchedType = _ActivityType.values.firstWhere(
+      (t) => t.label == rawLabel,
+      orElse: () => _ActivityType.workout,
+    );
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
       backgroundColor: Colors.transparent,
       builder: (_) => _ActivityDetailsSheet(
-        title: '$typeLabel details',
-        dateLabel: _formatActivityDate(date),
-        durationLabel: _formatDuration(_activityDuration(activity)),
-        distanceLabel: _activityDistance(activity) == null
-            ? null
-            : _formatDistance(_activityDistance(activity)!),
-        caloriesLabel: _activityCalories(activity) == null
-            ? null
-            : _formatCalories(_activityCalories(activity)!),
-        stepsLabel: steps > 0 ? '$steps steps' : null,
+        typeLabel: rawLabel,
+        dateLabel: _formatActivityDate(_activityDate(activity)),
+        color: _typeColor(matchedType),
+        icon: _typeIcon(matchedType),
+        durationMinutes: _activityDuration(activity),
+        distanceKm: _activityDistance(activity),
+        calories: _activityCalories(activity),
+        steps: _activitySteps(activity),
         notes: _activityNotes(activity),
       ),
     );
@@ -4178,71 +4178,91 @@ class _ActivityDetailsSheet extends StatelessWidget {
   static const _primaryText = Color(0xFFF5F7FB);
   static const _secondaryText = Color(0xFF94A3B8);
 
-  final String title;
+  static const _accent = Color(0xFF5B8DEF);
+  static const _pink = Color(0xFFEE6C9D);
+  static const _green = Color(0xFF5FB878);
+
+  final String typeLabel;
   final String dateLabel;
-  final String durationLabel;
-  final String? distanceLabel;
-  final String? caloriesLabel;
-  final String? stepsLabel;
+  final Color color;
+  final IconData icon;
+  final int durationMinutes;
+  final double? distanceKm;
+  final int? calories;
+  final int steps;
   final String? notes;
 
   const _ActivityDetailsSheet({
-    required this.title,
+    required this.typeLabel,
     required this.dateLabel,
-    required this.durationLabel,
-    required this.distanceLabel,
-    required this.caloriesLabel,
-    required this.stepsLabel,
+    required this.color,
+    required this.icon,
+    required this.durationMinutes,
+    required this.distanceKm,
+    required this.calories,
+    required this.steps,
     required this.notes,
   });
 
-  Widget _detailRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 14),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label,
-            style: const TextStyle(
-              color: _secondaryText,
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            value,
-            style: const TextStyle(
-              color: _primaryText,
-              fontSize: 15,
-              fontWeight: FontWeight.w800,
-              height: 1.35,
-            ),
-          ),
-        ],
-      ),
-    );
+  String _durationClock(int minutes) {
+    final h = minutes ~/ 60;
+    final m = minutes % 60;
+    if (h > 0) return '$h:${m.toString().padLeft(2, '0')}:00';
+    return '$m:00';
   }
 
-  Widget _detailNotes(String value) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: _surfaceAlt,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: _border.withValues(alpha: 0.8)),
-      ),
-      child: Text(
-        value,
-        style: const TextStyle(
-          color: _primaryText,
-          fontSize: 14,
-          fontWeight: FontWeight.w700,
-          height: 1.45,
-        ),
-      ),
+  String _distanceText(double km) =>
+      km >= 1 ? '${km.toStringAsFixed(2)} km' : '${(km * 1000).round()} m';
+
+  String _thousands(int n) {
+    final s = n.toString();
+    final b = StringBuffer();
+    for (var i = 0; i < s.length; i++) {
+      if (i > 0 && (s.length - i) % 3 == 0) b.write(',');
+      b.write(s[i]);
+    }
+    return b.toString();
+  }
+
+  /// (label, value, color) stat cells, Samsung-style: only those with real data.
+  List<(String, String, Color)> _stats() {
+    final out = <(String, String, Color)>[];
+    out.add(('Duration', _durationClock(durationMinutes), _accent));
+    final km = distanceKm;
+    if (km != null && km > 0 && durationMinutes > 0) {
+      final kmh = km / (durationMinutes / 60.0);
+      out.add(('Avg. speed', '${kmh.toStringAsFixed(1)} km/h', _accent));
+    }
+    if (calories != null) {
+      out.add(('Calories', '$calories kcal', _pink));
+    }
+    if (steps > 0) {
+      out.add(('Steps', _thousands(steps), _green));
+    }
+    if (km != null && km > 0 && durationMinutes > 0) {
+      final secPerKm = (durationMinutes * 60) / km;
+      final pm = secPerKm ~/ 60;
+      final ps = (secPerKm % 60).round();
+      out.add(
+          ('Avg. pace', "$pm'${ps.toString().padLeft(2, '0')}\" /km", _accent));
+    }
+    return out;
+  }
+
+  Widget _statCell((String, String, Color) s) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(s.$1,
+            style: const TextStyle(
+                color: _secondaryText,
+                fontSize: 13,
+                fontWeight: FontWeight.w600)),
+        const SizedBox(height: 4),
+        Text(s.$2,
+            style: TextStyle(
+                color: s.$3, fontSize: 21, fontWeight: FontWeight.w800)),
+      ],
     );
   }
 
@@ -4250,6 +4270,11 @@ class _ActivityDetailsSheet extends StatelessWidget {
   Widget build(BuildContext context) {
     final bottomPadding = MediaQuery.of(context).viewInsets.bottom;
     final hasNotes = notes != null && notes!.trim().isNotEmpty;
+    final km = distanceKm;
+    final primary = (km != null && km > 0)
+        ? _distanceText(km)
+        : _durationClock(durationMinutes);
+    final stats = _stats();
 
     return SafeArea(
       top: false,
@@ -4260,7 +4285,7 @@ class _ActivityDetailsSheet extends StatelessWidget {
           border: Border.all(color: _border.withValues(alpha: 0.85)),
         ),
         child: Padding(
-          padding: EdgeInsets.fromLTRB(20, 12, 20, 20 + bottomPadding),
+          padding: EdgeInsets.fromLTRB(16, 12, 16, 20 + bottomPadding),
           child: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -4276,41 +4301,79 @@ class _ActivityDetailsSheet extends StatelessWidget {
                     ),
                   ),
                 ),
-                const SizedBox(height: 18),
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        title,
-                        style: const TextStyle(
-                          color: _primaryText,
-                          fontSize: 22,
-                          fontWeight: FontWeight.w900,
-                        ),
-                      ),
-                    ),
-                    Material(
-                      color: Colors.transparent,
-                      child: IconButton(
-                        onPressed: () => Navigator.of(context).pop(),
-                        icon: const Icon(
-                          Icons.close_rounded,
-                          color: _primaryText,
-                        ),
-                        style: IconButton.styleFrom(
-                          backgroundColor: _surfaceSoft,
-                          side: BorderSide(
-                            color: _border.withValues(alpha: 0.95),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 18),
+                const SizedBox(height: 16),
+                // Hero header — activity-tinted, big primary metric + date.
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.all(18),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        color.withValues(alpha: 0.32),
+                        color.withValues(alpha: 0.10),
+                      ],
+                    ),
+                    borderRadius: BorderRadius.circular(22),
+                    border: Border.all(color: color.withValues(alpha: 0.4)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            width: 46,
+                            height: 46,
+                            decoration: BoxDecoration(
+                              color: color.withValues(alpha: 0.28),
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                            child: Icon(icon, color: Colors.white, size: 24),
+                          ),
+                          const Spacer(),
+                          Material(
+                            color: Colors.transparent,
+                            child: IconButton(
+                              onPressed: () => Navigator.of(context).pop(),
+                              icon: const Icon(Icons.close_rounded,
+                                  color: _primaryText),
+                              style: IconButton.styleFrom(
+                                backgroundColor: _surfaceSoft,
+                                side: BorderSide(
+                                    color: _border.withValues(alpha: 0.95)),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        primary,
+                        style: const TextStyle(
+                          color: _primaryText,
+                          fontSize: 40,
+                          fontWeight: FontWeight.w900,
+                          height: 1,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        '$typeLabel · $dateLabel',
+                        style: const TextStyle(
+                            color: _secondaryText,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 14),
+                // Workout details — 2-column grid of colored stats.
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.fromLTRB(18, 18, 18, 4),
                   decoration: BoxDecoration(
                     color: _surfaceAlt,
                     borderRadius: BorderRadius.circular(20),
@@ -4319,28 +4382,62 @@ class _ActivityDetailsSheet extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _detailRow('Date', dateLabel),
-                      if (stepsLabel != null) _detailRow('Steps', stepsLabel!),
-                      _detailRow('Duration', durationLabel),
-                      if (distanceLabel != null)
-                        _detailRow('Distance', distanceLabel!),
-                      if (caloriesLabel != null)
-                        _detailRow('Calories burned', caloriesLabel!),
-                      if (hasNotes) ...[
-                        const Text(
-                          'Notes',
-                          style: TextStyle(
-                            color: _secondaryText,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
+                      const Text(
+                        'Workout details',
+                        style: TextStyle(
+                          color: _primaryText,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      for (var i = 0; i < stats.length; i += 2)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 16),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(child: _statCell(stats[i])),
+                              Expanded(
+                                child: i + 1 < stats.length
+                                    ? _statCell(stats[i + 1])
+                                    : const SizedBox(),
+                              ),
+                            ],
                           ),
                         ),
-                        const SizedBox(height: 8),
-                        _detailNotes(notes!.trim()),
-                      ],
                     ],
                   ),
                 ),
+                if (hasNotes) ...[
+                  const SizedBox(height: 14),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: _surfaceAlt,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: _border.withValues(alpha: 0.8)),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.info_outline_rounded,
+                            color: _secondaryText, size: 18),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            notes!.trim(),
+                            style: const TextStyle(
+                                color: _secondaryText,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                height: 1.4),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
