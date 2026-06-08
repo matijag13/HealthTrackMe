@@ -335,7 +335,8 @@ class _DashboardScreenState extends State<DashboardScreen>
   /// Adds water to today's total and upserts the day's entry. Optimistic so the
   /// card responds instantly.
   Future<void> _addWater(int ml) async {
-    final newTotal = _waterToday + ml;
+    final newTotal = (_waterToday + ml).clamp(0, 99999);
+    if (newTotal == _waterToday) return;
     setState(() => _waterToday = newTotal);
     final now = DateTime.now();
     final dateStr =
@@ -436,6 +437,26 @@ class _DashboardScreenState extends State<DashboardScreen>
                       child: _waterButton('+500 ml', () => _addWater(500))),
                 ],
               ),
+              if (_waterToday > 0) ...[
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _waterSubtractButton(
+                        '−250 ml',
+                        _waterToday >= 250 ? () => _addWater(-250) : null,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: _waterSubtractButton(
+                        '−500 ml',
+                        _waterToday >= 500 ? () => _addWater(-500) : null,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ],
           ),
         ),
@@ -458,6 +479,33 @@ class _DashboardScreenState extends State<DashboardScreen>
             child: Text(label,
                 style: const TextStyle(
                     color: water, fontWeight: FontWeight.w800, fontSize: 13)),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _waterSubtractButton(String label, VoidCallback? onTap) {
+    final enabled = onTap != null;
+    return Material(
+      color: Colors.white.withValues(alpha: enabled ? 0.05 : 0.02),
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 9),
+          child: Center(
+            child: Text(
+              label,
+              style: TextStyle(
+                color: enabled
+                    ? _secondaryText
+                    : _secondaryText.withValues(alpha: 0.3),
+                fontWeight: FontWeight.w700,
+                fontSize: 12.5,
+              ),
+            ),
           ),
         ),
       ),
