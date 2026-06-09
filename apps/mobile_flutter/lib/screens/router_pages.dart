@@ -7408,73 +7408,6 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
     );
   }
 
-  Future<void> _showApiConfiguration() async {
-    final api = ApiService.instance;
-    final debugInfo = await api.getDebugInfo();
-    if (!mounted) return;
-    final l10n = context.l10n;
-
-    await showDialog<void>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: _surface,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-          side: const BorderSide(color: _border),
-        ),
-        title: Text(
-          l10n.apiConfiguration,
-          style: const TextStyle(
-            color: _primaryText,
-            fontWeight: FontWeight.w900,
-          ),
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _debugLine(l10n.baseUrl, debugInfo['currentBaseUrl'].toString()),
-            _debugLine(
-                l10n.platform, debugInfo['isWeb'] ? l10n.web : l10n.mobile),
-            _debugLine(
-              l10n.apiReachable,
-              debugInfo['canReachApi'] == true ? l10n.yes : l10n.no,
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text(l10n.close),
-          ),
-          TextButton(
-            onPressed: () async {
-              await api.resetApiConfiguration();
-              if (!ctx.mounted || !mounted) return;
-              Navigator.pop(ctx);
-              _snack(l10n.apiConfigurationReset);
-            },
-            child: Text(l10n.resetApi, style: const TextStyle(color: _danger)),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _debugLine(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: Text(
-        '$label: $value',
-        style: const TextStyle(
-          color: _secondaryText,
-          fontFamily: 'monospace',
-          fontSize: 12,
-        ),
-      ),
-    );
-  }
-
   void _snack(String message) {
     ScaffoldMessenger.of(context)
         .showSnackBar(SnackBar(content: Text(message)));
@@ -7538,16 +7471,6 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
                           title: context.l10n.privacyPolicy,
                           subtitle: context.l10n.privacyPolicySubtitle,
                           onTap: _showPrivacyPolicy,
-                        ),
-                      ]),
-                      const SizedBox(height: 22),
-                      _section(context.l10n.developerDebug, [
-                        _SettingsTile(
-                          icon: Icons.api_outlined,
-                          accent: _accent,
-                          title: context.l10n.apiConfiguration,
-                          subtitle: context.l10n.apiConfigurationSubtitle,
-                          onTap: _showApiConfiguration,
                         ),
                       ]),
                     ]),

@@ -129,6 +129,37 @@ void _showMedicineToast(
   );
 }
 
+class _MedicineDialogCloseButton extends StatelessWidget {
+  final VoidCallback onTap;
+
+  const _MedicineDialogCloseButton({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(999),
+        child: Ink(
+          width: 40,
+          height: 40,
+          decoration: BoxDecoration(
+            color: _MedicinesScreenState._surfaceSoft,
+            shape: BoxShape.circle,
+            border: Border.all(color: _MedicinesScreenState._border),
+          ),
+          child: const Icon(
+            Icons.close_rounded,
+            color: _MedicinesScreenState._primaryText,
+            size: 24,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 /// Medicines screen — fully rewritten UI + bug fixes:
 ///
 /// BUG FIX: getMedicines() used _effectiveUserId() which is synchronous and
@@ -1113,30 +1144,53 @@ class _MedicinesScreenState extends State<MedicinesScreen>
 
   Future<void> _confirmDelete(Medicine m) async {
     if (_deletingMedicineIds.contains(m.id)) return;
+    final l10n = context.l10n;
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: _surface,
         surfaceTintColor: Colors.transparent,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text(
-          context.l10n.deleteMedicineQuestion,
-          style:
-              const TextStyle(color: _primaryText, fontWeight: FontWeight.w800),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+          side: const BorderSide(color: _border),
+        ),
+        insetPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 24),
+        titlePadding: const EdgeInsets.fromLTRB(20, 18, 12, 0),
+        contentPadding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
+        actionsPadding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+        title: Row(
+          children: [
+            Expanded(
+              child: Text(
+                l10n.deleteMedicineQuestion,
+                style: const TextStyle(
+                  color: _primaryText,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ),
+            _MedicineDialogCloseButton(onTap: () => Navigator.pop(ctx, false)),
+          ],
         ),
         content: Text(
-          context.l10n.removeMedicineFromList(m.name),
+          l10n.removeMedicineFromList(m.name),
           style: const TextStyle(color: _mutedText),
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text(context.l10n.cancel),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: FilledButton.styleFrom(backgroundColor: _danger),
-            child: Text(context.l10n.delete),
+          SizedBox(
+            width: double.infinity,
+            height: 48,
+            child: FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              style: FilledButton.styleFrom(
+                backgroundColor: _danger,
+                foregroundColor: _primaryText,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
+              child: Text(l10n.delete),
+            ),
           ),
         ],
       ),

@@ -40,23 +40,6 @@ class ApiService {
 
   int? get activeUserId => _activeUserId;
 
-  /// Get current API configuration for debugging
-  Future<Map<String, dynamic>> getDebugInfo() async {
-    return {
-      'currentBaseUrl': _baseUrl,
-      'isWeb': kIsWeb,
-      'canReachApi': await canReachBackend(),
-    };
-  }
-
-  /// Completely reset API configuration (clears all api-related prefs and uses defaults)
-  Future<void> resetApiConfiguration() async {
-    debugPrint('Resetting API configuration...');
-    await _prefs.remove(_prefsKeyBaseUrl);
-    _baseUrl = _resolveDefaultBaseUrl();
-    _sportActivitiesEndpointMissing = false;
-  }
-
   Future<void> init() async {
     _prefs = await SharedPreferences.getInstance();
 

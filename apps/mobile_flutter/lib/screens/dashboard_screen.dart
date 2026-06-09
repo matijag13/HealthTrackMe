@@ -534,6 +534,7 @@ class _DashboardScreenState extends State<DashboardScreen>
   /// a 7h goal. Returns an empty box when there's nothing to project.
   Widget _buildOnPaceCard() {
     if (_onPaceDismissed) return const SizedBox.shrink();
+    final l10n = context.l10n;
     final now = DateTime.now();
     final todayMidnight = DateTime(now.year, now.month, now.day);
     final insights = <_PaceInsight>[];
@@ -554,8 +555,12 @@ class _DashboardScreenState extends State<DashboardScreen>
       insights.add(_PaceInsight(
         icon: Icons.directions_run_rounded,
         text: onTrack
-            ? '${activeDays.length} active day(s) so far — on pace for $projected this week 💪'
-            : '${activeDays.length} active day(s) — on pace for $projected of $weeklyGoal this week',
+            ? l10n.activeDaysOnPace(activeDays.length, projected)
+            : l10n.activeDaysBelowPace(
+                activeDays.length,
+                projected,
+                weeklyGoal,
+              ),
         onTrack: onTrack,
       ));
     }
@@ -574,8 +579,15 @@ class _DashboardScreenState extends State<DashboardScreen>
       insights.add(_PaceInsight(
         icon: Icons.bedtime_rounded,
         text: onTrack
-            ? 'Sleeping ${avg.toStringAsFixed(1)}h on average — on track for your ${sleepGoal.toStringAsFixed(0)}h goal'
-            : 'Sleeping ${avg.toStringAsFixed(1)}h on average — ${gap}h below your ${sleepGoal.toStringAsFixed(0)}h goal',
+            ? l10n.sleepingAverageOnTrack(
+                avg.toStringAsFixed(1),
+                sleepGoal.toStringAsFixed(0),
+              )
+            : l10n.sleepingAverageBelowGoal(
+                avg.toStringAsFixed(1),
+                gap,
+                sleepGoal.toStringAsFixed(0),
+              ),
         onTrack: onTrack,
       ));
     }

@@ -353,7 +353,7 @@ abstract class AppLocalizations {
   /// No description provided for @personalDetailsSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'Name, DOB, gender, height'**
+  /// **'Name, date of birth'**
   String get personalDetailsSubtitle;
 
   /// No description provided for @friendsLeaderboard.
@@ -1749,12 +1749,6 @@ abstract class AppLocalizations {
   /// **'Update your account password'**
   String get changePasswordSubtitle;
 
-  /// No description provided for @debug.
-  ///
-  /// In en, this message translates to:
-  /// **'Debug'**
-  String get debug;
-
   /// No description provided for @notificationsSection.
   ///
   /// In en, this message translates to:
@@ -1779,29 +1773,11 @@ abstract class AppLocalizations {
   /// **'Data & Privacy'**
   String get dataPrivacy;
 
-  /// No description provided for @developerDebug.
-  ///
-  /// In en, this message translates to:
-  /// **'Developer / Debug'**
-  String get developerDebug;
-
   /// No description provided for @couldNotDeleteAccount.
   ///
   /// In en, this message translates to:
   /// **'Could not delete account'**
   String get couldNotDeleteAccount;
-
-  /// No description provided for @apiConfiguration.
-  ///
-  /// In en, this message translates to:
-  /// **'API Configuration'**
-  String get apiConfiguration;
-
-  /// No description provided for @apiConfigurationSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'View and reset API settings'**
-  String get apiConfigurationSubtitle;
 
   /// No description provided for @enterTime.
   ///
@@ -1887,24 +1863,6 @@ abstract class AppLocalizations {
   /// **'Update password'**
   String get updatePassword;
 
-  /// No description provided for @baseUrl.
-  ///
-  /// In en, this message translates to:
-  /// **'Base URL'**
-  String get baseUrl;
-
-  /// No description provided for @platform.
-  ///
-  /// In en, this message translates to:
-  /// **'Platform'**
-  String get platform;
-
-  /// No description provided for @apiReachable.
-  ///
-  /// In en, this message translates to:
-  /// **'API reachable'**
-  String get apiReachable;
-
   /// No description provided for @yes.
   ///
   /// In en, this message translates to:
@@ -1916,30 +1874,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'No'**
   String get no;
-
-  /// No description provided for @web.
-  ///
-  /// In en, this message translates to:
-  /// **'Web'**
-  String get web;
-
-  /// No description provided for @mobile.
-  ///
-  /// In en, this message translates to:
-  /// **'Mobile'**
-  String get mobile;
-
-  /// No description provided for @resetApi.
-  ///
-  /// In en, this message translates to:
-  /// **'Reset API'**
-  String get resetApi;
-
-  /// No description provided for @apiConfigurationReset.
-  ///
-  /// In en, this message translates to:
-  /// **'API configuration reset'**
-  String get apiConfigurationReset;
 
   /// No description provided for @privacyPolicyLastUpdated.
   ///

@@ -142,7 +142,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get personalDetails => 'Personal details';
 
   @override
-  String get personalDetailsSubtitle => 'Name, DOB, gender, height';
+  String get personalDetailsSubtitle => 'Name, date of birth';
 
   @override
   String get friendsLeaderboard => 'Friends & leaderboard';
@@ -929,9 +929,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get changePasswordSubtitle => 'Update your account password';
 
   @override
-  String get debug => 'Debug';
-
-  @override
   String get notificationsSection => 'Notifications';
 
   @override
@@ -945,16 +942,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get dataPrivacy => 'Data & Privacy';
 
   @override
-  String get developerDebug => 'Developer / Debug';
-
-  @override
   String get couldNotDeleteAccount => 'Could not delete account';
-
-  @override
-  String get apiConfiguration => 'API Configuration';
-
-  @override
-  String get apiConfigurationSubtitle => 'View and reset API settings';
 
   @override
   String get enterTime => 'Enter time';
@@ -1002,31 +990,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get updatePassword => 'Update password';
 
   @override
-  String get baseUrl => 'Base URL';
-
-  @override
-  String get platform => 'Platform';
-
-  @override
-  String get apiReachable => 'API reachable';
-
-  @override
   String get yes => 'Yes';
 
   @override
   String get no => 'No';
-
-  @override
-  String get web => 'Web';
-
-  @override
-  String get mobile => 'Mobile';
-
-  @override
-  String get resetApi => 'Reset API';
-
-  @override
-  String get apiConfigurationReset => 'API configuration reset';
 
   @override
   String get privacyPolicyLastUpdated => 'Last updated: June 7, 2026';

@@ -141,7 +141,7 @@ class AppLocalizationsSl extends AppLocalizations {
   String get personalDetails => 'Osebni podatki';
 
   @override
-  String get personalDetailsSubtitle => 'Ime, datum rojstva, spol, višina';
+  String get personalDetailsSubtitle => 'Ime, datum rojstva';
 
   @override
   String get friendsLeaderboard => 'Prijatelji in lestvica';
@@ -932,9 +932,6 @@ class AppLocalizationsSl extends AppLocalizations {
   String get changePasswordSubtitle => 'Posodobi geslo računa';
 
   @override
-  String get debug => 'Razhroščevanje';
-
-  @override
   String get notificationsSection => 'Obvestila';
 
   @override
@@ -948,16 +945,7 @@ class AppLocalizationsSl extends AppLocalizations {
   String get dataPrivacy => 'Podatki in zasebnost';
 
   @override
-  String get developerDebug => 'Razvijalec / razhroščevanje';
-
-  @override
   String get couldNotDeleteAccount => 'Računa ni bilo mogoče izbrisati';
-
-  @override
-  String get apiConfiguration => 'API konfiguracija';
-
-  @override
-  String get apiConfigurationSubtitle => 'Preglej in ponastavi API nastavitve';
 
   @override
   String get enterTime => 'Vnesi čas';
@@ -1005,31 +993,10 @@ class AppLocalizationsSl extends AppLocalizations {
   String get updatePassword => 'Posodobi geslo';
 
   @override
-  String get baseUrl => 'Osnovni URL';
-
-  @override
-  String get platform => 'Platforma';
-
-  @override
-  String get apiReachable => 'API dosegljiv';
-
-  @override
   String get yes => 'Da';
 
   @override
   String get no => 'Ne';
-
-  @override
-  String get web => 'Splet';
-
-  @override
-  String get mobile => 'Mobilna aplikacija';
-
-  @override
-  String get resetApi => 'Ponastavi API';
-
-  @override
-  String get apiConfigurationReset => 'API konfiguracija ponastavljena';
 
   @override
   String get privacyPolicyLastUpdated => 'Nazadnje posodobljeno: 7. junij 2026';

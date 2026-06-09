@@ -249,11 +249,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
           children: [
             // Bumped on each notification fix so we can confirm the running
             // build actually contains the latest changes.
-            _debugLine(l10n.build, 'notif-fix-6 (no-r8)'),
-            _debugLine(l10n.notificationsAllowed, enabled ? l10n.yes : l10n.no),
-            _debugLine(l10n.exactAlarmsAllowed, canExact ? l10n.yes : l10n.no),
-            _debugLine(l10n.timezone, tzName),
-            _debugLine(l10n.scheduledPending, '$pending'),
+            _statusLine(l10n.build, 'notif-fix-6 (no-r8)'),
+            _statusLine(
+                l10n.notificationsAllowed, enabled ? l10n.yes : l10n.no),
+            _statusLine(l10n.exactAlarmsAllowed, canExact ? l10n.yes : l10n.no),
+            _statusLine(l10n.timezone, tzName),
+            _statusLine(l10n.scheduledPending, '$pending'),
             const SizedBox(height: 12),
             Text(
               canExact
@@ -320,53 +321,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Future<void> _showApiConfiguration() async {
-    final debugInfo = await _api.getDebugInfo();
-    if (!mounted) return;
-
-    await showDialog<void>(
-      context: context,
-      builder: (ctx) => _DarkDialog(
-        title: context.l10n.apiConfiguration,
-        content: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _debugLine(
-                context.l10n.baseUrl, debugInfo['currentBaseUrl'].toString()),
-            _debugLine(
-              context.l10n.platform,
-              debugInfo['isWeb'] ? context.l10n.web : context.l10n.mobile,
-            ),
-            _debugLine(
-              context.l10n.apiReachable,
-              debugInfo['canReachApi'] == true
-                  ? context.l10n.yes
-                  : context.l10n.no,
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text(context.l10n.close),
-          ),
-          TextButton(
-            onPressed: () async {
-              await _api.resetApiConfiguration();
-              if (!ctx.mounted || !mounted) return;
-              Navigator.pop(ctx);
-              _showSnack(context.l10n.apiConfigurationReset);
-            },
-            child: Text(context.l10n.resetApi,
-                style: const TextStyle(color: _danger)),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _debugLine(String label, String value) {
+  Widget _statusLine(String label, String value) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: Text(
@@ -593,16 +548,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           title: context.l10n.changePassword,
                           subtitle: context.l10n.changePasswordSubtitle,
                           onTap: _showChangePasswordSheet,
-                        ),
-                      ]),
-                      const SizedBox(height: 22),
-                      _section(context.l10n.debug, [
-                        _ProfileTile(
-                          icon: Icons.api_outlined,
-                          accent: _accent,
-                          title: context.l10n.apiConfiguration,
-                          subtitle: context.l10n.apiConfigurationSubtitle,
-                          onTap: _showApiConfiguration,
                         ),
                       ]),
                     ]),
@@ -2142,13 +2087,26 @@ class _LanguageTile extends StatelessWidget {
   }
 }
 
-class _LanguageDialog extends StatelessWidget {
+class _LanguageDialog extends StatefulWidget {
   const _LanguageDialog();
 
-  Future<void> _select(BuildContext context, String languageCode) async {
-    await context.read<LocaleProvider>().setLocale(Locale(languageCode));
-    if (!context.mounted) return;
-    final selectedL10n = lookupAppLocalizations(Locale(languageCode));
+  @override
+  State<_LanguageDialog> createState() => _LanguageDialogState();
+}
+
+class _LanguageDialogState extends State<_LanguageDialog> {
+  late String _selectedCode;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedCode = context.read<LocaleProvider>().languageCode;
+  }
+
+  Future<void> _save() async {
+    final selectedL10n = lookupAppLocalizations(Locale(_selectedCode));
+    await context.read<LocaleProvider>().setLocale(Locale(_selectedCode));
+    if (!mounted) return;
     Navigator.pop(context);
     _showProfileToast(
       context,
@@ -2160,7 +2118,6 @@ class _LanguageDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final selectedCode = context.watch<LocaleProvider>().languageCode;
     return AlertDialog(
       backgroundColor: _ProfileScreenState._surface,
       shape: RoundedRectangleBorder(
@@ -2170,6 +2127,7 @@ class _LanguageDialog extends StatelessWidget {
       insetPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 24),
       titlePadding: const EdgeInsets.fromLTRB(20, 18, 12, 0),
       contentPadding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
+      actionsPadding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
       title: Row(
         children: [
           Expanded(
@@ -2196,18 +2154,35 @@ class _LanguageDialog extends StatelessWidget {
           children: [
             _LanguageOption(
               title: l10n.english,
-              selected: selectedCode == 'en',
-              onTap: () => _select(context, 'en'),
+              selected: _selectedCode == 'en',
+              onTap: () => setState(() => _selectedCode = 'en'),
             ),
             const SizedBox(height: 10),
             _LanguageOption(
               title: l10n.slovenian,
-              selected: selectedCode == 'sl',
-              onTap: () => _select(context, 'sl'),
+              selected: _selectedCode == 'sl',
+              onTap: () => setState(() => _selectedCode = 'sl'),
             ),
           ],
         ),
       ),
+      actions: [
+        SizedBox(
+          width: double.infinity,
+          height: 48,
+          child: FilledButton(
+            onPressed: _save,
+            style: FilledButton.styleFrom(
+              backgroundColor: _ProfileScreenState._accent,
+              foregroundColor: _ProfileScreenState._primaryText,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
+            ),
+            child: Text(l10n.save),
+          ),
+        ),
+      ],
     );
   }
 }
