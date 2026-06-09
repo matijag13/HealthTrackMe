@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../l10n/l10n.dart';
 import '../models/social_models.dart';
 import '../services/api_service.dart';
 
@@ -92,6 +93,7 @@ class _FriendsScreenState extends State<FriendsScreen> {
   }
 
   Future<void> _addFriend() async {
+    final l10n = context.l10n;
     final controller = TextEditingController();
     final email = await showDialog<String>(
       context: context,
@@ -101,8 +103,9 @@ class _FriendsScreenState extends State<FriendsScreen> {
           borderRadius: BorderRadius.circular(20),
           side: const BorderSide(color: _border),
         ),
-        title: const Text('Add a friend',
-            style: TextStyle(color: _primaryText, fontWeight: FontWeight.w800)),
+        title: Text(l10n.addAFriend,
+            style: const TextStyle(
+                color: _primaryText, fontWeight: FontWeight.w800)),
         content: TextField(
           controller: controller,
           autofocus: true,
@@ -110,7 +113,7 @@ class _FriendsScreenState extends State<FriendsScreen> {
           style: const TextStyle(color: _primaryText),
           cursorColor: _accent,
           decoration: InputDecoration(
-            labelText: "Their email",
+            labelText: l10n.theirEmail,
             labelStyle: const TextStyle(color: _secondaryText),
             hintText: 'friend@example.com',
             hintStyle: TextStyle(color: _secondaryText.withValues(alpha: 0.6)),
@@ -130,28 +133,28 @@ class _FriendsScreenState extends State<FriendsScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
-            child:
-                const Text('Cancel', style: TextStyle(color: _secondaryText)),
+            child: Text(l10n.cancel,
+                style: const TextStyle(color: _secondaryText)),
           ),
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: _accent),
             onPressed: () => Navigator.of(ctx).pop(controller.text.trim()),
-            child: const Text('Send request'),
+            child: Text(l10n.sendRequest),
           ),
         ],
       ),
     );
     if (email == null || email.isEmpty) return;
     final error = await _api.sendFriendRequest(email);
-    _snack(error ?? 'Friend request sent to $email');
+    _snack(error ?? l10n.friendRequestSentTo(email));
     if (error == null) await _refresh();
   }
 
   Future<void> _respond(Friend f, bool accept) async {
+    final l10n = context.l10n;
     final error = await _api.respondToFriendRequest(f.friendshipId, accept);
     if (error == null) {
-      _snack(
-          accept ? 'You are now friends with ${f.name}' : 'Request declined');
+      _snack(accept ? l10n.youAreNowFriendsWith(f.name) : l10n.requestDeclined);
       await _refresh();
     } else {
       _snack(error);
@@ -159,6 +162,7 @@ class _FriendsScreenState extends State<FriendsScreen> {
   }
 
   Future<void> _remove(Friend f) async {
+    final l10n = context.l10n;
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -167,20 +171,21 @@ class _FriendsScreenState extends State<FriendsScreen> {
           borderRadius: BorderRadius.circular(20),
           side: const BorderSide(color: _border),
         ),
-        title: const Text('Remove friend?',
-            style: TextStyle(color: _primaryText, fontWeight: FontWeight.w800)),
-        content: Text('Remove ${f.name} from your friends?',
+        title: Text(l10n.removeFriendQuestion,
+            style: const TextStyle(
+                color: _primaryText, fontWeight: FontWeight.w800)),
+        content: Text(l10n.removeFriendConfirm(f.name),
             style: const TextStyle(color: _secondaryText)),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
-            child:
-                const Text('Cancel', style: TextStyle(color: _secondaryText)),
+            child: Text(l10n.cancel,
+                style: const TextStyle(color: _secondaryText)),
           ),
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: _danger),
             onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text('Remove'),
+            child: Text(l10n.remove),
           ),
         ],
       ),
@@ -188,10 +193,10 @@ class _FriendsScreenState extends State<FriendsScreen> {
     if (confirm != true) return;
     final ok = await _api.removeFriend(f.friendshipId);
     if (ok) {
-      _snack('Removed ${f.name}');
+      _snack(l10n.removedFriend(f.name));
       await _refresh();
     } else {
-      _snack('Could not remove friend');
+      _snack(l10n.couldNotRemoveFriend);
     }
   }
 
@@ -225,9 +230,9 @@ class _FriendsScreenState extends State<FriendsScreen> {
                   }
                   final data = snap.data;
                   if (data == null) {
-                    return const Center(
-                      child: Text('Could not load friends',
-                          style: TextStyle(color: _secondaryText)),
+                    return Center(
+                      child: Text(context.l10n.couldNotLoadFriends,
+                          style: const TextStyle(color: _secondaryText)),
                     );
                   }
                   return RefreshIndicator(
@@ -251,7 +256,7 @@ class _FriendsScreenState extends State<FriendsScreen> {
     return Row(
       children: [
         IconButton(
-          tooltip: 'Back',
+          tooltip: context.l10n.cancel,
           onPressed: () {
             if (context.canPop()) {
               context.pop();
@@ -270,12 +275,12 @@ class _FriendsScreenState extends State<FriendsScreen> {
           ),
         ),
         const SizedBox(width: 12),
-        const Expanded(
+        Expanded(
           child: Text(
-            'Friends',
+            context.l10n.friends,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: TextStyle(
+            style: const TextStyle(
               color: _primaryText,
               fontSize: 22,
               fontWeight: FontWeight.w900,
@@ -283,7 +288,7 @@ class _FriendsScreenState extends State<FriendsScreen> {
           ),
         ),
         IconButton(
-          tooltip: 'Add friend',
+          tooltip: context.l10n.addFriend,
           onPressed: _addFriend,
           icon: const Icon(Icons.person_add_alt_1_rounded),
           color: _primaryText,
@@ -309,8 +314,8 @@ class _FriendsScreenState extends State<FriendsScreen> {
       ),
       child: Row(
         children: [
-          _segItem('Leaderboard', 0),
-          _segItem('Friends', 1),
+          _segItem(context.l10n.leaderboard, 0),
+          _segItem(context.l10n.friends, 1),
         ],
       ),
     );
@@ -353,17 +358,17 @@ class _FriendsScreenState extends State<FriendsScreen> {
           const SizedBox(height: 70),
           _emptyIcon(Icons.emoji_events_rounded, _gold),
           const SizedBox(height: 18),
-          const Text(
-            'Add friends to compete',
+          Text(
+            context.l10n.addFriendsToCompete,
             textAlign: TextAlign.center,
-            style: TextStyle(
+            style: const TextStyle(
                 color: _primaryText, fontSize: 17, fontWeight: FontWeight.w800),
           ),
           const SizedBox(height: 8),
-          const Text(
-            'Your Health Shield points and streak go head-to-head with friends. No health data is shared.',
+          Text(
+            context.l10n.friendsHealthShieldInfo,
             textAlign: TextAlign.center,
-            style: TextStyle(color: _secondaryText, height: 1.4),
+            style: const TextStyle(color: _secondaryText, height: 1.4),
           ),
           const SizedBox(height: 22),
           Center(child: _addButton()),
@@ -441,7 +446,7 @@ class _FriendsScreenState extends State<FriendsScreen> {
                 ),
                 const SizedBox(height: 3),
                 Text(
-                  'Lvl ${e.level} · ${e.levelName}',
+                  '${context.l10n.levelShort} ${e.level} - ${e.levelName}',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(color: _secondaryText, fontSize: 12),
@@ -462,8 +467,8 @@ class _FriendsScreenState extends State<FriendsScreen> {
                   height: 1,
                 ),
               ),
-              const Text('pts',
-                  style: TextStyle(color: _secondaryText, fontSize: 11)),
+              Text(context.l10n.pointsShort,
+                  style: const TextStyle(color: _secondaryText, fontSize: 11)),
               if (e.streak > 0) ...[
                 const SizedBox(height: 4),
                 Text('🔥 ${e.streak}',
@@ -487,18 +492,18 @@ class _FriendsScreenState extends State<FriendsScreen> {
       padding: const EdgeInsets.fromLTRB(20, 4, 20, 28),
       children: [
         if (data.incoming.isNotEmpty) ...[
-          _sectionLabel('Requests'),
+          _sectionLabel(context.l10n.requests),
           ...data.incoming.map(_incomingCard),
           const SizedBox(height: 18),
         ],
-        _sectionLabel('Your friends'),
+        _sectionLabel(context.l10n.yourFriends),
         if (data.friends.isEmpty)
           _friendsEmpty()
         else
           ...data.friends.map(_friendCard),
         if (data.outgoing.isNotEmpty) ...[
           const SizedBox(height: 18),
-          _sectionLabel('Pending'),
+          _sectionLabel(context.l10n.pending),
           ...data.outgoing.map(_pendingCard),
         ],
       ],
@@ -537,8 +542,8 @@ class _FriendsScreenState extends State<FriendsScreen> {
           borderRadius: BorderRadius.circular(999),
           border: Border.all(color: _border),
         ),
-        child: const Text('Pending',
-            style: TextStyle(color: _secondaryText, fontSize: 11.5)),
+        child: Text(context.l10n.pending,
+            style: const TextStyle(color: _secondaryText, fontSize: 11.5)),
       ),
     );
   }
@@ -593,13 +598,13 @@ class _FriendsScreenState extends State<FriendsScreen> {
       ),
       child: Column(
         children: [
-          const Text('No friends yet',
-              style:
-                  TextStyle(color: _primaryText, fontWeight: FontWeight.w800)),
+          Text(context.l10n.noFriendsYet,
+              style: const TextStyle(
+                  color: _primaryText, fontWeight: FontWeight.w800)),
           const SizedBox(height: 6),
-          const Text('Add someone by their email to get started.',
+          Text(context.l10n.addSomeoneByEmail,
               textAlign: TextAlign.center,
-              style: TextStyle(color: _secondaryText, fontSize: 13)),
+              style: const TextStyle(color: _secondaryText, fontSize: 13)),
           const SizedBox(height: 14),
           _addButton(),
         ],
@@ -618,7 +623,7 @@ class _FriendsScreenState extends State<FriendsScreen> {
       ),
       onPressed: _addFriend,
       icon: const Icon(Icons.person_add_alt_1_rounded, size: 18),
-      label: const Text('Add a friend'),
+      label: Text(context.l10n.addAFriend),
     );
   }
 

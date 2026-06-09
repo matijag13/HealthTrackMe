@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../l10n/l10n.dart';
 import '../models/models.dart';
 import '../services/api_service.dart';
 
@@ -641,12 +642,12 @@ class _HealthShieldScreenState extends State<HealthShieldScreen> {
           ),
         ),
         const SizedBox(width: 12),
-        const Expanded(
+        Expanded(
           child: Text(
-            'Health Shield',
+            context.l10n.healthShield,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: TextStyle(
+            style: const TextStyle(
               color: _primaryText,
               fontSize: 22,
               fontWeight: FontWeight.w900,
@@ -661,8 +662,8 @@ class _HealthShieldScreenState extends State<HealthShieldScreen> {
   Widget _buildHeroCard() {
     final progress = (_snapshot.levelProgressPercent / 100).clamp(0.0, 1.0);
     final nextLevelLabel = _snapshot.xpToNextLevel == 0
-        ? 'Max level'
-        : '${_snapshot.xpToNextLevel} XP left';
+        ? context.l10n.maxLevel
+        : context.l10n.xpLeft(_snapshot.xpToNextLevel);
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -688,9 +689,9 @@ class _HealthShieldScreenState extends State<HealthShieldScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      'Level progress',
-                      style: TextStyle(
+                    Text(
+                      context.l10n.levelProgress,
+                      style: const TextStyle(
                         color: _secondaryText,
                         fontSize: 13,
                         fontWeight: FontWeight.w800,
@@ -698,7 +699,7 @@ class _HealthShieldScreenState extends State<HealthShieldScreen> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      '${_snapshot.totalXp} total XP',
+                      context.l10n.totalXp(_snapshot.totalXp),
                       style:
                           const TextStyle(color: _secondaryText, height: 1.25),
                     ),
@@ -742,20 +743,23 @@ class _HealthShieldScreenState extends State<HealthShieldScreen> {
           Row(
             children: [
               Expanded(
-                child: _heroStat('Level ${_snapshot.level}', 'Level'),
+                child: _heroStat(
+                  context.l10n.levelNumber(_snapshot.level),
+                  context.l10n.level,
+                ),
               ),
               const SizedBox(width: 10),
               Expanded(
                 child: _heroStat(
                   nextLevelLabel,
-                  'Next level',
+                  context.l10n.nextLevel,
                 ),
               ),
               const SizedBox(width: 10),
               Expanded(
                 child: _heroStat(
                   '${_snapshot.todayXp}/${_snapshot.maxApplicableXp} XP',
-                  'Today',
+                  context.l10n.today,
                 ),
               ),
             ],
@@ -799,22 +803,22 @@ class _HealthShieldScreenState extends State<HealthShieldScreen> {
   }
 
   Widget _buildGoalsHeader() {
-    return const Column(
+    return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Today\'s Shield',
-          style: TextStyle(
+          context.l10n.todaysShield,
+          style: const TextStyle(
             color: _primaryText,
             fontSize: 20,
             fontWeight: FontWeight.w900,
             letterSpacing: 0,
           ),
         ),
-        SizedBox(height: 6),
+        const SizedBox(height: 6),
         Text(
-          'Complete today\'s shield to earn XP.',
-          style: TextStyle(color: _secondaryText),
+          context.l10n.completeTodaysShieldEarnXp,
+          style: const TextStyle(color: _secondaryText),
         ),
       ],
     );
@@ -824,11 +828,11 @@ class _HealthShieldScreenState extends State<HealthShieldScreen> {
     final meta = _goalMeta(goal.type);
     final statusText = goal.applicable
         ? goal.fallbackActive
-            ? 'Tracking active'
+            ? context.l10n.trackingActive
             : goal.completed
-                ? 'Completed'
-                : 'Not completed'
-        : 'Not applicable';
+                ? context.l10n.completed
+                : context.l10n.notCompleted
+        : context.l10n.notApplicable;
     final statusColor = goal.applicable
         ? goal.completed
             ? _green
@@ -868,7 +872,9 @@ class _HealthShieldScreenState extends State<HealthShieldScreen> {
                       ),
                       const SizedBox(width: 8),
                       Text(
-                        goal.applicable ? '+${goal.maxXp} XP' : '0 XP',
+                        goal.applicable
+                            ? context.l10n.xpReward(goal.maxXp)
+                            : context.l10n.xpValue(0),
                         style: TextStyle(
                           color: goal.applicable ? meta.color : _secondaryText,
                           fontWeight: FontWeight.w900,
@@ -879,7 +885,7 @@ class _HealthShieldScreenState extends State<HealthShieldScreen> {
                   ),
                   const SizedBox(height: 7),
                   Text(
-                    goal.description,
+                    _goalDescription(goal),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(color: _secondaryText, height: 1.3),
@@ -925,7 +931,7 @@ class _HealthShieldScreenState extends State<HealthShieldScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _sectionTitle('Weekly progress'),
+        _sectionTitle(context.l10n.weeklyProgress),
         const SizedBox(height: 12),
         Container(
           padding: const EdgeInsets.all(16),
@@ -940,15 +946,15 @@ class _HealthShieldScreenState extends State<HealthShieldScreen> {
                 children: [
                   Expanded(
                     child: _metricTile(
-                      '${weekly.xpThisWeek} XP',
-                      'XP this week',
+                      context.l10n.xpValue(weekly.xpThisWeek),
+                      context.l10n.xpThisWeek,
                     ),
                   ),
                   const SizedBox(width: 10),
                   Expanded(
                     child: _metricTile(
                       '${weekly.activeShieldDays}',
-                      'active shield days',
+                      context.l10n.activeShieldDays,
                     ),
                   ),
                 ],
@@ -959,14 +965,14 @@ class _HealthShieldScreenState extends State<HealthShieldScreen> {
                   Expanded(
                     child: _metricTile(
                       '${weekly.completedDailyShields}',
-                      'completed daily shields',
+                      context.l10n.completedDailyShields,
                     ),
                   ),
                   const SizedBox(width: 10),
                   Expanded(
                     child: _metricTile(
-                      weekly.bestCategory,
-                      'best category',
+                      _categoryLabel(weekly.bestCategory),
+                      context.l10n.bestCategory,
                     ),
                   ),
                 ],
@@ -976,15 +982,15 @@ class _HealthShieldScreenState extends State<HealthShieldScreen> {
                 children: [
                   Expanded(
                     child: _metricTile(
-                      weekly.weakestCategory,
-                      'weakest category',
+                      _categoryLabel(weekly.weakestCategory),
+                      context.l10n.weakestCategory,
                     ),
                   ),
                   const SizedBox(width: 10),
                   Expanded(
                     child: _metricTile(
                       '${_snapshot.streakInfo.bestRecentStreak}',
-                      'best recent streak',
+                      context.l10n.bestRecentStreak,
                     ),
                   ),
                 ],
@@ -1000,7 +1006,9 @@ class _HealthShieldScreenState extends State<HealthShieldScreen> {
                   border: Border.all(color: _border.withValues(alpha: 0.65)),
                 ),
                 child: Text(
-                  _snapshot.streakInfo.message,
+                  _snapshot.streakInfo.currentStreak > 0
+                      ? context.l10n.keepYourStreakAlive
+                      : context.l10n.completeShieldKeepStreakAlive,
                   style: const TextStyle(
                     color: _secondaryText,
                     fontWeight: FontWeight.w700,
@@ -1024,7 +1032,7 @@ class _HealthShieldScreenState extends State<HealthShieldScreen> {
       children: [
         Row(
           children: [
-            Expanded(child: _sectionTitle('Recent XP')),
+            Expanded(child: _sectionTitle(context.l10n.recentXp)),
             if (_snapshot.recentEvents.isNotEmpty)
               Container(
                 padding:
@@ -1070,9 +1078,9 @@ class _HealthShieldScreenState extends State<HealthShieldScreen> {
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(color: _border.withValues(alpha: 0.65)),
                   ),
-                  child: const Text(
-                    'Log today\'s habits to earn XP.',
-                    style: TextStyle(
+                  child: Text(
+                    context.l10n.logTodaysHabitsEarnXp,
+                    style: const TextStyle(
                       color: _secondaryText,
                       height: 1.35,
                       fontWeight: FontWeight.w700,
@@ -1118,7 +1126,7 @@ class _HealthShieldScreenState extends State<HealthShieldScreen> {
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
-                                      event.title,
+                                      _xpEventTitle(event.title),
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
                                       style: const TextStyle(
@@ -1128,11 +1136,11 @@ class _HealthShieldScreenState extends State<HealthShieldScreen> {
                                       ),
                                     ),
                                     const SizedBox(height: 4),
-                                    const Text(
-                                      'Added to today\'s shield',
+                                    Text(
+                                      context.l10n.addedToTodaysShield,
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
-                                      style: TextStyle(
+                                      style: const TextStyle(
                                         color: _secondaryText,
                                         fontSize: 12,
                                         fontWeight: FontWeight.w700,
@@ -1235,9 +1243,9 @@ class _HealthShieldScreenState extends State<HealthShieldScreen> {
         borderRadius: BorderRadius.circular(18),
         border: Border.all(color: _border.withValues(alpha: 0.75)),
       ),
-      child: const Text(
-        'Start logging sleep, activity and vitals to build your shield.',
-        style: TextStyle(color: _secondaryText, height: 1.35),
+      child: Text(
+        context.l10n.startLoggingBuildShield,
+        style: const TextStyle(color: _secondaryText, height: 1.35),
       ),
     );
   }
@@ -1277,30 +1285,73 @@ class _HealthShieldScreenState extends State<HealthShieldScreen> {
   _GoalMeta _goalMeta(_GoalType type) {
     switch (type) {
       case _GoalType.sleep:
-        return const _GoalMeta(
-          title: 'Sleep',
+        return _GoalMeta(
+          title: context.l10n.sleep,
           icon: Icons.bedtime_outlined,
           color: _accent,
         );
       case _GoalType.activity:
-        return const _GoalMeta(
-          title: 'Activity',
+        return _GoalMeta(
+          title: context.l10n.activity,
           icon: Icons.directions_run_outlined,
           color: _green,
         );
       case _GoalType.vitals:
-        return const _GoalMeta(
-          title: 'Vitals',
+        return _GoalMeta(
+          title: context.l10n.vitals,
           icon: Icons.monitor_heart_outlined,
           color: _pink,
         );
       case _GoalType.medicine:
-        return const _GoalMeta(
-          title: 'Medicine',
+        return _GoalMeta(
+          title: context.l10n.medicines,
           icon: Icons.medication_outlined,
           color: _orange,
         );
     }
+  }
+
+  String _categoryLabel(String raw) {
+    final l10n = context.l10n;
+    return switch (raw) {
+      'Sleep' => l10n.sleep,
+      'Activity' => l10n.activity,
+      'Vitals' => l10n.vitals,
+      'Medicine' => l10n.medicine,
+      _ => raw,
+    };
+  }
+
+  String _xpEventTitle(String raw) {
+    final l10n = context.l10n;
+    return switch (raw) {
+      'Sleep logged' => l10n.sleepLogged,
+      'Sleep bonus' => l10n.sleepBonus,
+      'Activity completed' => l10n.activityCompleted,
+      'Vitals logged' => l10n.vitalsLogged,
+      'Medicine tracked' => l10n.medicineTracked,
+      'Daily shield bonus' => l10n.dailyShieldBonus,
+      'Complete shield bonus' => l10n.completeShieldBonus,
+      _ => raw,
+    };
+  }
+
+  String _goalDescription(_GoalScore goal) {
+    final l10n = context.l10n;
+    return switch (goal.type) {
+      _GoalType.sleep => goal.completed
+          ? (goal.xp > 20 ? l10n.sleepLoggedBonusXp : l10n.sleepLogged)
+          : l10n.logSleepBuildShield,
+      _GoalType.activity =>
+        goal.completed ? l10n.activityCompleted : l10n.completeTodaysShield,
+      _GoalType.vitals =>
+        goal.completed ? l10n.vitalsLogged : l10n.logOneVitalReading,
+      _GoalType.medicine => goal.fallbackActive
+          ? l10n.trackingActive
+          : goal.completed
+              ? l10n.medicineTrackedToday
+              : l10n.keepYourStreakAlive,
+    };
   }
 }
 

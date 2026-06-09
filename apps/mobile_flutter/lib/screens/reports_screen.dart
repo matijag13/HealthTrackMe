@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../l10n/l10n.dart';
 import '../models/models.dart';
 import '../services/api_service.dart';
 import '../widgets/ai_assistant.dart';
@@ -193,7 +194,7 @@ class _ReportsScreenState extends State<ReportsScreen>
             const SizedBox(width: 10),
             Expanded(
               child: Text(
-                'Insights / Trends',
+                context.l10n.insightsTrends,
                 style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                       color: _primaryText,
                       fontWeight: FontWeight.w900,
@@ -333,47 +334,48 @@ class _HealthOverviewCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     return _InsightCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              const Expanded(
+              Expanded(
                 child: Text(
-                  'Health Overview',
+                  l10n.healthOverview,
                   style: _ReportsText.title,
                 ),
               ),
-              _StatusChip(status: insight.status),
+              _StatusChip(status: _localizedStatus(context, insight.status)),
             ],
           ),
           const SizedBox(height: 10),
-          Text(insight.subtitle, style: _ReportsText.body),
+          Text(l10n.weeklyHealthTrendsReady, style: _ReportsText.body),
           const SizedBox(height: 18),
           Wrap(
             spacing: 12,
             runSpacing: 12,
             children: [
               _SummaryTile(
-                label: 'Sleep average',
+                label: l10n.sleepAverage,
                 value: sleep.hasCurrentData
                     ? formatDurationHours(sleep.averageThisWeek!)
-                    : 'Needs data',
+                    : l10n.needsData,
               ),
               _SummaryTile(
-                label: 'Active days',
-                value: '${activity.activeDaysThisWeek} this week',
+                label: l10n.activeDays,
+                value: l10n.activeDaysThisWeek(activity.activeDaysThisWeek),
               ),
               _SummaryTile(
-                label: 'Vitals status',
-                value: vitals.status,
+                label: l10n.vitalsStatus,
+                value: _localizedStatus(context, vitals.status),
               ),
               _SummaryTile(
-                label: 'Active medicines',
+                label: l10n.activeMedicines,
                 value: medicines.dataUnavailable
-                    ? 'Unavailable'
-                    : medicines.activeCountLabel,
+                    ? l10n.unavailable
+                    : medicines.activeCountLabel(context),
               ),
             ],
           ),
@@ -391,11 +393,11 @@ class _SleepInsightCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (!insight.hasCurrentData) {
-      return const _EmptyInsightCard(
+      return _EmptyInsightCard(
         icon: Icons.bedtime_rounded,
-        title: 'Sleep Insight',
-        value: 'Needs data',
-        subtitle: 'Log a few nights to see your sleep trend.',
+        title: context.l10n.sleepInsight,
+        value: context.l10n.needsData,
+        subtitle: context.l10n.logFewNightsSleepTrend,
       );
     }
 
@@ -403,10 +405,10 @@ class _SleepInsightCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const _CardHeader(
+          _CardHeader(
             icon: Icons.bedtime_rounded,
-            title: 'Sleep Insight',
-            status: 'Stable',
+            title: context.l10n.sleepInsight,
+            status: context.l10n.stable,
           ),
           const SizedBox(height: 16),
           Text(
@@ -414,18 +416,18 @@ class _SleepInsightCard extends StatelessWidget {
             style: _ReportsText.heroValue,
           ),
           const SizedBox(height: 6),
-          Text(insight.changeLabel, style: _ReportsText.body),
+          Text(insight.changeLabel(context), style: _ReportsText.body),
           const SizedBox(height: 18),
           Wrap(
             spacing: 12,
             runSpacing: 12,
             children: [
               _SummaryTile(
-                label: 'Best night',
+                label: context.l10n.bestNight,
                 value: formatDurationHours(insight.bestNightThisWeek!),
               ),
               _SummaryTile(
-                label: 'Lowest night',
+                label: context.l10n.lowestNight,
                 value: formatDurationHours(insight.lowestNightThisWeek!),
               ),
             ],
@@ -444,11 +446,11 @@ class _ActivityInsightCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (!insight.hasCurrentData) {
-      return const _EmptyInsightCard(
+      return _EmptyInsightCard(
         icon: Icons.directions_walk_rounded,
-        title: 'Activity Insight',
-        value: 'No activity trend yet',
-        subtitle: 'Log activities to see your weekly movement pattern.',
+        title: context.l10n.activityInsight,
+        value: context.l10n.noActivityTrendYet,
+        subtitle: context.l10n.logActivitiesWeeklyPattern,
       );
     }
 
@@ -456,19 +458,21 @@ class _ActivityInsightCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const _CardHeader(
+          _CardHeader(
             icon: Icons.directions_walk_rounded,
-            title: 'Activity Insight',
-            status: 'Stable',
+            title: context.l10n.activityInsight,
+            status: context.l10n.stable,
           ),
           const SizedBox(height: 16),
           Text(
-            '${insight.activeDaysThisWeek} active days',
+            context.l10n.activeDaysCount(insight.activeDaysThisWeek),
             style: _ReportsText.heroValue,
           ),
           const SizedBox(height: 6),
           Text(
-            '${formatMinutes(insight.totalDurationThisWeek)} total activity',
+            context.l10n.totalActivityDuration(
+              formatMinutes(insight.totalDurationThisWeek),
+            ),
             style: _ReportsText.body,
           ),
           const SizedBox(height: 18),
@@ -477,12 +481,15 @@ class _ActivityInsightCard extends StatelessWidget {
             runSpacing: 12,
             children: [
               _SummaryTile(
-                label: 'Distance',
+                label: context.l10n.distance,
                 value: formatDistance(insight.totalDistanceThisWeek),
               ),
               _SummaryTile(
-                label: 'Most common',
-                value: insight.mostCommonType ?? 'Needs data',
+                label: context.l10n.mostCommon,
+                value: _localizedActivityType(
+                  context,
+                  insight.mostCommonType,
+                ),
               ),
             ],
           ),
@@ -500,11 +507,11 @@ class _VitalsInsightCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (!insight.hasCurrentData) {
-      return const _EmptyInsightCard(
+      return _EmptyInsightCard(
         icon: Icons.favorite_rounded,
-        title: 'Vitals Insight',
-        value: 'Needs data',
-        subtitle: 'Log vitals to see your weekly baseline.',
+        title: context.l10n.vitalsInsight,
+        value: context.l10n.needsData,
+        subtitle: context.l10n.logVitalsWeeklyBaseline,
       );
     }
 
@@ -514,8 +521,8 @@ class _VitalsInsightCard extends StatelessWidget {
         children: [
           _CardHeader(
             icon: Icons.favorite_rounded,
-            title: 'Vitals Insight',
-            status: insight.status,
+            title: context.l10n.vitalsInsight,
+            status: _localizedStatus(context, insight.status),
           ),
           const SizedBox(height: 16),
           Wrap(
@@ -523,26 +530,26 @@ class _VitalsInsightCard extends StatelessWidget {
             runSpacing: 12,
             children: [
               _SummaryTile(
-                label: 'Avg heart rate',
+                label: context.l10n.avgHeartRate,
                 value: insight.averageHeartRate == null
-                    ? 'Needs data'
+                    ? context.l10n.needsData
                     : '${insight.averageHeartRate!.round()} bpm',
               ),
               _SummaryTile(
-                label: 'Avg stress',
+                label: context.l10n.avgStress,
                 value: insight.averageStress == null
-                    ? 'Needs data'
+                    ? context.l10n.needsData
                     : insight.averageStress!.round().toString(),
               ),
               _SummaryTile(
-                label: 'Latest BP',
-                value: insight.latestBloodPressure ?? 'Needs data',
+                label: context.l10n.latestBp,
+                value: insight.latestBloodPressure ?? context.l10n.needsData,
                 wide: true,
               ),
               _SummaryTile(
-                label: 'Latest SpO2',
+                label: context.l10n.latestSpO2,
                 value: insight.latestSpO2 == null
-                    ? 'Needs data'
+                    ? context.l10n.needsData
                     : '${insight.latestSpO2}%',
               ),
             ],
@@ -561,11 +568,11 @@ class _MedicinesInsightCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (insight.dataUnavailable) {
-      return const _EmptyInsightCard(
+      return _EmptyInsightCard(
         icon: Icons.medication_rounded,
-        title: 'Medicines Insight',
-        value: 'Medication data unavailable',
-        subtitle: 'Try again to refresh your medication routine.',
+        title: context.l10n.medicinesInsight,
+        value: context.l10n.medicationDataUnavailable,
+        subtitle: context.l10n.tryRefreshMedicationRoutine,
       );
     }
 
@@ -576,23 +583,26 @@ class _MedicinesInsightCard extends StatelessWidget {
         children: [
           _CardHeader(
             icon: Icons.medication_rounded,
-            title: 'Medicines Insight',
-            status: hasActiveMedicines ? 'Stable' : 'Needs data',
+            title: context.l10n.medicinesInsight,
+            status: hasActiveMedicines
+                ? context.l10n.stable
+                : context.l10n.needsData,
           ),
           const SizedBox(height: 16),
-          Text(insight.activeCountLabel, style: _ReportsText.heroValue),
+          Text(insight.activeCountLabel(context),
+              style: _ReportsText.heroValue),
           const SizedBox(height: 8),
           Text(
             hasActiveMedicines
-                ? 'Medication tracking is active.'
-                : 'Add medicines to track your routine.',
+                ? context.l10n.medicationTrackingActive
+                : context.l10n.addMedicinesTrackRoutine,
             style: _ReportsText.body,
           ),
-          if (insight.adherenceSummary != null) ...[
+          if (insight.adherenceSummary(context) != null) ...[
             const SizedBox(height: 18),
             _SummaryTile(
-              label: 'Today',
-              value: insight.adherenceSummary!,
+              label: context.l10n.today,
+              value: insight.adherenceSummary(context)!,
               wide: true,
             ),
           ],
@@ -615,17 +625,17 @@ class _SmartPatternsCard extends StatelessWidget {
         children: [
           _CardHeader(
             icon: Icons.auto_graph_rounded,
-            title: 'Smart Patterns',
-            status: insight.status,
+            title: context.l10n.smartPatterns,
+            status: _localizedStatus(context, insight.status),
           ),
           const SizedBox(height: 16),
-          Text(insight.title, style: _ReportsText.heroValue),
+          Text(insight.localizedTitle(context), style: _ReportsText.heroValue),
           const SizedBox(height: 8),
-          Text(insight.message, style: _ReportsText.body),
+          Text(insight.localizedMessage(context), style: _ReportsText.body),
           if (insight.daysAnalyzed >= 3) ...[
             const SizedBox(height: 18),
             _SummaryTile(
-              label: 'Days analyzed',
+              label: context.l10n.daysAnalyzed,
               value: '${insight.daysAnalyzed}',
             ),
           ],
@@ -633,6 +643,31 @@ class _SmartPatternsCard extends StatelessWidget {
       ),
     );
   }
+}
+
+String _localizedStatus(BuildContext context, String status) {
+  final l10n = context.l10n;
+  return switch (status) {
+    'Stable' => l10n.stable,
+    'Needs data' => l10n.needsData,
+    'Higher than usual' => l10n.higherThanUsual,
+    'Lower than usual' => l10n.lowerThanUsual,
+    'Improving' => l10n.improving,
+    _ => status,
+  };
+}
+
+String _localizedActivityType(BuildContext context, String? type) {
+  if (type == null || type.trim().isEmpty) return context.l10n.needsData;
+  final normalized = type.trim().toLowerCase();
+  return switch (normalized) {
+    'walking' => context.l10n.walking,
+    'running' => context.l10n.running,
+    'cycling' => context.l10n.cycling,
+    'workout' => context.l10n.workout,
+    'swimming' => context.l10n.swimming,
+    _ => type,
+  };
 }
 
 class _InsightCard extends StatelessWidget {
@@ -675,7 +710,7 @@ class _EmptyInsightCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _CardHeader(icon: icon, title: title, status: 'Needs data'),
+          _CardHeader(icon: icon, title: title, status: context.l10n.needsData),
           const SizedBox(height: 16),
           Text(value, style: _ReportsText.heroValue),
           const SizedBox(height: 8),
@@ -725,11 +760,16 @@ class _StatusChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     final color = switch (status) {
       'Improving' => _ReportsColors.success,
+      String s when s == l10n.improving => _ReportsColors.success,
       'Stable' => _ReportsColors.accent,
+      String s when s == l10n.stable => _ReportsColors.accent,
       'Higher than usual' => _ReportsColors.warning,
+      String s when s == l10n.higherThanUsual => _ReportsColors.warning,
       'Lower than usual' => _ReportsColors.warning,
+      String s when s == l10n.lowerThanUsual => _ReportsColors.warning,
       _ => _ReportsColors.secondaryText,
     };
 
@@ -817,14 +857,14 @@ class _ErrorCard extends StatelessWidget {
             size: 34,
           ),
           const SizedBox(height: 12),
-          const Text(
-            'Could not load insights',
+          Text(
+            context.l10n.couldNotLoadInsights,
             style: _ReportsText.title,
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 8),
-          const Text(
-            'Try again to load your latest weekly trends.',
+          Text(
+            context.l10n.tryLoadLatestWeeklyTrends,
             textAlign: TextAlign.center,
             style: _ReportsText.body,
           ),
@@ -840,7 +880,7 @@ class _ErrorCard extends StatelessWidget {
                   borderRadius: BorderRadius.circular(14),
                 ),
               ),
-              child: const Text('Retry'),
+              child: Text(context.l10n.retry),
             ),
           ),
         ],
@@ -904,15 +944,17 @@ class _MedicineInsight {
     required this.dataUnavailable,
   });
 
-  String get activeCountLabel {
-    if (activeCount == 0) return 'No active medicines';
-    return '$activeCount active medicine${activeCount == 1 ? '' : 's'}';
+  String activeCountLabel(BuildContext context) {
+    if (activeCount == 0) return context.l10n.noActiveMedicines;
+    return activeCount == 1
+        ? context.l10n.activeMedicineCount(activeCount)
+        : context.l10n.activeMedicinesCount(activeCount);
   }
 
-  String? get adherenceSummary {
+  String? adherenceSummary(BuildContext context) {
     final taken = takenTodayCount;
     if (taken == null || activeCount == 0) return null;
-    return '$taken of $activeCount marked taken today';
+    return context.l10n.markedTakenToday(taken, activeCount);
   }
 }
 
@@ -965,6 +1007,27 @@ class _SmartPatternInsight {
       daysAnalyzed: pairedDays.length,
     );
   }
+
+  String localizedTitle(BuildContext context) {
+    return switch (title) {
+      'Needs more data' => context.l10n.needsMoreData,
+      'Pattern detected' => context.l10n.patternDetected,
+      'No strong pattern yet' => context.l10n.noStrongPatternYet,
+      _ => title,
+    };
+  }
+
+  String localizedMessage(BuildContext context) {
+    return switch (message) {
+      'Log sleep and stress for a few more days to unlock patterns.' =>
+        context.l10n.logSleepStressUnlockPatterns,
+      'Short sleep days are linked with higher stress in your logs.' =>
+        context.l10n.shortSleepHigherStressPattern,
+      'No strong sleep-stress pattern detected yet.' =>
+        context.l10n.noStrongSleepStressPattern,
+      _ => message,
+    };
+  }
 }
 
 class _SleepInsight {
@@ -982,11 +1045,11 @@ class _SleepInsight {
 
   bool get hasCurrentData => averageThisWeek != null;
 
-  String get changeLabel {
+  String changeLabel(BuildContext context) {
     if (changeMinutes == null) {
-      return 'Previous week comparison needs more data.';
+      return context.l10n.previousWeekNeedsMoreData;
     }
-    return '${formatSignedMinutes(changeMinutes!)} vs last week';
+    return context.l10n.vsLastWeek(formatSignedMinutes(changeMinutes!));
   }
 
   factory _SleepInsight.fromEntries(

@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../config/theme.dart';
+import '../l10n/l10n.dart';
 import '../models/models.dart';
 import '../services/api_service.dart';
 import '../services/sync_events.dart';
@@ -290,6 +291,7 @@ class _DashboardScreenState extends State<DashboardScreen>
       if (prefs.getInt(key) == milestone) return; // already celebrated this one
       await prefs.setInt(key, milestone);
       if (!mounted) return;
+      final l10n = context.l10n;
       showDialog<void>(
         context: context,
         builder: (ctx) => AlertDialog(
@@ -298,22 +300,23 @@ class _DashboardScreenState extends State<DashboardScreen>
             borderRadius: BorderRadius.circular(20),
             side: const BorderSide(color: _border),
           ),
-          title: const Row(
+          title: Row(
             children: [
-              Icon(Icons.local_fire_department_rounded,
+              const Icon(Icons.local_fire_department_rounded,
                   color: Color(0xFFE8924A), size: 28),
-              SizedBox(width: 10),
-              Text('Streak milestone!', style: TextStyle(color: _primaryText)),
+              const SizedBox(width: 10),
+              Text(l10n.streakMilestone,
+                  style: const TextStyle(color: _primaryText)),
             ],
           ),
           content: Text(
-            "You've logged your health $milestone days in a row. Keep the fire going! 🔥",
+            l10n.streakMilestoneMessage(milestone),
             style: TextStyle(color: _primaryText.withValues(alpha: 0.8)),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(ctx).pop(),
-              child: const Text('Nice!'),
+              child: Text(l10n.nice),
             ),
           ],
         ),
@@ -377,6 +380,7 @@ class _DashboardScreenState extends State<DashboardScreen>
   }
 
   Widget _buildHydrationCard() {
+    final l10n = context.l10n;
     const goal = _waterGoalMl;
     final progress = (_waterToday / goal).clamp(0.0, 1.0);
     const water = Color(0xFF3FA9F5);
@@ -410,8 +414,8 @@ class _DashboardScreenState extends State<DashboardScreen>
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text('Hydration',
-                            style: TextStyle(
+                        Text(l10n.hydration,
+                            style: const TextStyle(
                                 color: _primaryText,
                                 fontSize: 15,
                                 fontWeight: FontWeight.w800)),
@@ -595,9 +599,9 @@ class _DashboardScreenState extends State<DashboardScreen>
                 children: [
                   const Icon(Icons.insights_rounded, color: _accent, size: 18),
                   const SizedBox(width: 8),
-                  const Text(
-                    'On pace',
-                    style: TextStyle(
+                  Text(
+                    context.l10n.onPace,
+                    style: const TextStyle(
                       color: _primaryText,
                       fontSize: 14,
                       fontWeight: FontWeight.w700,
@@ -654,12 +658,13 @@ class _DashboardScreenState extends State<DashboardScreen>
   Widget _buildStreakBanner() {
     final s = _streak;
     final hasStreak = s.current > 0;
-    final title = hasStreak ? '${s.current}-day streak' : 'Start your streak';
+    final l10n = context.l10n;
+    final title = hasStreak ? l10n.dayStreak(s.current) : l10n.startYourStreak;
     final subtitle = hasStreak
         ? (s.loggedToday
-            ? 'Logged today ✓   •   best ${s.best}'
-            : 'Log today to keep it alive')
-        : 'Log your health today to begin';
+            ? l10n.loggedTodayBest(s.best)
+            : l10n.logTodayKeepAlive)
+        : l10n.logHealthTodayBegin;
     const fire = Color(0xFFE8924A);
     return GestureDetector(
       onTap: () => context.pushNamed('healthShield'),
@@ -958,7 +963,7 @@ class _DashboardScreenState extends State<DashboardScreen>
 
             Future<void> saveSelection() async {
               if (currentSelection.isEmpty) {
-                _showFavoritesWarning('Select at least one favorite.');
+                _showFavoritesWarning(context.l10n.selectAtLeastOneFavorite);
                 return;
               }
 
@@ -1011,16 +1016,16 @@ class _DashboardScreenState extends State<DashboardScreen>
                       ),
                       const SizedBox(height: 18),
                       Text(
-                        'Edit favorites',
+                        context.l10n.editFavorites,
                         style: Theme.of(context).textTheme.titleLarge?.copyWith(
                               color: _primaryText,
                               fontWeight: FontWeight.w900,
                             ),
                       ),
                       const SizedBox(height: 8),
-                      const Text(
-                        'Choose the shortcuts shown on Home.',
-                        style: TextStyle(
+                      Text(
+                        context.l10n.chooseShortcutsShownOnHome,
+                        style: const TextStyle(
                           color: _secondaryText,
                           height: 1.3,
                         ),
@@ -1082,7 +1087,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                                     const SizedBox(width: 12),
                                     Expanded(
                                       child: Text(
-                                        option.label,
+                                        _favoriteLabel(option.key),
                                         style: TextStyle(
                                           color: selected
                                               ? _primaryText
@@ -1130,7 +1135,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                                   borderRadius: BorderRadius.circular(16),
                                 ),
                               ),
-                              child: const Text('Cancel'),
+                              child: Text(context.l10n.cancel),
                             ),
                           ),
                           const SizedBox(width: 12),
@@ -1138,7 +1143,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                             child: ElevatedButton(
                               onPressed: selectedCount == 0
                                   ? () => _showFavoritesWarning(
-                                      'Select at least one favorite.')
+                                      context.l10n.selectAtLeastOneFavorite)
                                   : saveSelection,
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: _accent,
@@ -1153,7 +1158,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                                   borderRadius: BorderRadius.circular(16),
                                 ),
                               ),
-                              child: const Text('Save'),
+                              child: Text(context.l10n.save),
                             ),
                           ),
                         ],
@@ -1248,13 +1253,13 @@ class _DashboardScreenState extends State<DashboardScreen>
     final minutes = _todayActiveMinutes();
     if (minutes > 0) return _formatActivityDuration(minutes);
     final steps = _todayStepsFromActivities();
-    if (steps > 0) return '$steps steps';
-    return 'No data';
+    if (steps > 0) return context.l10n.stepsCount(steps);
+    return context.l10n.noData;
   }
 
   String _activityCardSubtitle() => _hasActivityToday()
-      ? 'Activity logged today'
-      : 'No activity data for today';
+      ? context.l10n.activityLoggedToday
+      : context.l10n.noActivityDataForToday;
 
   int _computedHomeRecentXp({
     required List<HealthEntry> entries,
@@ -1394,7 +1399,7 @@ class _DashboardScreenState extends State<DashboardScreen>
 
   String _formatSleep(double value) {
     if (!_isValidSleepHours(value)) {
-      return 'No data';
+      return context.l10n.noData;
     }
     final totalMinutes = (value * 60).round();
     final hours = totalMinutes ~/ 60;
@@ -1406,7 +1411,7 @@ class _DashboardScreenState extends State<DashboardScreen>
   }
 
   String _formatActivityDuration(int minutes) {
-    if (minutes <= 0) return 'No data';
+    if (minutes <= 0) return context.l10n.noData;
     final hours = minutes ~/ 60;
     final remaining = minutes % 60;
     if (hours == 0) return '$remaining min';
@@ -1454,12 +1459,12 @@ class _DashboardScreenState extends State<DashboardScreen>
 
   String _vitalsValue() {
     final entry = _latestVitalsEntry();
-    return entry == null ? 'No data' : _primaryVital(entry);
+    return entry == null ? context.l10n.noData : _primaryVital(entry);
   }
 
   String _favoriteVitalsValue() {
     final entry = _latestVitalsEntry();
-    return entry == null ? 'No data' : _primaryVital(entry);
+    return entry == null ? context.l10n.noData : _primaryVital(entry);
   }
 
   String _favoriteVitalsSubtitle() {
@@ -1471,7 +1476,7 @@ class _DashboardScreenState extends State<DashboardScreen>
   }
 
   String _vitalsSubtitle(HealthEntry? entry) {
-    if (entry == null) return 'Tap to update';
+    if (entry == null) return context.l10n.tapToUpdate;
     final details = <String>[];
     if (entry.systolicBp != null && entry.diastolicBp != null) {
       details.add('${entry.systolicBp}/${entry.diastolicBp} BP');
@@ -1546,7 +1551,7 @@ class _DashboardScreenState extends State<DashboardScreen>
         ),
         const SizedBox(width: 8),
         IconButton(
-          tooltip: 'Friends & leaderboard',
+          tooltip: context.l10n.friendsLeaderboard,
           icon: const Icon(Icons.emoji_events_outlined,
               color: _primaryText, size: 25),
           onPressed: () => context.pushNamed('friends'),
@@ -1615,13 +1620,13 @@ class _DashboardScreenState extends State<DashboardScreen>
         _avatarMenuItem(
           value: 'profile',
           icon: Icons.person_outline,
-          label: 'Profile',
+          label: context.l10n.profile,
         ),
         const PopupMenuDivider(height: 8),
         _avatarMenuItem(
           value: 'signOut',
           icon: Icons.logout,
-          label: 'Sign out',
+          label: context.l10n.signOut,
           danger: true,
         ),
       ],
@@ -1656,10 +1661,24 @@ class _DashboardScreenState extends State<DashboardScreen>
     );
   }
 
+  String _favoriteLabel(String key) {
+    final l10n = context.l10n;
+    return switch (key) {
+      'activity' => l10n.activity,
+      'sleep' => l10n.sleep,
+      'vitals' => l10n.vitals,
+      'medicines' => l10n.medicines,
+      'healthShield' => l10n.healthShield,
+      'insights' => l10n.insightsTrends,
+      _ => key,
+    };
+  }
+
   Widget _buildFavoritesSection() {
     if (_loading) return _loadingCard(height: 260);
 
     final activeMeds = _activeMedicinesCount();
+    final l10n = context.l10n;
     final firstMedicine = _state.medicines.where((m) => m.isActive).isNotEmpty
         ? _state.medicines.firstWhere((m) => m.isActive)
         : null;
@@ -1669,7 +1688,7 @@ class _DashboardScreenState extends State<DashboardScreen>
           switch (option.key) {
             case 'activity':
               return _favoriteCard(
-                title: option.label,
+                title: _favoriteLabel(option.key),
                 value: _activityCardValue(),
                 subtitle: _activityCardSubtitle(),
                 icon: Icons.directions_walk,
@@ -1679,19 +1698,19 @@ class _DashboardScreenState extends State<DashboardScreen>
             case 'sleep':
               final sleepEntry = _latestValidSleepEntryForToday();
               return _favoriteCard(
-                title: option.label,
+                title: _favoriteLabel(option.key),
                 value: sleepEntry != null
                     ? _formatSleep(sleepEntry.sleepHours ?? 0)
-                    : 'No data',
+                    : l10n.noData,
                 subtitle:
-                    sleepEntry != null ? 'Updated today' : 'Tap to update',
+                    sleepEntry != null ? l10n.updatedToday : l10n.tapToUpdate,
                 icon: Icons.bedtime_outlined,
                 accent: _accent,
                 onTap: _openSleep,
               );
             case 'vitals':
               return _favoriteCard(
-                title: option.label,
+                title: _favoriteLabel(option.key),
                 value: _favoriteVitalsValue(),
                 subtitle: _favoriteVitalsSubtitle(),
                 icon: Icons.monitor_heart_outlined,
@@ -1700,9 +1719,9 @@ class _DashboardScreenState extends State<DashboardScreen>
               );
             case 'medicines':
               return _favoriteCard(
-                title: option.label,
-                value: activeMeds > 0 ? activeMeds.toString() : 'No data',
-                subtitle: firstMedicine?.name ?? 'Tap to update',
+                title: _favoriteLabel(option.key),
+                value: activeMeds > 0 ? activeMeds.toString() : l10n.noData,
+                subtitle: firstMedicine?.name ?? l10n.tapToUpdate,
                 icon: Icons.medication_outlined,
                 accent: _orange,
                 onTap: _openMedicines,
@@ -1710,7 +1729,7 @@ class _DashboardScreenState extends State<DashboardScreen>
             case 'healthShield':
               final homeShield = _state.homeShield;
               return _favoriteCard(
-                title: option.label,
+                title: _favoriteLabel(option.key),
                 value:
                     'Level ${homeShield.level} • ${homeShield.progressPercent}%',
                 subtitle: homeShield.xpToNextLevel == 0
@@ -1722,11 +1741,13 @@ class _DashboardScreenState extends State<DashboardScreen>
               );
             case 'insights':
               return _favoriteCard(
-                title: option.label,
-                value: _state.entries.isNotEmpty ? 'History ready' : 'No data',
+                title: _favoriteLabel(option.key),
+                value: _state.entries.isNotEmpty
+                    ? context.l10n.historyReady
+                    : context.l10n.noData,
                 subtitle: _state.entries.isNotEmpty
-                    ? 'Review your recent health patterns'
-                    : 'Add module data to unlock trends',
+                    ? context.l10n.reviewRecentHealthPatterns
+                    : context.l10n.addModuleDataToUnlockTrends,
                 icon: Icons.insights_outlined,
                 accent: _accent,
                 onTap: () => context.pushNamed('healthHistory'),
@@ -1745,7 +1766,7 @@ class _DashboardScreenState extends State<DashboardScreen>
           children: [
             Expanded(
               child: Text(
-                'Favorites',
+                context.l10n.favorites,
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(
                       color: _primaryText,
                       fontWeight: FontWeight.w900,
@@ -1776,6 +1797,7 @@ class _DashboardScreenState extends State<DashboardScreen>
   Widget _buildFeed() {
     if (_loading) return _loadingCard(height: 420);
 
+    final l10n = context.l10n;
     final activeMeds = _activeMedicinesCount();
     final homeShield = _state.homeShield;
 
@@ -1785,7 +1807,7 @@ class _DashboardScreenState extends State<DashboardScreen>
         _healthShieldFeedCard(homeShield),
         _feedGap(),
         _feedCard(
-          title: 'Activity',
+          title: l10n.activity,
           value: _activityCardValue(),
           subtitle: _activityCardSubtitle(),
           icon: Icons.directions_run_outlined,
@@ -1794,18 +1816,18 @@ class _DashboardScreenState extends State<DashboardScreen>
         ),
         _feedGap(),
         _feedCard(
-          title: 'Sleep',
+          title: l10n.sleep,
           value: _formatSleep(_todaySleepHours()),
           subtitle: _todaySleepHours() > 0
-              ? 'Sleep logged today'
-              : 'No sleep data for today',
+              ? l10n.sleepLoggedToday
+              : l10n.noSleepDataForToday,
           icon: Icons.nightlight_outlined,
           accent: _accent,
           onTap: _openSleep,
         ),
         _feedGap(),
         _feedCard(
-          title: 'Vitals',
+          title: l10n.vitals,
           value: _vitalsValue(),
           subtitle: _vitalsSummarySubtitle(),
           icon: Icons.monitor_heart_outlined,
@@ -1814,31 +1836,31 @@ class _DashboardScreenState extends State<DashboardScreen>
         ),
         _feedGap(),
         _feedCard(
-          title: 'Medicines',
-          value: activeMeds > 0 ? '$activeMeds active' : 'No data',
+          title: l10n.medicines,
+          value: activeMeds > 0 ? '$activeMeds active' : l10n.noData,
           subtitle: activeMeds > 0
-              ? 'Review schedule and doses'
-              : 'No active medicines scheduled',
+              ? l10n.reviewScheduleAndDoses
+              : l10n.noActiveMedicinesScheduled,
           icon: Icons.medication_liquid_outlined,
           accent: _orange,
           onTap: _openMedicines,
         ),
         _feedGap(),
         _feedCard(
-          title: 'Insights / Trends',
-          value: _state.entries.isNotEmpty ? 'History ready' : 'No data',
+          title: l10n.insightsTrends,
+          value: _state.entries.isNotEmpty ? l10n.historyReady : l10n.noData,
           subtitle: _state.entries.isNotEmpty
-              ? 'Review your recent health patterns'
-              : 'Add module data to unlock trends',
+              ? l10n.reviewRecentHealthPatterns
+              : l10n.addModuleDataToUnlockTrends,
           icon: Icons.insights_outlined,
           accent: _accent,
           onTap: () => context.pushNamed('healthHistory'),
         ),
         _feedGap(),
         _feedCard(
-          title: 'Wearable Devices',
-          value: 'Sync & manage',
-          subtitle: 'Connect your device and sync health data',
+          title: l10n.wearableDevices,
+          value: l10n.syncAndManage,
+          subtitle: l10n.connectDeviceSyncHealthData,
           icon: Icons.watch_outlined,
           accent: _green,
           onTap: _openWearables,
@@ -1858,7 +1880,7 @@ class _DashboardScreenState extends State<DashboardScreen>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const _CardTitle('Health Shield'),
+                _CardTitle(context.l10n.healthShield),
                 const SizedBox(height: 6),
                 Text(
                   'Level ${shield.level} • ${shield.progressPercent}%',
@@ -2118,18 +2140,18 @@ class _FavoritesEditButton extends StatelessWidget {
               ),
             ],
           ),
-          child: const Row(
+          child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(
+              const Icon(
                 Icons.tune_rounded,
                 color: _DashboardScreenState._accent,
                 size: 17,
               ),
-              SizedBox(width: 7),
+              const SizedBox(width: 7),
               Text(
-                'Edit',
-                style: TextStyle(
+                context.l10n.edit,
+                style: const TextStyle(
                   color: _DashboardScreenState._primaryText,
                   fontSize: 13,
                   fontWeight: FontWeight.w800,

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../l10n/l10n.dart';
+
 const _surface = Color(0xFF0F1624);
 const _surfaceAlt = Color(0xFF121B2C);
 const _border = Color(0xFF243047);
@@ -12,7 +14,7 @@ const _danger = Color(0xFFFF5C7A);
 Future<TimeOfDay?> showDarkTimePicker({
   required BuildContext context,
   required TimeOfDay initialTime,
-  String title = 'Enter time',
+  String? title,
 }) {
   return showDialog<TimeOfDay>(
     context: context,
@@ -25,7 +27,7 @@ Future<TimeOfDay?> showDarkTimePicker({
 
 class _DarkTimePickerDialog extends StatefulWidget {
   final TimeOfDay initialTime;
-  final String title;
+  final String? title;
 
   const _DarkTimePickerDialog({
     required this.initialTime,
@@ -70,7 +72,7 @@ class _DarkTimePickerDialogState extends State<_DarkTimePickerDialog> {
         hour > 12 ||
         minute < 0 ||
         minute > 59) {
-      setState(() => _error = 'Enter a valid time');
+      setState(() => _error = context.l10n.enterValidTime);
       return;
     }
 
@@ -98,7 +100,7 @@ class _DarkTimePickerDialogState extends State<_DarkTimePickerDialog> {
         children: [
           Expanded(
             child: Text(
-              widget.title,
+              widget.title ?? context.l10n.enterTime,
               style: const TextStyle(
                 color: _primaryText,
                 fontWeight: FontWeight.w900,
@@ -120,7 +122,7 @@ class _DarkTimePickerDialogState extends State<_DarkTimePickerDialog> {
                 Expanded(
                   child: _TimeInputBox(
                     controller: _hourController,
-                    label: 'Hour',
+                    label: context.l10n.hour,
                     onChanged: () => setState(() => _error = null),
                   ),
                 ),
@@ -138,7 +140,7 @@ class _DarkTimePickerDialogState extends State<_DarkTimePickerDialog> {
                 Expanded(
                   child: _TimeInputBox(
                     controller: _minuteController,
-                    label: 'Minute',
+                    label: context.l10n.minute,
                     onChanged: () => setState(() => _error = null),
                   ),
                 ),
@@ -181,7 +183,7 @@ class _DarkTimePickerDialogState extends State<_DarkTimePickerDialog> {
                 borderRadius: BorderRadius.circular(14),
               ),
             ),
-            child: const Text('Save'),
+            child: Text(context.l10n.save),
           ),
         ),
       ],

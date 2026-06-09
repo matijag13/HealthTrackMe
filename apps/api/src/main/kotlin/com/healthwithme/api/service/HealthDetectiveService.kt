@@ -43,8 +43,9 @@ class HealthDetectiveService(
     /**
      * Analyze health data and generate insights using Claude API
      */
-    fun generateHealthInsight(userId: Long, daysBack: Int = 7): DetectiveInsightDto {
+    fun generateHealthInsight(userId: Long, daysBack: Int = 7, language: String = "en"): DetectiveInsightDto {
         logger.info("Generating health insight for user $userId, last $daysBack days")
+        val locale = normalizeLanguage(language)
 
         // Verify user exists
         val user = userRepository.findById(userId)
@@ -59,7 +60,7 @@ class HealthDetectiveService(
             .sortedByDescending { it.entryDate }
 
         if (entries.isEmpty()) {
-            return createEmptyInsight("No data", "Not enough health data", "Start logging your health metrics to get insights")
+            return createEmptyInsight(locale)
         }
 
         // Analyze correlations and patterns
@@ -67,9 +68,9 @@ class HealthDetectiveService(
 
         // Generate AI insight using Claude (if API key available)
         val insight = if (apiKey.isNotBlank()) {
-            generateInsightWithClaude(user, entries, analysis, daysBack)
+            generateInsightWithClaude(user, entries, analysis, daysBack, locale)
         } else {
-            generateInsightWithRules(user, entries, analysis, daysBack)
+            generateInsightWithRules(user, entries, analysis, daysBack, locale)
         }
 
         // Save to database for caching
@@ -165,11 +166,12 @@ class HealthDetectiveService(
         user: User,
         entries: List<HealthEntry>,
         analysis: Map<String, Any>,
-        daysBack: Int
+        daysBack: Int,
+        language: String
     ): Map<String, String> {
         return try {
             // Build context for Claude
-            val context = buildClaudePrompt(user, entries, analysis, daysBack)
+            val context = buildClaudePrompt(user, entries, analysis, daysBack, language)
 
             logger.info("Sending request to Groq API for user ${user.id}")
 
@@ -180,7 +182,7 @@ class HealthDetectiveService(
             parseClaudeResponse(response)
         } catch (e: Exception) {
             logger.warn("Groq API call failed, falling back to rule-based analysis: ${e.message}")
-            generateInsightWithRules(user, entries, analysis, daysBack)
+            generateInsightWithRules(user, entries, analysis, daysBack, language)
         }
     }
 
@@ -191,7 +193,8 @@ class HealthDetectiveService(
         user: User,
         entries: List<HealthEntry>,
         analysis: Map<String, Any>,
-        daysBack: Int
+        daysBack: Int,
+        language: String
     ): Map<String, String> {
         val badge: String
         val title: String
@@ -204,47 +207,98 @@ class HealthDetectiveService(
         val hrVariability = (analysis["hrVariability"] as? Double) ?: 0.0
         val adherence = (analysis["adherenceScore"] as? Double) ?: 0.0
         val sleepTrend = (analysis["sleepTrend"] as? Double) ?: 0.0
+        val sl = language == "sl"
 
         // Determine badge and insights
         when {
             avgSleep >= 7.5 && avgStress < 5.0 && avgMood >= 7.0 -> {
-                badge = "✨ Strong week"
-                title = "Your consistency is paying off"
-                description = "Your sleep quality has improved by ${String.format("%.0f", sleepTrend)}%, " +
+                badge = if (sl) "✨ Močan teden" else "✨ Strong week"
+                title = if (sl) "Doslednost se ti obrestuje" else "Your consistency is paying off"
+                description = if (sl) {
+                    "Kakovost spanja se je izboljšala za ${String.format("%.0f", sleepTrend)}%, " +
+                        "stres je dobro obvladan, razpoloženje pa odlično. Nadaljuj ta ritem!"
+                } else {
+                    "Your sleep quality has improved by ${String.format("%.0f", sleepTrend)}%, " +
                         "stress levels are well-managed, and your mood is excellent. Keep up this rhythm!"
-                finding = "📊 Key pattern: Your HRV variability of ${String.format("%.0f", hrVariability)} ms " +
+                }
+                finding = if (sl) {
+                    "📊 Ključni vzorec: HRV variabilnost ${String.format("%.0f", hrVariability)} ms " +
+                        "kaže na zelo dobro regeneracijo. Ohrani trenutno rutino."
+                } else {
+                    "📊 Key pattern: Your HRV variability of ${String.format("%.0f", hrVariability)} ms " +
                         "indicates excellent recovery. Maintain your current routine for best results."
+                }
             }
             avgSleep < 6.0 && daysBack >= 7 -> {
-                badge = "⚠️ Rest needed"
-                title = "Your sleep needs attention"
-                description = "You've been averaging ${String.format("%.1f", avgSleep)} hours of sleep, " +
+                badge = if (sl) "⚠️ Potreben počitek" else "⚠️ Rest needed"
+                title = if (sl) "Spanje potrebuje pozornost" else "Your sleep needs attention"
+                description = if (sl) {
+                    "V povprečju spiš ${String.format("%.1f", avgSleep)} ure, kar je pod priporočenimi " +
+                        "7-9 urami. To lahko vpliva na energijo in razpoloženje."
+                } else {
+                    "You've been averaging ${String.format("%.1f", avgSleep)} hours of sleep, " +
                         "which is below the recommended 7-9 hours. This may affect your energy and mood."
-                finding = "💡 Consider: Earlier bedtime, limiting screen time, and consistent sleep schedule. " +
+                }
+                finding = if (sl) {
+                    "💡 Poskusi: zgodnejši odhod v posteljo, manj zaslonov zvečer in stalen urnik spanja. " +
+                        "Kakovost spanja je pomembna za obvladovanje stresa."
+                } else {
+                    "💡 Consider: Earlier bedtime, limiting screen time, and consistent sleep schedule. " +
                         "Sleep quality is crucial for stress management."
+                }
             }
             avgStress >= 7.0 -> {
-                badge = "⚡ Stress alert"
-                title = "High stress detected"
-                description = "Your stress levels have been averaging ${String.format("%.1f", avgStress)}/10. " +
+                badge = if (sl) "⚡ Opozorilo stres" else "⚡ Stress alert"
+                title = if (sl) "Zaznan je višji stres" else "High stress detected"
+                description = if (sl) {
+                    "Tvoja povprečna raven stresa je ${String.format("%.1f", avgStress)}/10. " +
+                        "Skupaj z vzorci spanja je to vredno pozornosti."
+                } else {
+                    "Your stress levels have been averaging ${String.format("%.1f", avgStress)}/10. " +
                         "Combined with sleep patterns, this needs intervention."
-                finding = "🎯 Action items: Practice meditation, increase exercise, and prioritize rest. " +
+                }
+                finding = if (sl) {
+                    "🎯 Naslednji koraki: poskusi meditacijo, več gibanja in prednostno načrtuj počitek. " +
+                        "Ob zdravstvenih skrbeh se pogovori z zdravnikom."
+                } else {
+                    "🎯 Action items: Practice meditation, increase exercise, and prioritize rest. " +
                         "Consider discussing with a healthcare provider."
+                }
             }
             adherence >= 0.9 -> {
-                badge = "💪 Excellent adherence"
-                title = "Your commitment is impressive"
-                description = "You've maintained ${String.format("%.0f", adherence * 100)}% medication adherence " +
+                badge = if (sl) "💪 Odlično jemanje" else "💪 Excellent adherence"
+                title = if (sl) "Tvoja predanost izstopa" else "Your commitment is impressive"
+                description = if (sl) {
+                    "Ta teden imaš ${String.format("%.0f", adherence * 100)}% doslednost pri zdravilih. " +
+                        "Takšna rutina podpira boljše dolgoročne rezultate."
+                } else {
+                    "You've maintained ${String.format("%.0f", adherence * 100)}% medication adherence " +
                         "this week. This consistency directly correlates with better health outcomes."
-                finding = "📈 Your dedication shows: Consistent adherence + good sleep + mood management = " +
+                }
+                finding = if (sl) {
+                    "📈 Tvoja doslednost se pozna: redno jemanje + dobro spanje + spremljanje počutja = " +
+                        "trajnosten napredek."
+                } else {
+                    "📈 Your dedication shows: Consistent adherence + good sleep + mood management = " +
                         "sustainable health improvement."
+                }
             }
             else -> {
-                badge = "📈 Keep going"
-                title = "Track your progress"
-                description = "You're logging your health data consistently. This awareness is the first step " +
+                badge = if (sl) "📈 Nadaljuj" else "📈 Keep going"
+                title = if (sl) "Spremljaj svoj napredek" else "Track your progress"
+                description = if (sl) {
+                    "Zdravstvene podatke beležiš dosledno. To zavedanje je prvi korak " +
+                        "do smiselnih izboljšav."
+                } else {
+                    "You're logging your health data consistently. This awareness is the first step " +
                         "toward meaningful improvements."
-                finding = "🔍 Next steps: Focus on one area (sleep, stress, or mood) this week and track changes."
+                }
+                finding = if (sl) {
+                    "🔍 Naslednji koraki: ta teden se osredotoči na eno področje " +
+                        "(spanje, stres ali razpoloženje) in spremljaj spremembe."
+                } else {
+                    "🔍 Next steps: Focus on one area (sleep, stress, or mood) this week and track changes."
+                }
             }
         }
 
@@ -295,9 +349,13 @@ class HealthDetectiveService(
         user: User,
         entries: List<HealthEntry>,
         analysis: Map<String, Any>,
-        daysBack: Int
+        daysBack: Int,
+        language: String
     ): String {
         return buildHealthContext(user, entries, analysis, daysBack) + "\n\n" + """
+            Language: ${languageName(language)}.
+            Write every user-facing JSON value in ${languageName(language)}.
+
             Task: Analyze this health data and provide ONE key insight about health patterns and correlations.
             Generate a professional health insight card with:
             1. badge: Short emoji + insight type (max 20 chars, e.g., "✨ Strong week")
@@ -372,12 +430,25 @@ class HealthDetectiveService(
      * Returns {"answer": ...}. Degrades gracefully when there's no data or no API
      * key, so the "ask your health data" feature never errors out.
      */
-    fun answerQuestion(userId: Long, question: String, daysBack: Int = 30): Map<String, String> {
+    fun answerQuestion(
+        userId: Long,
+        question: String,
+        daysBack: Int = 30,
+        language: String = "en"
+    ): Map<String, String> {
         val user = userRepository.findById(userId)
             .orElseThrow { IllegalArgumentException("User not found") }
+        val locale = normalizeLanguage(language)
+        val sl = locale == "sl"
 
         if (question.isBlank()) {
-            return mapOf("answer" to "Please type a question about your health.")
+            return mapOf(
+                "answer" to if (sl) {
+                    "Vpiši vprašanje o svojem zdravju."
+                } else {
+                    "Please type a question about your health."
+                }
+            )
         }
 
         val endDate = LocalDate.now()
@@ -388,31 +459,58 @@ class HealthDetectiveService(
 
         if (entries.isEmpty()) {
             return mapOf(
-                "answer" to "I don't have enough of your health data yet. Log a few days of " +
-                    "vitals, sleep, or activity and ask again."
+                "answer" to if (sl) {
+                    "Nimam še dovolj tvojih zdravstvenih podatkov. Zabeleži nekaj dni vitalnih znakov, " +
+                        "spanja ali aktivnosti in vprašaj znova."
+                } else {
+                    "I don't have enough of your health data yet. Log a few days of " +
+                        "vitals, sleep, or activity and ask again."
+                }
             )
         }
 
         if (apiKey.isBlank()) {
             return mapOf(
-                "answer" to "AI answers aren't enabled on the server yet. Once an API key is " +
-                    "configured, I can answer questions about your trends."
+                "answer" to if (sl) {
+                    "AI odgovori na strežniku še niso omogočeni. Ko bo API ključ nastavljen, " +
+                        "bom lahko odgovarjal na vprašanja o tvojih trendih."
+                } else {
+                    "AI answers aren't enabled on the server yet. Once an API key is " +
+                        "configured, I can answer questions about your trends."
+                }
             )
         }
 
         return try {
             val analysis = analyzeHealthData(entries, user)
             val userMessage = buildString {
+                appendLine("Answer language: ${languageName(locale)}.")
+                appendLine("Write the full answer in ${languageName(locale)}.")
+                appendLine()
                 appendLine("Here is the user's recent health data:")
                 appendLine(buildHealthContext(user, entries, analysis, daysBack))
                 appendLine()
                 appendLine("Question: $question")
             }
             val answer = callClaude(ASK_SYSTEM_PROMPT, userMessage, 1024).trim()
-            mapOf("answer" to answer.ifBlank { "I couldn't find an answer in your data." })
+            mapOf(
+                "answer" to answer.ifBlank {
+                    if (sl) {
+                        "V tvojih podatkih nisem našel odgovora."
+                    } else {
+                        "I couldn't find an answer in your data."
+                    }
+                }
+            )
         } catch (e: Exception) {
             logger.warn("Detective Q&A failed: ${e.message}")
-            mapOf("answer" to "I couldn't analyze that right now. Please try again.")
+            mapOf(
+                "answer" to if (sl) {
+                    "Tega trenutno ne morem analizirati. Poskusi znova."
+                } else {
+                    "I couldn't analyze that right now. Please try again."
+                }
+            )
         }
     }
 
@@ -422,6 +520,14 @@ class HealthDetectiveService(
      */
     private fun callClaudeAPI(prompt: String): String {
         return callClaude(INSIGHT_SYSTEM_PROMPT, prompt, 1024)
+    }
+
+    private fun normalizeLanguage(language: String): String {
+        return if (language.lowercase().startsWith("sl")) "sl" else "en"
+    }
+
+    private fun languageName(language: String): String {
+        return if (normalizeLanguage(language) == "sl") "Slovenian" else "English"
     }
 
     /**
@@ -670,13 +776,22 @@ class HealthDetectiveService(
     /**
      * Helper: Create empty insight
      */
-    private fun createEmptyInsight(badge: String, title: String, finding: String): DetectiveInsightDto {
+    private fun createEmptyInsight(language: String): DetectiveInsightDto {
+        val sl = language == "sl"
         return DetectiveInsightDto(
             id = 0,
-            badge = badge,
-            title = title,
-            description = "Not enough data to generate insights yet.",
-            finding = finding,
+            badge = if (sl) "Ni podatkov" else "No data",
+            title = if (sl) "Premalo zdravstvenih podatkov" else "Not enough health data",
+            description = if (sl) {
+                "Za pripravo vpogledov še ni dovolj podatkov."
+            } else {
+                "Not enough data to generate insights yet."
+            },
+            finding = if (sl) {
+                "Začni beležiti zdravstvene metrike, da dobiš vpoglede."
+            } else {
+                "Start logging your health metrics to get insights"
+            },
             timeRange = "WEEK",
             generatedAt = LocalDateTime.now().toString(),
             createdAt = LocalDateTime.now().toString()

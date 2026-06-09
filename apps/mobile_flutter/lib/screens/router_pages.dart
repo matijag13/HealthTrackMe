@@ -8,6 +8,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../l10n/l10n.dart';
 import '../models/models.dart';
 import '../services/api_service.dart';
 import '../services/sync_events.dart';
@@ -98,10 +99,9 @@ class HealthScreen extends StatelessWidget {
           body: ListView(
             padding: const EdgeInsets.all(16),
             children: [
-              const SectionHeader(
-                title: 'Health overview',
-                subtitle:
-                    'Charts, trends, and the monthly report now live inside the Health tab.',
+              SectionHeader(
+                title: context.l10n.healthOverview,
+                subtitle: context.l10n.healthOverviewSubtitle,
               ),
               const SizedBox(height: 12),
               Wrap(
@@ -110,26 +110,26 @@ class HealthScreen extends StatelessWidget {
                 children: [
                   _ShortcutCard(
                     icon: Icons.favorite_rounded,
-                    title: 'Vitals',
-                    subtitle: 'Wellbeing, sleep and recent markers',
+                    title: context.l10n.vitals,
+                    subtitle: context.l10n.vitalsShortcutSubtitle,
                     onTap: () => context.goNamed('healthVitals'),
                   ),
                   _ShortcutCard(
                     icon: Icons.directions_run_rounded,
-                    title: 'Activity',
-                    subtitle: 'Consistency and daily movement',
+                    title: context.l10n.activity,
+                    subtitle: context.l10n.activityShortcutSubtitle,
                     onTap: () => context.goNamed('healthActivity'),
                   ),
                   _ShortcutCard(
                     icon: Icons.bedtime_rounded,
-                    title: 'Sleep',
-                    subtitle: 'Sleep trend and recovery',
+                    title: context.l10n.sleep,
+                    subtitle: context.l10n.sleepShortcutSubtitle,
                     onTap: () => context.goNamed('healthSleep'),
                   ),
                   _ShortcutCard(
                     icon: Icons.history_rounded,
-                    title: 'History',
-                    subtitle: 'Reports and past entries',
+                    title: context.l10n.history,
+                    subtitle: context.l10n.historyShortcutSubtitle,
                     onTap: () => context.goNamed('healthHistory'),
                   ),
                 ],
@@ -322,38 +322,16 @@ enum _VitalsTimeRange {
   const _VitalsTimeRange(this.label);
 }
 
-String _vitalsMetricSheetTitle(_VitalsMetric metric) {
-  switch (metric) {
-    case _VitalsMetric.heartRate:
-      return 'Add heart rate';
-    case _VitalsMetric.stress:
-      return 'Add stress';
-    case _VitalsMetric.bloodPressure:
-      return 'Add blood pressure';
-    case _VitalsMetric.spO2:
-      return 'Add SpO2';
-    case _VitalsMetric.temperature:
-      return 'Add temperature';
-    case _VitalsMetric.weight:
-      return 'Add weight';
-  }
-}
-
-String _vitalsMetricToastLabel(_VitalsMetric metric) {
-  switch (metric) {
-    case _VitalsMetric.heartRate:
-      return 'Heart rate';
-    case _VitalsMetric.stress:
-      return 'Stress';
-    case _VitalsMetric.bloodPressure:
-      return 'Blood pressure';
-    case _VitalsMetric.spO2:
-      return 'SpO2';
-    case _VitalsMetric.temperature:
-      return 'Temperature';
-    case _VitalsMetric.weight:
-      return 'Weight';
-  }
+String _vitalsMetricName(BuildContext context, _VitalsMetric metric) {
+  final l10n = context.l10n;
+  return switch (metric) {
+    _VitalsMetric.heartRate => l10n.heartRate,
+    _VitalsMetric.stress => l10n.stress,
+    _VitalsMetric.bloodPressure => l10n.bloodPressure,
+    _VitalsMetric.spO2 => l10n.spO2,
+    _VitalsMetric.temperature => l10n.temperature,
+    _VitalsMetric.weight => l10n.weight,
+  };
 }
 
 String _vitalsMetricUnit(_VitalsMetric metric) {
@@ -697,7 +675,9 @@ class _HealthVitalsPageState extends State<HealthVitalsPage> {
     if (!confirmed) {
       _showVitalsToast(
         context,
-        message: '${_vitalsMetricToastLabel(metric)} saved, but not returned',
+        message: context.l10n.metricSavedButNotReturned(
+          _vitalsMetricName(context, metric),
+        ),
         success: false,
       );
       return;
@@ -705,7 +685,7 @@ class _HealthVitalsPageState extends State<HealthVitalsPage> {
 
     _showVitalsToast(
       context,
-      message: '${_vitalsMetricToastLabel(metric)} added',
+      message: context.l10n.metricAdded(_vitalsMetricName(context, metric)),
       success: true,
     );
   }
@@ -883,7 +863,7 @@ class _HealthVitalsPageState extends State<HealthVitalsPage> {
           const SizedBox(width: 14),
           Expanded(
             child: Text(
-              'Vitals',
+              context.l10n.vitals,
               style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                     color: _primaryText,
                     fontWeight: FontWeight.w900,
@@ -926,19 +906,19 @@ class _HealthVitalsPageState extends State<HealthVitalsPage> {
                             const Icon(Icons.error_outline_rounded,
                                 color: _accent, size: 34),
                             const SizedBox(height: 12),
-                            const Text(
-                              'Could not load vitals',
-                              style: TextStyle(
+                            Text(
+                              context.l10n.couldNotLoadVitals,
+                              style: const TextStyle(
                                 color: _primaryText,
                                 fontSize: 18,
                                 fontWeight: FontWeight.w900,
                               ),
                             ),
                             const SizedBox(height: 8),
-                            const Text(
-                              'Try again to load the latest health entries.',
+                            Text(
+                              context.l10n.tryLoadLatestHealthEntries,
                               textAlign: TextAlign.center,
-                              style: TextStyle(
+                              style: const TextStyle(
                                 color: _secondaryText,
                                 height: 1.4,
                               ),
@@ -955,7 +935,7 @@ class _HealthVitalsPageState extends State<HealthVitalsPage> {
                                     borderRadius: BorderRadius.circular(14),
                                   ),
                                 ),
-                                child: const Text('Retry'),
+                                child: Text(context.l10n.retry),
                               ),
                             ),
                           ],
@@ -1096,7 +1076,7 @@ class _HealthVitalsPageState extends State<HealthVitalsPage> {
             ),
             const SizedBox(width: 8),
             Text(
-              definition.label,
+              _vitalsMetricName(context, definition.metric),
               style: TextStyle(
                 color: selected ? _primaryText : _secondaryText,
                 fontSize: 13,
@@ -1147,7 +1127,7 @@ class _HealthVitalsPageState extends State<HealthVitalsPage> {
             ),
           ),
           child: Text(
-            range.label,
+            range == _VitalsTimeRange.max ? context.l10n.maxRange : range.label,
             style: TextStyle(
               color: selected ? _primaryText : _secondaryText,
               fontSize: 13,
@@ -1245,7 +1225,7 @@ class _HealthVitalsPageState extends State<HealthVitalsPage> {
             children: [
               Expanded(
                 child: Text(
-                  definition.label,
+                  _vitalsMetricName(context, definition.metric),
                   style: const TextStyle(
                     color: _primaryText,
                     fontSize: 18,
@@ -1357,17 +1337,17 @@ class _HealthVitalsPageState extends State<HealthVitalsPage> {
             const SizedBox(height: 14),
             Row(
               children: [
-                _buildLegendPill('Systolic', _accent),
+                _buildLegendPill(context.l10n.systolic, _accent),
                 const SizedBox(width: 10),
-                _buildLegendPill('Diastolic', _diastolicColor),
+                _buildLegendPill(context.l10n.diastolic, _diastolicColor),
               ],
             ),
           ],
           const SizedBox(height: 14),
           Text(
             hasData
-                ? 'Latest trend: $latestDisplay'
-                : 'No data for this period',
+                ? context.l10n.latestTrend(latestDisplay)
+                : context.l10n.noDataForThisPeriod,
             style: const TextStyle(
               color: _secondaryText,
               fontSize: 13,
@@ -1411,32 +1391,32 @@ class _HealthVitalsPageState extends State<HealthVitalsPage> {
         borderRadius: BorderRadius.circular(22),
         border: Border.all(color: _border.withValues(alpha: 0.85)),
       ),
-      child: const Center(
+      child: Center(
         child: Padding(
-          padding: EdgeInsets.symmetric(vertical: 36, horizontal: 24),
+          padding: const EdgeInsets.symmetric(vertical: 36, horizontal: 24),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(
+              const Icon(
                 Icons.show_chart_rounded,
                 color: _secondaryText,
                 size: 34,
               ),
-              SizedBox(height: 12),
+              const SizedBox(height: 12),
               Text(
-                'No data for this period',
+                context.l10n.noDataForThisPeriod,
                 textAlign: TextAlign.center,
-                style: TextStyle(
+                style: const TextStyle(
                   color: _primaryText,
                   fontSize: 15,
                   fontWeight: FontWeight.w800,
                 ),
               ),
-              SizedBox(height: 6),
+              const SizedBox(height: 6),
               Text(
-                'Tap + to add a manual value.',
+                context.l10n.tapPlusAddManualValue,
                 textAlign: TextAlign.center,
-                style: TextStyle(
+                style: const TextStyle(
                   color: _secondaryText,
                   height: 1.35,
                 ),
@@ -1464,7 +1444,9 @@ class _HealthVitalsPageState extends State<HealthVitalsPage> {
           border: Border.all(color: _border.withValues(alpha: 0.75)),
         ),
         child: Text(
-          'No ${_vitalsMetricToastLabel(_selectedMetric).toLowerCase()} data for this period',
+          context.l10n.noMetricDataForThisPeriod(
+            _vitalsMetricName(context, _selectedMetric).toLowerCase(),
+          ),
           textAlign: TextAlign.center,
           style: const TextStyle(
             color: _primaryText,
@@ -1479,10 +1461,10 @@ class _HealthVitalsPageState extends State<HealthVitalsPage> {
       spacing: 12,
       runSpacing: 12,
       children: [
-        _buildStatCard('Latest', latestDisplay),
-        _buildStatCard('Average', averageDisplay),
+        _buildStatCard(context.l10n.latest, latestDisplay),
+        _buildStatCard(context.l10n.average, averageDisplay),
         _buildStatCard(
-          'Min / Max',
+          context.l10n.minMax,
           minMaxDisplay,
           wide: _selectedMetric == _VitalsMetric.bloodPressure,
         ),
@@ -1560,9 +1542,9 @@ class _HealthVitalsPageState extends State<HealthVitalsPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'Latest entry',
-                  style: TextStyle(
+                Text(
+                  context.l10n.latestEntry,
+                  style: const TextStyle(
                     color: _primaryText,
                     fontSize: 15,
                     fontWeight: FontWeight.w900,
@@ -1588,7 +1570,9 @@ class _HealthVitalsPageState extends State<HealthVitalsPage> {
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  '$readingCount reading${readingCount == 1 ? '' : 's'} in range',
+                  readingCount == 1
+                      ? context.l10n.readingCountInRange(readingCount)
+                      : context.l10n.readingsCountInRange(readingCount),
                   style: const TextStyle(
                     color: _secondaryText,
                     fontSize: 12,
@@ -1994,10 +1978,11 @@ class _VitalsManualEntrySheetState extends State<_VitalsManualEntrySheet> {
     super.dispose();
   }
 
-  String get _title => _vitalsMetricSheetTitle(_metric);
+  String get _title =>
+      context.l10n.addActivityType(_vitalsMetricName(context, _metric));
 
   String get _subtitle {
-    return 'Manual entry will be saved for the selected date.';
+    return context.l10n.manualEntrySelectedDate;
   }
 
   String get _unit => _vitalsMetricUnit(_metric);
@@ -2051,8 +2036,9 @@ class _VitalsManualEntrySheetState extends State<_VitalsManualEntrySheet> {
       });
       _showVitalsToast(
         context,
-        message:
-            'Could not save ${_vitalsMetricToastLabel(_metric).toLowerCase()}',
+        message: context.l10n.couldNotSaveMetric(
+          _vitalsMetricName(context, _metric).toLowerCase(),
+        ),
         success: false,
       );
     }
@@ -2147,18 +2133,18 @@ class _VitalsManualEntrySheetState extends State<_VitalsManualEntrySheet> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Row(
+                    Row(
                       children: [
-                        Icon(
+                        const Icon(
                           Icons.calendar_month_outlined,
                           color: _accent,
                           size: 22,
                         ),
-                        SizedBox(width: 10),
+                        const SizedBox(width: 10),
                         Expanded(
                           child: Text(
-                            'Select date',
-                            style: TextStyle(
+                            context.l10n.selectDate,
+                            style: const TextStyle(
                               color: _primaryText,
                               fontSize: 18,
                               fontWeight: FontWeight.w800,
@@ -2360,7 +2346,7 @@ class _VitalsManualEntrySheetState extends State<_VitalsManualEntrySheet> {
 
     final systolic = int.tryParse(_primaryController.text.trim());
     if (systolic != null && parsed >= systolic) {
-      return 'Diastolic should be lower than systolic';
+      return context.l10n.diastolicLowerThanSystolic;
     }
 
     return null;
@@ -2424,7 +2410,7 @@ class _VitalsManualEntrySheetState extends State<_VitalsManualEntrySheet> {
               cursorColor: _accent,
               autovalidateMode: AutovalidateMode.onUserInteraction,
               decoration: _decoration(
-                label: 'Systolic',
+                label: context.l10n.systolic,
                 suffix: 'mmHg',
                 hint: '120',
               ),
@@ -2441,7 +2427,7 @@ class _VitalsManualEntrySheetState extends State<_VitalsManualEntrySheet> {
               cursorColor: _accent,
               autovalidateMode: AutovalidateMode.onUserInteraction,
               decoration: _decoration(
-                label: 'Diastolic',
+                label: context.l10n.diastolic,
                 suffix: 'mmHg',
                 hint: '80',
               ),
@@ -2617,7 +2603,7 @@ class _VitalsManualEntrySheetState extends State<_VitalsManualEntrySheet> {
                     children: [
                       Expanded(
                         child: _buildDateTimeButton(
-                          label: 'Date',
+                          label: context.l10n.date,
                           value: _dateLabel,
                           icon: Icons.calendar_today_rounded,
                           onTap: _pickDate,
@@ -2626,7 +2612,7 @@ class _VitalsManualEntrySheetState extends State<_VitalsManualEntrySheet> {
                       const SizedBox(width: 12),
                       Expanded(
                         child: _buildDateTimeButton(
-                          label: 'Time',
+                          label: context.l10n.time,
                           value: _timeLabel,
                           icon: Icons.schedule_rounded,
                           onTap: _pickTime,
@@ -2667,7 +2653,7 @@ class _VitalsManualEntrySheetState extends State<_VitalsManualEntrySheet> {
                                       color: Colors.white,
                                     ),
                                   )
-                                : const Text('Save'),
+                                : Text(context.l10n.save),
                           ),
                         ],
                       ),
@@ -2802,8 +2788,9 @@ class _HealthActivityPageState extends State<HealthActivityPage> {
     );
     _showVitalsToast(
       context,
-      message:
-          confirmed ? 'Activity added' : 'Activity refresh did not confirm it',
+      message: confirmed
+          ? context.l10n.activityLoggedToday
+          : context.l10n.noActivityDataForThisPeriod,
       success: confirmed,
     );
   }
@@ -2857,6 +2844,36 @@ class _HealthActivityPageState extends State<HealthActivityPage> {
     }
     return raw;
   }
+
+  String _activityTypeName(_ActivityType type) {
+    final l10n = context.l10n;
+    return switch (type) {
+      _ActivityType.walking => l10n.walking,
+      _ActivityType.running => l10n.running,
+      _ActivityType.cycling => l10n.cycling,
+      _ActivityType.workout => l10n.workout,
+      _ActivityType.swimming => l10n.swimming,
+    };
+  }
+
+  String _activityTypeNameFromLabel(String rawLabel) {
+    final matchedType = _ActivityType.values.firstWhere(
+      (type) => type.label == rawLabel,
+      orElse: () => _ActivityType.workout,
+    );
+    return _activityTypeName(matchedType);
+  }
+
+  String _timeRangeLabel(_ActivityTimeRange range) {
+    return switch (range) {
+      _ActivityTimeRange.day => '1D',
+      _ActivityTimeRange.week => '1W',
+      _ActivityTimeRange.month => '1M',
+      _ActivityTimeRange.max => context.l10n.maxRange,
+    };
+  }
+
+  String _stepsLabel(int steps) => context.l10n.stepsCount(steps);
 
   bool _sameDate(DateTime a, DateTime b) =>
       a.year == b.year && a.month == b.month && a.day == b.day;
@@ -2998,8 +3015,8 @@ class _HealthActivityPageState extends State<HealthActivityPage> {
     final today = DateTime(now.year, now.month, now.day);
     final d = DateTime(date.year, date.month, date.day);
     final diff = today.difference(d).inDays;
-    if (diff == 0) return 'Today';
-    if (diff == 1) return 'Yesterday';
+    if (diff == 0) return context.l10n.today;
+    if (diff == 1) return context.l10n.yesterday;
     return DateFormat('d MMM').format(date);
   }
 
@@ -3116,7 +3133,7 @@ class _HealthActivityPageState extends State<HealthActivityPage> {
   String _latest(List<_ActivityPoint> points) {
     if (points.isEmpty) return '-';
     return _isWalkingTab
-        ? '${points.last.value} steps'
+        ? _stepsLabel(points.last.value)
         : _formatDuration(points.last.value);
   }
 
@@ -3129,7 +3146,7 @@ class _HealthActivityPageState extends State<HealthActivityPage> {
       // average is inflated.
       final days = _averageDayDivisor(points);
       final avg = days > 0 ? (total / days).round() : 0;
-      return '$avg steps';
+      return _stepsLabel(avg);
     }
     // Other activities: average duration per session.
     final avg = (total / points.length).round();
@@ -3160,7 +3177,7 @@ class _HealthActivityPageState extends State<HealthActivityPage> {
   String _total(List<_ActivityPoint> points) {
     if (points.isEmpty) return '-';
     final sum = points.fold<int>(0, (sum, point) => sum + point.value);
-    return _isWalkingTab ? '$sum steps' : _formatDuration(sum);
+    return _isWalkingTab ? _stepsLabel(sum) : _formatDuration(sum);
   }
 
   bool _isActivityInSelectedRange(DateTime date) {
@@ -3223,18 +3240,23 @@ class _HealthActivityPageState extends State<HealthActivityPage> {
   String _activityListTitle() {
     switch (_selectedTimeRange) {
       case _ActivityTimeRange.day:
-        return "Today's ${_selectedType.label}";
+        return context.l10n
+            .todaysActivityType(_activityTypeName(_selectedType));
       case _ActivityTimeRange.week:
-        return '${_selectedType.label} this week';
+        return context.l10n
+            .activityTypeThisWeek(_activityTypeName(_selectedType));
       case _ActivityTimeRange.month:
-        return '${_selectedType.label} this month';
+        return context.l10n
+            .activityTypeThisMonth(_activityTypeName(_selectedType));
       case _ActivityTimeRange.max:
-        return 'All ${_selectedType.label} activities';
+        return context.l10n
+            .allActivityTypeActivities(_activityTypeName(_selectedType));
     }
   }
 
   String _activityEmptyStateMessage() {
-    return 'No ${_selectedType.label} activities for this period';
+    return context.l10n
+        .noActivityTypeActivitiesForPeriod(_activityTypeName(_selectedType));
   }
 
   void _openActivityDetails(Map<String, dynamic> activity) {
@@ -3249,7 +3271,7 @@ class _HealthActivityPageState extends State<HealthActivityPage> {
       useSafeArea: true,
       backgroundColor: Colors.transparent,
       builder: (_) => _ActivityDetailsSheet(
-        typeLabel: rawLabel,
+        typeLabel: _activityTypeNameFromLabel(rawLabel),
         dateLabel: _formatActivityDate(_activityDate(activity)),
         color: _typeColor(matchedType),
         icon: _typeIcon(matchedType),
@@ -3265,13 +3287,13 @@ class _HealthActivityPageState extends State<HealthActivityPage> {
   String _averageTimeframeLabel() {
     switch (_selectedTimeRange) {
       case _ActivityTimeRange.day:
-        return 'today';
+        return context.l10n.averageToday;
       case _ActivityTimeRange.week:
-        return 'this week';
+        return context.l10n.averageThisWeek;
       case _ActivityTimeRange.month:
-        return 'this month';
+        return context.l10n.averageThisMonth;
       case _ActivityTimeRange.max:
-        return 'all time';
+        return context.l10n.averageAllTime;
     }
   }
 
@@ -3309,7 +3331,7 @@ class _HealthActivityPageState extends State<HealthActivityPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Average ${_averageTimeframeLabel()}',
+                  _averageTimeframeLabel(),
                   style: const TextStyle(
                     color: _secondaryText,
                     fontSize: 12,
@@ -3481,7 +3503,7 @@ class _HealthActivityPageState extends State<HealthActivityPage> {
                     Row(
                       children: [
                         Text(
-                          rawLabel,
+                          _activityTypeName(matchedType),
                           style: const TextStyle(
                             color: _primaryText,
                             fontSize: 15,
@@ -3518,8 +3540,8 @@ class _HealthActivityPageState extends State<HealthActivityPage> {
                           _statChip(
                               Icons.timer_outlined, _formatDuration(duration)),
                         if (steps > 0)
-                          _statChip(
-                              Icons.directions_walk_rounded, '$steps steps'),
+                          _statChip(Icons.directions_walk_rounded,
+                              _stepsLabel(steps)),
                         if (distance != null)
                           _statChip(Icons.straighten_rounded,
                               _formatDistance(distance)),
@@ -3597,7 +3619,7 @@ class _HealthActivityPageState extends State<HealthActivityPage> {
             const SizedBox(width: 14),
             Expanded(
               child: Text(
-                'Activity',
+                context.l10n.activity,
                 style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                       color: _primaryText,
                       fontWeight: FontWeight.w900,
@@ -3642,7 +3664,7 @@ class _HealthActivityPageState extends State<HealthActivityPage> {
               size: 16, color: selected ? _accent : _secondaryText),
           const SizedBox(width: 8),
           Text(
-            definition.label,
+            _activityTypeName(definition.type),
             style: TextStyle(
               color: selected ? _primaryText : _secondaryText,
               fontSize: 13,
@@ -3686,7 +3708,7 @@ class _HealthActivityPageState extends State<HealthActivityPage> {
             border: Border.all(color: selected ? _accent : Colors.transparent),
           ),
           child: Text(
-            range.label,
+            _timeRangeLabel(range),
             style: TextStyle(
               color: selected ? _primaryText : _secondaryText,
               fontSize: 13,
@@ -3826,16 +3848,16 @@ class _HealthActivityPageState extends State<HealthActivityPage> {
           Expanded(
             child:
                 Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              const Text(
-                'Steps',
-                style: TextStyle(
+              Text(
+                context.l10n.steps,
+                style: const TextStyle(
                     color: _primaryText,
                     fontSize: 18,
                     fontWeight: FontWeight.w900),
               ),
               const SizedBox(height: 2),
               Text(
-                'Today: $todaySteps / $goal',
+                context.l10n.todayValueGoal(todaySteps, goal),
                 style: TextStyle(
                     color: typeColor,
                     fontSize: 13,
@@ -3980,8 +4002,10 @@ class _HealthActivityPageState extends State<HealthActivityPage> {
               Expanded(
                 child: Text(
                   todaySteps >= goal
-                      ? 'Daily goal reached'
-                      : '${(goal - todaySteps).clamp(0, goal)} steps to daily goal',
+                      ? context.l10n.dailyGoalReached
+                      : context.l10n.stepsToDailyGoal(
+                          (goal - todaySteps).clamp(0, goal),
+                        ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
@@ -4065,7 +4089,7 @@ class _HealthActivityPageState extends State<HealthActivityPage> {
         Row(children: [
           Expanded(
             child: Text(
-              _selectedType.label,
+              _activityTypeName(_selectedType),
               style: const TextStyle(
                 color: _primaryText,
                 fontSize: 18,
@@ -4083,8 +4107,8 @@ class _HealthActivityPageState extends State<HealthActivityPage> {
         const SizedBox(height: 14),
         Text(
           hasData
-              ? 'Activity duration in the selected range.'
-              : 'No activity data for this period',
+              ? context.l10n.activityDurationSelectedRange
+              : context.l10n.noActivityDataForThisPeriod,
           style: const TextStyle(
             color: _secondaryText,
             fontSize: 13,
@@ -4209,11 +4233,11 @@ class _HealthActivityPageState extends State<HealthActivityPage> {
           borderRadius: BorderRadius.circular(22),
           border: Border.all(color: _border.withValues(alpha: 0.85)),
         ),
-        child: const Center(
+        child: Center(
           child: Text(
-            'No activity data for this period',
+            context.l10n.noActivityDataForThisPeriod,
             textAlign: TextAlign.center,
-            style: TextStyle(
+            style: const TextStyle(
               color: _primaryText,
               fontSize: 15,
               fontWeight: FontWeight.w800,
@@ -4232,10 +4256,10 @@ class _HealthActivityPageState extends State<HealthActivityPage> {
           borderRadius: BorderRadius.circular(20),
           border: Border.all(color: _border.withValues(alpha: 0.75)),
         ),
-        child: const Text(
-          'No activity data for this period',
+        child: Text(
+          context.l10n.noActivityDataForThisPeriod,
           textAlign: TextAlign.center,
-          style: TextStyle(
+          style: const TextStyle(
             color: _primaryText,
             fontSize: 15,
             fontWeight: FontWeight.w800,
@@ -4244,9 +4268,9 @@ class _HealthActivityPageState extends State<HealthActivityPage> {
       );
     }
     return Wrap(spacing: 12, runSpacing: 12, children: [
-      _statCard('Latest', _latest(points)),
-      _statCard('Average', _average(points)),
-      _statCard('Total', _total(points)),
+      _statCard(context.l10n.latest, _latest(points)),
+      _statCard(context.l10n.average, _average(points)),
+      _statCard(context.l10n.total, _total(points)),
     ]);
   }
 
@@ -4456,26 +4480,30 @@ class _ActivityDetailsSheet extends StatelessWidget {
   }
 
   /// (label, value, color) stat cells, Samsung-style: only those with real data.
-  List<(String, String, Color)> _stats() {
+  List<(String, String, Color)> _stats(BuildContext context) {
+    final l10n = context.l10n;
     final out = <(String, String, Color)>[];
-    out.add(('Duration', _durationClock(durationMinutes), _accent));
+    out.add((l10n.duration, _durationClock(durationMinutes), _accent));
     final km = distanceKm;
     if (km != null && km > 0 && durationMinutes > 0) {
       final kmh = km / (durationMinutes / 60.0);
-      out.add(('Avg. speed', '${kmh.toStringAsFixed(1)} km/h', _accent));
+      out.add((l10n.avgSpeed, '${kmh.toStringAsFixed(1)} km/h', _accent));
     }
     if (calories != null) {
-      out.add(('Calories', '$calories kcal', _pink));
+      out.add((l10n.calories, '$calories kcal', _pink));
     }
     if (steps > 0) {
-      out.add(('Steps', _thousands(steps), _green));
+      out.add((l10n.steps, _thousands(steps), _green));
     }
     if (km != null && km > 0 && durationMinutes > 0) {
       final secPerKm = (durationMinutes * 60) / km;
       final pm = secPerKm ~/ 60;
       final ps = (secPerKm % 60).round();
-      out.add(
-          ('Avg. pace', "$pm'${ps.toString().padLeft(2, '0')}\" /km", _accent));
+      out.add((
+        l10n.avgPace,
+        "$pm'${ps.toString().padLeft(2, '0')}\" /km",
+        _accent
+      ));
     }
     return out;
   }
@@ -4505,7 +4533,7 @@ class _ActivityDetailsSheet extends StatelessWidget {
     final primary = (km != null && km > 0)
         ? _distanceText(km)
         : _durationClock(durationMinutes);
-    final stats = _stats();
+    final stats = _stats(context);
 
     return SafeArea(
       top: false,
@@ -4613,9 +4641,9 @@ class _ActivityDetailsSheet extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
-                        'Workout details',
-                        style: TextStyle(
+                      Text(
+                        context.l10n.workoutDetails,
+                        style: const TextStyle(
                           color: _primaryText,
                           fontSize: 16,
                           fontWeight: FontWeight.w900,
@@ -4761,6 +4789,17 @@ class _ActivityManualEntrySheetState extends State<_ActivityManualEntrySheet> {
   TextStyle get _inputStyle =>
       const TextStyle(color: _primaryText, fontWeight: FontWeight.w700);
 
+  String _activityTypeName(_ActivityType type) {
+    final l10n = context.l10n;
+    return switch (type) {
+      _ActivityType.walking => l10n.walking,
+      _ActivityType.running => l10n.running,
+      _ActivityType.cycling => l10n.cycling,
+      _ActivityType.workout => l10n.workout,
+      _ActivityType.swimming => l10n.swimming,
+    };
+  }
+
   Future<void> _pickDate() async {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
@@ -4842,18 +4881,18 @@ class _ActivityManualEntrySheetState extends State<_ActivityManualEntrySheet> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Row(
+                  Row(
                     children: [
-                      Icon(
+                      const Icon(
                         Icons.calendar_month_outlined,
                         color: _accent,
                         size: 22,
                       ),
-                      SizedBox(width: 10),
+                      const SizedBox(width: 10),
                       Expanded(
                         child: Text(
-                          'Select date',
-                          style: TextStyle(
+                          context.l10n.selectDate,
+                          style: const TextStyle(
                             color: _primaryText,
                             fontSize: 18,
                             fontWeight: FontWeight.w800,
@@ -4938,7 +4977,7 @@ class _ActivityManualEntrySheetState extends State<_ActivityManualEntrySheet> {
       if (!saved) {
         _showVitalsToast(
           context,
-          message: 'Could not save activity',
+          message: context.l10n.couldNotSaveActivity,
           success: false,
         );
         setState(() => _saving = false);
@@ -4958,7 +4997,7 @@ class _ActivityManualEntrySheetState extends State<_ActivityManualEntrySheet> {
       if (!mounted) return;
       _showVitalsToast(
         context,
-        message: 'Could not save activity',
+        message: context.l10n.couldNotSaveActivity,
         success: false,
       );
       setState(() => _saving = false);
@@ -5000,7 +5039,8 @@ class _ActivityManualEntrySheetState extends State<_ActivityManualEntrySheet> {
                     children: [
                       Expanded(
                         child: Text(
-                          'Add ${_selectedType.label}',
+                          context.l10n.addActivityType(
+                              _activityTypeName(_selectedType)),
                           style: const TextStyle(
                             color: _primaryText,
                             fontSize: 22,
@@ -5032,7 +5072,7 @@ class _ActivityManualEntrySheetState extends State<_ActivityManualEntrySheet> {
                     borderRadius: BorderRadius.circular(16),
                     onTap: _pickDate,
                     child: InputDecorator(
-                      decoration: _decoration('Date'),
+                      decoration: _decoration(context.l10n.date),
                       child: Text(
                         DateFormat('dd MMM yyyy').format(_selectedDate),
                         style: _inputStyle,
@@ -5045,12 +5085,11 @@ class _ActivityManualEntrySheetState extends State<_ActivityManualEntrySheet> {
                     keyboardType: TextInputType.number,
                     inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                     style: _inputStyle,
-                    decoration: _decoration('Duration', suffix: 'min'),
+                    decoration:
+                        _decoration(context.l10n.duration, suffix: 'min'),
                     validator: (value) {
                       final duration = int.tryParse(value?.trim() ?? '') ?? 0;
-                      return duration > 0
-                          ? null
-                          : 'Duration must be greater than 0';
+                      return duration > 0 ? null : context.l10n.required;
                     },
                   ),
                   const SizedBox(height: 12),
@@ -5067,7 +5106,8 @@ class _ActivityManualEntrySheetState extends State<_ActivityManualEntrySheet> {
                                 RegExp(r'[0-9.]')),
                           ],
                           style: _inputStyle,
-                          decoration: _decoration('Distance', suffix: 'km'),
+                          decoration: _decoration(context.l10n.distanceKm,
+                              suffix: 'km'),
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -5079,7 +5119,8 @@ class _ActivityManualEntrySheetState extends State<_ActivityManualEntrySheet> {
                             FilteringTextInputFormatter.digitsOnly,
                           ],
                           style: _inputStyle,
-                          decoration: _decoration('Calories', suffix: 'kcal'),
+                          decoration: _decoration(context.l10n.caloriesOptional,
+                              suffix: 'kcal'),
                         ),
                       ),
                     ]),
@@ -5092,7 +5133,8 @@ class _ActivityManualEntrySheetState extends State<_ActivityManualEntrySheet> {
                         FilteringTextInputFormatter.digitsOnly,
                       ],
                       style: _inputStyle,
-                      decoration: _decoration('Calories', suffix: 'kcal'),
+                      decoration: _decoration(context.l10n.caloriesOptional,
+                          suffix: 'kcal'),
                     ),
                     const SizedBox(height: 12),
                   ],
@@ -5100,7 +5142,7 @@ class _ActivityManualEntrySheetState extends State<_ActivityManualEntrySheet> {
                     controller: _notesController,
                     maxLines: 3,
                     style: _inputStyle,
-                    decoration: _decoration('Notes'),
+                    decoration: _decoration(context.l10n.notesOptional),
                   ),
                   const SizedBox(height: 18),
                   SizedBox(
@@ -5124,7 +5166,7 @@ class _ActivityManualEntrySheetState extends State<_ActivityManualEntrySheet> {
                                 color: Colors.white,
                               ),
                             )
-                          : const Text('Save'),
+                          : Text(context.l10n.save),
                     ),
                   ),
                 ],
@@ -5237,7 +5279,7 @@ class _HealthSleepPageState extends State<HealthSleepPage> {
     if (!confirmed) {
       _showVitalsToast(
         context,
-        message: 'Sleep saved, but not returned by refresh',
+        message: context.l10n.sleepSavedButNotReturned,
         success: false,
       );
       return;
@@ -5245,7 +5287,7 @@ class _HealthSleepPageState extends State<HealthSleepPage> {
 
     _showVitalsToast(
       context,
-      message: 'Sleep added',
+      message: context.l10n.sleepAdded,
       success: true,
     );
   }
@@ -5409,7 +5451,10 @@ class _HealthSleepPageState extends State<HealthSleepPage> {
     }
     final minValue = values.reduce((a, b) => a < b ? a : b);
     final maxValue = values.reduce((a, b) => a > b ? a : b);
-    return 'Low ${_formatDuration(minValue)}\nHigh ${_formatDuration(maxValue)}';
+    return context.l10n.lowHigh(
+      _formatDuration(minValue),
+      _formatDuration(maxValue),
+    );
   }
 
   List<double> _validSleepHours(List<HealthEntry> entries) {
@@ -5474,7 +5519,7 @@ class _HealthSleepPageState extends State<HealthSleepPage> {
           const SizedBox(width: 14),
           Expanded(
             child: Text(
-              'Sleep',
+              context.l10n.sleep,
               style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                     color: _primaryText,
                     fontWeight: FontWeight.w900,
@@ -5525,7 +5570,7 @@ class _HealthSleepPageState extends State<HealthSleepPage> {
             ),
           ),
           child: Text(
-            range.label,
+            range == _SleepTimeRange.max ? context.l10n.maxRange : range.label,
             style: TextStyle(
               color: selected ? _primaryText : _secondaryText,
               fontSize: 13,
@@ -5622,10 +5667,10 @@ class _HealthSleepPageState extends State<HealthSleepPage> {
         children: [
           Row(
             children: [
-              const Expanded(
+              Expanded(
                 child: Text(
-                  'Sleep',
-                  style: TextStyle(
+                  context.l10n.sleep,
+                  style: const TextStyle(
                     color: _primaryText,
                     fontSize: 18,
                     fontWeight: FontWeight.w900,
@@ -5733,8 +5778,8 @@ class _HealthSleepPageState extends State<HealthSleepPage> {
           const SizedBox(height: 14),
           Text(
             hasData
-                ? 'Sleep hours in the selected range.'
-                : 'No sleep data for this period',
+                ? context.l10n.sleepHoursSelectedRange
+                : context.l10n.noSleepDataForThisPeriod,
             style: const TextStyle(
               color: _secondaryText,
               fontSize: 13,
@@ -5778,32 +5823,32 @@ class _HealthSleepPageState extends State<HealthSleepPage> {
         borderRadius: BorderRadius.circular(22),
         border: Border.all(color: _border.withValues(alpha: 0.85)),
       ),
-      child: const Center(
+      child: Center(
         child: Padding(
-          padding: EdgeInsets.symmetric(vertical: 36, horizontal: 24),
+          padding: const EdgeInsets.symmetric(vertical: 36, horizontal: 24),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(
+              const Icon(
                 Icons.bedtime_rounded,
                 color: _secondaryText,
                 size: 34,
               ),
-              SizedBox(height: 12),
+              const SizedBox(height: 12),
               Text(
-                'No sleep data for this period',
+                context.l10n.noSleepDataForThisPeriod,
                 textAlign: TextAlign.center,
-                style: TextStyle(
+                style: const TextStyle(
                   color: _primaryText,
                   fontSize: 15,
                   fontWeight: FontWeight.w800,
                 ),
               ),
-              SizedBox(height: 6),
+              const SizedBox(height: 6),
               Text(
-                'Tap + to add a sleep entry.',
+                context.l10n.tapAddSleepEntry,
                 textAlign: TextAlign.center,
-                style: TextStyle(
+                style: const TextStyle(
                   color: _secondaryText,
                   height: 1.35,
                 ),
@@ -5824,9 +5869,9 @@ class _HealthSleepPageState extends State<HealthSleepPage> {
       spacing: 12,
       runSpacing: 12,
       children: [
-        _buildStatCard('Latest', latestDisplay),
-        _buildStatCard('Average', averageDisplay),
-        _buildStatCard('Min / Max', minMaxDisplay, wide: true),
+        _buildStatCard(context.l10n.latest, latestDisplay),
+        _buildStatCard(context.l10n.average, averageDisplay),
+        _buildStatCard(context.l10n.minMax, minMaxDisplay, wide: true),
       ],
     );
   }
@@ -5907,19 +5952,19 @@ class _HealthSleepPageState extends State<HealthSleepPage> {
                             const Icon(Icons.error_outline_rounded,
                                 color: _accent, size: 34),
                             const SizedBox(height: 12),
-                            const Text(
-                              'Could not load sleep',
-                              style: TextStyle(
+                            Text(
+                              context.l10n.couldNotLoadSleep,
+                              style: const TextStyle(
                                 color: _primaryText,
                                 fontSize: 18,
                                 fontWeight: FontWeight.w900,
                               ),
                             ),
                             const SizedBox(height: 8),
-                            const Text(
-                              'Try again to load the latest sleep entries.',
+                            Text(
+                              context.l10n.tryLoadLatestSleepEntries,
                               textAlign: TextAlign.center,
-                              style: TextStyle(
+                              style: const TextStyle(
                                 color: _secondaryText,
                                 height: 1.4,
                               ),
@@ -5936,7 +5981,7 @@ class _HealthSleepPageState extends State<HealthSleepPage> {
                                     borderRadius: BorderRadius.circular(14),
                                   ),
                                 ),
-                                child: const Text('Retry'),
+                                child: Text(context.l10n.retry),
                               ),
                             ),
                           ],
@@ -6220,18 +6265,18 @@ class _SleepManualEntrySheetState extends State<_SleepManualEntrySheet> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Row(
+                    Row(
                       children: [
-                        Icon(
+                        const Icon(
                           Icons.calendar_month_outlined,
                           color: _accent,
                           size: 22,
                         ),
-                        SizedBox(width: 10),
+                        const SizedBox(width: 10),
                         Expanded(
                           child: Text(
-                            'Select date',
-                            style: TextStyle(
+                            context.l10n.selectDate,
+                            style: const TextStyle(
                               color: _primaryText,
                               fontSize: 18,
                               fontWeight: FontWeight.w800,
@@ -6348,7 +6393,7 @@ class _SleepManualEntrySheetState extends State<_SleepManualEntrySheet> {
     if (sleepHours == null || sleepHours <= 0) {
       _showVitalsToast(
         context,
-        message: 'Sleep duration is invalid',
+        message: context.l10n.sleepDurationInvalid,
         success: false,
       );
       return;
@@ -6357,8 +6402,7 @@ class _SleepManualEntrySheetState extends State<_SleepManualEntrySheet> {
     if (sleepHours > 16) {
       _showVitalsToast(
         context,
-        message:
-            'Sleep duration looks too long. Please check bedtime and wake time.',
+        message: context.l10n.sleepDurationTooLong,
         success: false,
       );
       return;
@@ -6417,7 +6461,9 @@ class _SleepManualEntrySheetState extends State<_SleepManualEntrySheet> {
       });
       _showVitalsToast(
         context,
-        message: 'Could not save sleep',
+        message: context.l10n.couldNotSaveMetric(
+          context.l10n.sleep.toLowerCase(),
+        ),
         success: false,
       );
     }
@@ -6515,9 +6561,9 @@ class _SleepManualEntrySheetState extends State<_SleepManualEntrySheet> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'Duration',
-                  style: TextStyle(
+                Text(
+                  context.l10n.duration,
+                  style: const TextStyle(
                     color: _secondaryText,
                     fontSize: 12,
                     fontWeight: FontWeight.w700,
@@ -6561,7 +6607,7 @@ class _SleepManualEntrySheetState extends State<_SleepManualEntrySheet> {
                 color: Colors.white,
               ),
             )
-          : const Text('Save'),
+          : Text(context.l10n.save),
     );
   }
 
@@ -6604,10 +6650,10 @@ class _SleepManualEntrySheetState extends State<_SleepManualEntrySheet> {
                 const SizedBox(height: 16),
                 Row(
                   children: [
-                    const Expanded(
+                    Expanded(
                       child: Text(
-                        'Add sleep',
-                        style: TextStyle(
+                        context.l10n.addSleep,
+                        style: const TextStyle(
                           color: _primaryText,
                           fontSize: 22,
                           fontWeight: FontWeight.w900,
@@ -6634,30 +6680,30 @@ class _SleepManualEntrySheetState extends State<_SleepManualEntrySheet> {
                   ],
                 ),
                 const SizedBox(height: 6),
-                const Text(
-                  'Save bedtime and wake time. Sleep duration is calculated automatically.',
-                  style: TextStyle(
+                Text(
+                  context.l10n.sleepManualEntrySubtitle,
+                  style: const TextStyle(
                     color: _secondaryText,
                     height: 1.35,
                   ),
                 ),
                 const SizedBox(height: 20),
                 _buildPickerField(
-                  label: 'Date',
+                  label: context.l10n.date,
                   value: _dateLabel,
                   icon: Icons.calendar_today_rounded,
                   onTap: _pickDate,
                 ),
                 const SizedBox(height: 12),
                 _buildPickerField(
-                  label: 'Bedtime',
+                  label: context.l10n.bedtime,
                   value: _bedtimeLabel,
                   icon: Icons.nightlight_round,
                   onTap: _pickBedtime,
                 ),
                 const SizedBox(height: 12),
                 _buildPickerField(
-                  label: 'Wake time',
+                  label: context.l10n.wakeTime,
                   value: _wakeTimeLabel,
                   icon: Icons.wb_sunny_rounded,
                   onTap: _pickWakeTime,
@@ -6665,9 +6711,9 @@ class _SleepManualEntrySheetState extends State<_SleepManualEntrySheet> {
                 const SizedBox(height: 12),
                 _buildDurationCard(),
                 const SizedBox(height: 12),
-                const Text(
-                  'Bedtime and wake time are stored when the API supports these fields.',
-                  style: TextStyle(
+                Text(
+                  context.l10n.sleepApiSupportNote,
+                  style: const TextStyle(
                     color: _secondaryText,
                     fontSize: 12,
                     height: 1.35,
@@ -6710,7 +6756,7 @@ class _MedicineAddPageState extends State<MedicineAddPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Add medicine')),
+      appBar: AppBar(title: Text(context.l10n.addMedicine)),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Form(
@@ -6720,29 +6766,29 @@ class _MedicineAddPageState extends State<MedicineAddPage> {
               TextFormField(
                   controller: _nameController,
                   decoration:
-                      const InputDecoration(labelText: 'Medicine name')),
+                      InputDecoration(labelText: context.l10n.medicineName)),
               const SizedBox(height: 12),
               TextFormField(
                   controller: _dosageController,
-                  decoration: const InputDecoration(labelText: 'Dosage')),
+                  decoration: InputDecoration(labelText: context.l10n.dosage)),
               const SizedBox(height: 12),
               TextFormField(
                   controller: _frequencyController,
-                  decoration: const InputDecoration(labelText: 'Frequency')),
+                  decoration:
+                      InputDecoration(labelText: context.l10n.frequency)),
               const SizedBox(height: 12),
               TextFormField(
                   controller: _reasonController,
-                  decoration: const InputDecoration(labelText: 'Reason')),
+                  decoration: InputDecoration(labelText: context.l10n.reason)),
               const SizedBox(height: 16),
               ElevatedButton(
                 onPressed: () {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                        content: Text(
-                            'Medicine creation is not wired to an API endpoint yet.')),
+                    SnackBar(
+                        content: Text(context.l10n.medicineCreationNotWired)),
                   );
                 },
-                child: const Text('Save'),
+                child: Text(context.l10n.save),
               ),
             ],
           ),
@@ -6774,13 +6820,13 @@ class MedicineDetailPage extends StatelessWidget {
     context.goNamed('meds');
   }
 
-  String _value(String? value) {
+  String _value(BuildContext context, String? value) {
     final text = value?.trim();
-    return text == null || text.isEmpty ? 'Not set' : text;
+    return text == null || text.isEmpty ? context.l10n.notSet : text;
   }
 
-  String _date(DateTime? date) {
-    if (date == null) return 'Not set';
+  String _date(BuildContext context, DateTime? date) {
+    if (date == null) return context.l10n.notSet;
     return DateFormat('dd MMM yyyy').format(date.toLocal());
   }
 
@@ -6800,7 +6846,7 @@ class MedicineDetailPage extends StatelessWidget {
               ? SafeArea(
                   child: Column(
                     children: [
-                      _topBar(context, 'Medicine details'),
+                      _topBar(context, context.l10n.medicineDetails),
                       const Spacer(),
                       const SizedBox(
                         width: 28,
@@ -6811,9 +6857,9 @@ class MedicineDetailPage extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: 14),
-                      const Text(
-                        'Loading medicine',
-                        style: TextStyle(
+                      Text(
+                        context.l10n.loadingMedicine,
+                        style: const TextStyle(
                           color: _mutedText,
                           fontWeight: FontWeight.w600,
                         ),
@@ -6826,13 +6872,12 @@ class MedicineDetailPage extends StatelessWidget {
                   ? SafeArea(
                       child: Column(
                         children: [
-                          _topBar(context, 'Medicine details'),
+                          _topBar(context, context.l10n.medicineDetails),
                           const Spacer(),
                           _emptyCard(
                             icon: Icons.search_off_rounded,
-                            title: 'Medicine not found',
-                            subtitle:
-                                'This medicine may have been removed or is no longer available.',
+                            title: context.l10n.medicineNotFound,
+                            subtitle: context.l10n.medicineNotFoundDescription,
                           ),
                           const Spacer(),
                         ],
@@ -6844,43 +6889,55 @@ class MedicineDetailPage extends StatelessWidget {
                         children: [
                           _topBar(context, medicine.name),
                           const SizedBox(height: 14),
-                          _heroCard(medicine),
+                          _heroCard(context, medicine),
                           const SizedBox(height: 16),
                           _section(
-                            title: 'Schedule',
+                            title: context.l10n.schedule,
                             children: [
-                              _detailRow(Icons.medication_rounded, 'Dosage',
-                                  _value(medicine.dosage)),
+                              _detailRow(
+                                  Icons.medication_rounded,
+                                  context.l10n.dosage,
+                                  _value(context, medicine.dosage)),
                               _divider(),
-                              _detailRow(Icons.repeat_rounded, 'Frequency',
-                                  _value(medicine.frequency)),
+                              _detailRow(
+                                  Icons.repeat_rounded,
+                                  context.l10n.frequency,
+                                  _value(context, medicine.frequency)),
                               _divider(),
-                              _detailRow(Icons.schedule_rounded, 'Next dose',
-                                  _value(medicine.scheduleLabel)),
+                              _detailRow(
+                                  Icons.schedule_rounded,
+                                  context.l10n.nextDose,
+                                  _value(context, medicine.scheduleLabel)),
                             ],
                           ),
                           const SizedBox(height: 16),
                           _section(
-                            title: 'Notes',
+                            title: context.l10n.notes,
                             children: [
-                              _detailRow(Icons.info_outline_rounded, 'Reason',
-                                  _value(medicine.reason)),
+                              _detailRow(
+                                  Icons.info_outline_rounded,
+                                  context.l10n.reason,
+                                  _value(context, medicine.reason)),
                               _divider(),
                               _detailRow(
                                   Icons.notes_rounded,
-                                  'Side effects / notes',
-                                  _value(medicine.sideEffects)),
+                                  context.l10n.sideEffectsNotes,
+                                  _value(context, medicine.sideEffects)),
                             ],
                           ),
                           const SizedBox(height: 16),
                           _section(
-                            title: 'Timeline',
+                            title: context.l10n.timeline,
                             children: [
-                              _detailRow(Icons.calendar_today_rounded,
-                                  'Start date', _date(medicine.startDate)),
+                              _detailRow(
+                                  Icons.calendar_today_rounded,
+                                  context.l10n.startDate,
+                                  _date(context, medicine.startDate)),
                               _divider(),
-                              _detailRow(Icons.event_rounded, 'End date',
-                                  _date(medicine.endDate)),
+                              _detailRow(
+                                  Icons.event_rounded,
+                                  context.l10n.endDate,
+                                  _date(context, medicine.endDate)),
                             ],
                           ),
                         ],
@@ -6938,7 +6995,7 @@ class MedicineDetailPage extends StatelessWidget {
     );
   }
 
-  Widget _heroCard(Medicine medicine) {
+  Widget _heroCard(BuildContext context, Medicine medicine) {
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
@@ -6987,7 +7044,7 @@ class MedicineDetailPage extends StatelessWidget {
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      _value(medicine.dosage),
+                      _value(context, medicine.dosage),
                       style: const TextStyle(
                         color: _mutedText,
                         fontSize: 14,
@@ -7005,13 +7062,14 @@ class MedicineDetailPage extends StatelessWidget {
             runSpacing: 10,
             children: [
               _pill(
-                medicine.isActive ? 'Active' : 'Inactive',
+                medicine.isActive ? context.l10n.active : context.l10n.inactive,
                 medicine.isActive ? _success : _mutedText,
                 medicine.isActive
                     ? Icons.check_circle_rounded
                     : Icons.pause_circle_outline_rounded,
               ),
-              _pill(_value(medicine.frequency), _accent, Icons.repeat_rounded),
+              _pill(_value(context, medicine.frequency), _accent,
+                  Icons.repeat_rounded),
             ],
           ),
         ],
@@ -7336,7 +7394,7 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
       if (!mounted) return;
       context.go('/auth');
     } else {
-      _snack('Could not delete account');
+      _snack(context.l10n.couldNotDeleteAccount);
     }
   }
 
@@ -7354,6 +7412,7 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
     final api = ApiService.instance;
     final debugInfo = await api.getDebugInfo();
     if (!mounted) return;
+    final l10n = context.l10n;
 
     await showDialog<void>(
       context: context,
@@ -7363,35 +7422,39 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
           borderRadius: BorderRadius.circular(20),
           side: const BorderSide(color: _border),
         ),
-        title: const Text(
-          'API Configuration',
-          style: TextStyle(color: _primaryText, fontWeight: FontWeight.w900),
+        title: Text(
+          l10n.apiConfiguration,
+          style: const TextStyle(
+            color: _primaryText,
+            fontWeight: FontWeight.w900,
+          ),
         ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _debugLine('Base URL', debugInfo['currentBaseUrl'].toString()),
-            _debugLine('Platform', debugInfo['isWeb'] ? 'Web' : 'Mobile'),
+            _debugLine(l10n.baseUrl, debugInfo['currentBaseUrl'].toString()),
             _debugLine(
-              'API reachable',
-              debugInfo['canReachApi'] == true ? 'Yes' : 'No',
+                l10n.platform, debugInfo['isWeb'] ? l10n.web : l10n.mobile),
+            _debugLine(
+              l10n.apiReachable,
+              debugInfo['canReachApi'] == true ? l10n.yes : l10n.no,
             ),
           ],
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Close'),
+            child: Text(l10n.close),
           ),
           TextButton(
             onPressed: () async {
               await api.resetApiConfiguration();
               if (!ctx.mounted || !mounted) return;
               Navigator.pop(ctx);
-              _snack('API configuration reset');
+              _snack(l10n.apiConfigurationReset);
             },
-            child: const Text('Reset API', style: TextStyle(color: _danger)),
+            child: Text(l10n.resetApi, style: const TextStyle(color: _danger)),
           ),
         ],
       ),
@@ -7438,13 +7501,12 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
                   padding: const EdgeInsets.fromLTRB(20, 22, 20, 32),
                   sliver: SliverList(
                     delegate: SliverChildListDelegate([
-                      _section('Notifications', [
+                      _section(context.l10n.notificationsSection, [
                         _SettingsTile(
                           icon: Icons.notifications_active_outlined,
                           accent: _accent,
-                          title: 'Enable notifications',
-                          subtitle:
-                              'Allow HealthTrackMe to send reminders and alerts',
+                          title: context.l10n.enableNotifications,
+                          subtitle: context.l10n.enableNotificationsSubtitle,
                           trailing: Switch(
                             value: _notificationsEnabled,
                             onChanged: _saveNotifications,
@@ -7455,36 +7517,36 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
                         ),
                       ]),
                       const SizedBox(height: 22),
-                      _section('Data & Privacy', [
+                      _section(context.l10n.dataPrivacy, [
                         _SettingsTile(
                           icon: Icons.upload_file_outlined,
                           accent: _green,
-                          title: 'Export data',
-                          subtitle: 'Copy or email your health data',
+                          title: context.l10n.exportData,
+                          subtitle: context.l10n.exportDataSubtitle,
                           onTap: () => showExportSheet(context),
                         ),
                         _SettingsTile(
                           icon: Icons.delete_outline,
                           accent: _danger,
-                          title: 'Delete all my data',
-                          subtitle: 'Permanent account data removal',
+                          title: context.l10n.deleteAllMyData,
+                          subtitle: context.l10n.deleteAllMyDataSubtitle,
                           onTap: _deleteAllData,
                         ),
                         _SettingsTile(
                           icon: Icons.privacy_tip_outlined,
                           accent: _accent,
-                          title: 'Privacy policy',
-                          subtitle: 'Review privacy information',
+                          title: context.l10n.privacyPolicy,
+                          subtitle: context.l10n.privacyPolicySubtitle,
                           onTap: _showPrivacyPolicy,
                         ),
                       ]),
                       const SizedBox(height: 22),
-                      _section('Developer / Debug', [
+                      _section(context.l10n.developerDebug, [
                         _SettingsTile(
                           icon: Icons.api_outlined,
                           accent: _accent,
-                          title: 'API Configuration',
-                          subtitle: 'View and reset API settings',
+                          title: context.l10n.apiConfiguration,
+                          subtitle: context.l10n.apiConfigurationSubtitle,
                           onTap: _showApiConfiguration,
                         ),
                       ]),
@@ -7512,7 +7574,7 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
         const SizedBox(width: 14),
         Expanded(
           child: Text(
-            'Settings',
+            context.l10n.settings,
             style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                   color: _primaryText,
                   fontWeight: FontWeight.w900,
@@ -7579,6 +7641,8 @@ class _SettingsDeleteDataDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
+
     return Dialog(
       backgroundColor: Colors.transparent,
       insetPadding: const EdgeInsets.symmetric(horizontal: 22),
@@ -7641,22 +7705,22 @@ class _SettingsDeleteDataDialog extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(width: 14),
-                      const Expanded(
+                      Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'Delete all data?',
-                              style: TextStyle(
+                              l10n.deleteAllDataQuestion,
+                              style: const TextStyle(
                                 color: _ProfileSettingsPageState._primaryText,
                                 fontSize: 22,
                                 fontWeight: FontWeight.w900,
                               ),
                             ),
-                            SizedBox(height: 6),
+                            const SizedBox(height: 6),
                             Text(
-                              'This permanently removes your account and health data from HealthTrackMe. This cannot be undone.',
-                              style: TextStyle(
+                              l10n.deleteAllDataDescription,
+                              style: const TextStyle(
                                 color: _ProfileSettingsPageState._secondaryText,
                                 height: 1.42,
                                 fontSize: 13,
@@ -7677,18 +7741,18 @@ class _SettingsDeleteDataDialog extends StatelessWidget {
                       border:
                           Border.all(color: _ProfileSettingsPageState._border),
                     ),
-                    child: const Row(
+                    child: Row(
                       children: [
-                        Icon(
+                        const Icon(
                           Icons.warning_amber_rounded,
                           color: _ProfileSettingsPageState._danger,
                           size: 18,
                         ),
-                        SizedBox(width: 9),
+                        const SizedBox(width: 9),
                         Expanded(
                           child: Text(
-                            'Your login session will end after deletion.',
-                            style: TextStyle(
+                            l10n.deleteLoginSessionWarning,
+                            style: const TextStyle(
                               color: _ProfileSettingsPageState._primaryText,
                               fontSize: 13,
                               fontWeight: FontWeight.w700,
@@ -7715,9 +7779,9 @@ class _SettingsDeleteDataDialog extends StatelessWidget {
                               borderRadius: BorderRadius.circular(14),
                             ),
                           ),
-                          child: const Text(
-                            'Cancel',
-                            style: TextStyle(fontWeight: FontWeight.w800),
+                          child: Text(
+                            l10n.cancel,
+                            style: const TextStyle(fontWeight: FontWeight.w800),
                           ),
                         ),
                       ),
@@ -7733,9 +7797,9 @@ class _SettingsDeleteDataDialog extends StatelessWidget {
                               borderRadius: BorderRadius.circular(14),
                             ),
                           ),
-                          child: const Text(
-                            'Delete',
-                            style: TextStyle(fontWeight: FontWeight.w900),
+                          child: Text(
+                            l10n.delete,
+                            style: const TextStyle(fontWeight: FontWeight.w900),
                           ),
                         ),
                       ),
@@ -7757,6 +7821,7 @@ class _SettingsPrivacyPolicySheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final maxHeight = MediaQuery.of(context).size.height * 0.86;
+    final l10n = context.l10n;
 
     return SafeArea(
       top: false,
@@ -7793,22 +7858,22 @@ class _SettingsPrivacyPolicySheet extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: 12),
-                  const Expanded(
+                  Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Privacy policy',
-                          style: TextStyle(
+                          l10n.privacyPolicy,
+                          style: const TextStyle(
                             color: _ProfileSettingsPageState._primaryText,
                             fontSize: 19,
                             fontWeight: FontWeight.w900,
                           ),
                         ),
-                        SizedBox(height: 2),
+                        const SizedBox(height: 2),
                         Text(
-                          'Last updated: June 7, 2026',
-                          style: TextStyle(
+                          l10n.privacyPolicyLastUpdated,
+                          style: const TextStyle(
                             color: _ProfileSettingsPageState._secondaryText,
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
@@ -7841,52 +7906,46 @@ class _SettingsPrivacyPolicySheet extends StatelessWidget {
             Expanded(
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
-                children: const [
+                children: [
                   Text(
-                    'HealthTrackMe uses your health information only to show your dashboard, reminders, reports, and wearable sync results inside the app.',
-                    style: TextStyle(
+                    l10n.privacyPolicyIntro,
+                    style: const TextStyle(
                       color: _ProfileSettingsPageState._primaryText,
                       height: 1.45,
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
-                  SizedBox(height: 18),
+                  const SizedBox(height: 18),
                   _SettingsPrivacyPolicyItem(
                     icon: Icons.favorite_border_rounded,
-                    title: 'Health data we store',
-                    body:
-                        'Profile details, symptoms, medicines, sleep, activity, steps, heart rate, calories, notes, reminders, and connected wearable device records.',
+                    title: l10n.privacyHealthDataTitle,
+                    body: l10n.privacyHealthDataBody,
                   ),
                   _SettingsPrivacyPolicyItem(
                     icon: Icons.sync_rounded,
-                    title: 'Wearable and sensor sync',
-                    body:
-                        'When you enable sync, the app reads permitted Health Connect or device data and uploads the selected health metrics to your HealthTrackMe account.',
+                    title: l10n.privacyWearableSyncTitle,
+                    body: l10n.privacyWearableSyncBody,
                   ),
                   _SettingsPrivacyPolicyItem(
                     icon: Icons.lock_outline_rounded,
-                    title: 'How your data is protected',
-                    body:
-                        'Account access is controlled by authentication. Health data is sent to the backend for your account features and is not sold for advertising.',
+                    title: l10n.privacyProtectionTitle,
+                    body: l10n.privacyProtectionBody,
                   ),
                   _SettingsPrivacyPolicyItem(
                     icon: Icons.notifications_none_rounded,
-                    title: 'Notifications',
-                    body:
-                        'Reminder settings are used to schedule medicine, diary, and health notifications. You can disable them from this screen or system settings.',
+                    title: l10n.privacyNotificationsTitle,
+                    body: l10n.privacyNotificationsBody,
                   ),
                   _SettingsPrivacyPolicyItem(
                     icon: Icons.delete_outline_rounded,
-                    title: 'Deleting your data',
-                    body:
-                        'Use "Delete all my data" in Data & Privacy to request permanent removal of your account data from the app backend.',
+                    title: l10n.privacyDeletingDataTitle,
+                    body: l10n.privacyDeletingDataBody,
                   ),
                   _SettingsPrivacyPolicyItem(
                     icon: Icons.mail_outline_rounded,
-                    title: 'Questions',
-                    body:
-                        'For privacy questions, contact the HealthTrackMe project owner or your course project maintainer.',
+                    title: l10n.privacyQuestionsTitle,
+                    body: l10n.privacyQuestionsBody,
                   ),
                 ],
               ),
@@ -8179,73 +8238,76 @@ class _ProfileExportPageState extends State<ProfileExportPage> {
   bool _exportingAll = false;
 
   Future<void> _exportHealthEntries() async {
+    final l10n = context.l10n;
     setState(() => _exportingHealth = true);
     try {
       final api = ApiService.instance;
       final id = await api.ensureActiveUserId();
       if (id == null) {
-        _snack('No active user found.');
+        _snack(l10n.pleaseSignInFirst);
         return;
       }
 
       // Hit the CSV endpoint directly via the raw getter
       final response = await api.exportCsv('/export/health-entries/csv/$id');
       if (response == null || response.isEmpty) {
-        _snack('No health entries to export yet.');
+        _snack(l10n.noHealthEntriesToExport);
         return;
       }
       await Clipboard.setData(ClipboardData(text: response));
-      _snack('Health entries CSV copied to clipboard ✓', success: true);
+      _snack(l10n.healthEntriesCsvCopied, success: true);
     } catch (e) {
-      _snack('Export failed: $e');
+      _snack(l10n.exportFailedWithError(e.toString()));
     } finally {
       if (mounted) setState(() => _exportingHealth = false);
     }
   }
 
   Future<void> _exportActivities() async {
+    final l10n = context.l10n;
     setState(() => _exportingActivities = true);
     try {
       final api = ApiService.instance;
       final id = await api.ensureActiveUserId();
       if (id == null) {
-        _snack('No active user found.');
+        _snack(l10n.pleaseSignInFirst);
         return;
       }
 
       final response = await api.exportCsv('/export/sport-activities/csv/$id');
       if (response == null || response.isEmpty) {
-        _snack('No sport activities to export yet.');
+        _snack(l10n.noSportActivitiesToExport);
         return;
       }
       await Clipboard.setData(ClipboardData(text: response));
-      _snack('Activities CSV copied to clipboard ✓', success: true);
+      _snack(l10n.activitiesCsvCopied, success: true);
     } catch (e) {
-      _snack('Export failed: $e');
+      _snack(l10n.exportFailedWithError(e.toString()));
     } finally {
       if (mounted) setState(() => _exportingActivities = false);
     }
   }
 
   Future<void> _exportAll() async {
+    final l10n = context.l10n;
     setState(() => _exportingAll = true);
     try {
       final api = ApiService.instance;
       final id = await api.ensureActiveUserId();
       if (id == null) {
-        _snack('No active user found.');
+        _snack(l10n.pleaseSignInFirst);
         return;
       }
 
       final response = await api.exportCsv('/export/all/$id');
       if (response == null || response.isEmpty) {
-        _snack('No data to export yet.');
+        _snack(l10n.noDataToExport);
         return;
       }
       await Clipboard.setData(ClipboardData(text: response));
-      _snack('Full export copied to clipboard ✓', success: true);
+      _snack(l10n.fullDataCsvCopied, success: true);
     } catch (e) {
-      _snack('Export failed: $e');
+      _snack(l10n.exportFailedWithError(e.toString()));
     } finally {
       if (mounted) setState(() => _exportingAll = false);
     }
@@ -8256,14 +8318,14 @@ class _ProfileExportPageState extends State<ProfileExportPage> {
       final summary = await ApiService.instance.getHealthSummary();
       if (!mounted) return;
       if (summary == null || summary.isEmpty) {
-        _snack('No summary available yet.');
+        _snack(context.l10n.noSummaryAvailable);
         return;
       }
       await Clipboard.setData(ClipboardData(text: summary));
       if (!mounted) return;
-      _snack('Summary copied to clipboard ✓', success: true);
+      _snack(context.l10n.summaryCopied, success: true);
     } catch (e) {
-      _snack('Failed: $e');
+      _snack(context.l10n.failedWithError(e.toString()));
     }
   }
 

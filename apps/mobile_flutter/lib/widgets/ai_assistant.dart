@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/l10n.dart';
 import '../models/detective_insight.dart';
 import '../services/api_service.dart';
 import '../services/detective_service.dart';
@@ -73,23 +74,16 @@ class _AiAssistantSheetState extends State<_AiAssistantSheet> {
   final TextEditingController _controller = TextEditingController();
   final ScrollController _scroll = ScrollController();
 
-  final List<_ChatMessage> _messages = [
-    _ChatMessage(
-      "Hi! I'm your health assistant. Here's a quick read on your week — "
-      'ask me anything about your sleep, activity, or vitals.',
-    ),
-  ];
+  final List<_ChatMessage> _messages = [];
   bool _sending = false;
-
-  static const _suggestions = [
-    'How was my sleep this week?',
-    'How active have I been?',
-    'Any concerning trends?',
-  ];
+  bool _initialized = false;
 
   @override
-  void initState() {
-    super.initState();
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_initialized) return;
+    _initialized = true;
+    _messages.add(_ChatMessage(context.l10n.aiAssistantIntro));
     _loadInsight();
   }
 
@@ -101,19 +95,24 @@ class _AiAssistantSheetState extends State<_AiAssistantSheet> {
   }
 
   Future<void> _loadInsight() async {
+    final l10n = context.l10n;
+    final languageCode = Localizations.localeOf(context).languageCode;
     setState(() => _messages.add(_ChatMessage('', loading: true)));
     _scrollToBottom();
     try {
       final userId = await _api.ensureActiveUserId();
       String text;
       if (userId == null) {
-        text = 'Sign in to see your personalized insight.';
+        text = l10n.aiSignInForInsight;
       } else {
-        final DetectiveInsight insight =
-            await _detective.generateInsight(userId: userId, daysBack: 7);
+        final DetectiveInsight insight = await _detective.generateInsight(
+          userId: userId,
+          daysBack: 7,
+          languageCode: languageCode,
+        );
         text = insight.isValid
             ? '${insight.title}\n\n${insight.description}\n\n💡 ${insight.finding}'
-            : 'Log a bit more health data and I can spot patterns for you.';
+            : l10n.aiLogMoreDataInsight;
       }
       if (mounted) {
         setState(() {
@@ -131,6 +130,8 @@ class _AiAssistantSheetState extends State<_AiAssistantSheet> {
   }
 
   Future<void> _send(String text) async {
+    final l10n = context.l10n;
+    final languageCode = Localizations.localeOf(context).languageCode;
     final question = text.trim();
     if (question.isEmpty || _sending) return;
     FocusScope.of(context).unfocus();
@@ -144,8 +145,12 @@ class _AiAssistantSheetState extends State<_AiAssistantSheet> {
     try {
       final userId = await _api.ensureActiveUserId();
       final answer = userId == null
-          ? 'Please sign in to ask about your health data.'
-          : await _detective.askQuestion(userId: userId, question: question);
+          ? l10n.aiSignInToAsk
+          : await _detective.askQuestion(
+              userId: userId,
+              question: question,
+              languageCode: languageCode,
+            );
       if (mounted) {
         setState(() {
           _messages.removeWhere((m) => m.loading);
@@ -156,8 +161,7 @@ class _AiAssistantSheetState extends State<_AiAssistantSheet> {
       if (mounted) {
         setState(() {
           _messages.removeWhere((m) => m.loading);
-          _messages
-              .add(_ChatMessage("Sorry, I couldn't answer that right now."));
+          _messages.add(_ChatMessage(l10n.aiCouldNotAnswer));
         });
       }
     } finally {
@@ -224,17 +228,18 @@ class _AiAssistantSheetState extends State<_AiAssistantSheet> {
                 const Icon(Icons.auto_awesome, color: Colors.white, size: 20),
           ),
           const SizedBox(width: 12),
-          const Expanded(
+          Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Health AI',
-                    style: TextStyle(
+                Text(context.l10n.healthAi,
+                    style: const TextStyle(
                         color: _primaryText,
                         fontWeight: FontWeight.w800,
                         fontSize: 16)),
-                Text('Powered by Claude',
-                    style: TextStyle(color: _secondaryText, fontSize: 12)),
+                Text(context.l10n.poweredByClaude,
+                    style:
+                        const TextStyle(color: _secondaryText, fontSize: 12)),
               ],
             ),
           ),
@@ -308,15 +313,21 @@ class _AiAssistantSheetState extends State<_AiAssistantSheet> {
   }
 
   Widget _suggestionsRow() {
+    final suggestions = [
+      context.l10n.aiSuggestionSleepWeek,
+      context.l10n.aiSuggestionActivity,
+      context.l10n.aiSuggestionTrends,
+    ];
+
     return SizedBox(
       height: 44,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 16),
-        itemCount: _suggestions.length,
+        itemCount: suggestions.length,
         separatorBuilder: (_, __) => const SizedBox(width: 8),
         itemBuilder: (context, i) {
-          final s = _suggestions[i];
+          final s = suggestions[i];
           return GestureDetector(
             onTap: () => _send(s),
             child: Container(
@@ -350,7 +361,7 @@ class _AiAssistantSheetState extends State<_AiAssistantSheet> {
                 onSubmitted: _send,
                 style: const TextStyle(color: _primaryText),
                 decoration: InputDecoration(
-                  hintText: 'Ask about your health…',
+                  hintText: context.l10n.aiAskHint,
                   hintStyle: const TextStyle(color: _secondaryText),
                   filled: true,
                   fillColor: _surface,

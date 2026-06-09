@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../l10n/l10n.dart';
 import '../models/wearable_device.dart';
 import '../services/api_service.dart';
 import '../services/wearable_service.dart';
@@ -53,15 +54,16 @@ class _WearablesScreenState extends State<WearablesScreen> {
     if (mounted) setState(() => _loading = false);
   }
 
-  String get _lastSyncLabel {
+  String _lastSyncLabel(BuildContext context) {
     final ms = _lastSyncMs;
-    if (ms == null) return 'Not synced yet';
+    final l10n = context.l10n;
+    if (ms == null) return l10n.notSyncedYet;
     final diff =
         DateTime.now().difference(DateTime.fromMillisecondsSinceEpoch(ms));
-    if (diff.inSeconds < 60) return 'Last synced just now';
-    if (diff.inMinutes < 60) return 'Last synced ${diff.inMinutes}m ago';
-    if (diff.inHours < 24) return 'Last synced ${diff.inHours}h ago';
-    return 'Last synced ${diff.inDays}d ago';
+    if (diff.inSeconds < 60) return l10n.lastSyncedJustNow;
+    if (diff.inMinutes < 60) return l10n.lastSyncedMinutesAgo(diff.inMinutes);
+    if (diff.inHours < 24) return l10n.lastSyncedHoursAgo(diff.inHours);
+    return l10n.lastSyncedDaysAgo(diff.inDays);
   }
 
   /// Register a device, request Health permissions, pull its data immediately,
@@ -100,15 +102,16 @@ class _WearablesScreenState extends State<WearablesScreen> {
 
       await _load();
       if (mounted) {
-        final detail = synced.isNotEmpty
-            ? 'connected — synced ${synced.join(', ')}'
+        final l10n = context.l10n;
+        final message = synced.isNotEmpty
+            ? l10n.deviceConnectedSynced(type.displayName, synced.join(', '))
             : (granted
-                ? 'connected — no new data yet'
-                : 'connected (grant Health permission to sync)');
-        _showStatus('${type.displayName} $detail', granted);
+                ? l10n.deviceConnectedNoNewData(type.displayName)
+                : l10n.deviceConnectedGrantPermission(type.displayName));
+        _showStatus(message, granted);
       }
     } catch (e) {
-      if (mounted) _showStatus('Failed to add device', false);
+      if (mounted) _showStatus(context.l10n.failedToAddDevice, false);
     } finally {
       if (mounted) setState(() => _syncing = false);
     }
@@ -139,7 +142,9 @@ class _WearablesScreenState extends State<WearablesScreen> {
         if (!hasPermission) {
           final granted = await _wearableService.requestPermissions();
           if (!granted) {
-            if (mounted) _showStatus('Health permissions denied', false);
+            if (mounted) {
+              _showStatus(context.l10n.healthPermissionsDenied, false);
+            }
             return;
           }
         }
@@ -175,7 +180,7 @@ class _WearablesScreenState extends State<WearablesScreen> {
         }
       }
     } catch (e) {
-      if (mounted) _showStatus('Sync failed', false);
+      if (mounted) _showStatus(context.l10n.syncFailed, false);
     } finally {
       if (mounted) setState(() => _syncing = false);
     }
@@ -199,6 +204,7 @@ class _WearablesScreenState extends State<WearablesScreen> {
   }
 
   Future<void> _removeDevice(WearableDevice device) async {
+    final l10n = context.l10n;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -207,20 +213,20 @@ class _WearablesScreenState extends State<WearablesScreen> {
           borderRadius: BorderRadius.circular(20),
           side: const BorderSide(color: _border),
         ),
-        title:
-            const Text('Remove device', style: TextStyle(color: _primaryText)),
-        content: Text('Remove ${device.name}?',
+        title: Text(l10n.removeDevice,
+            style: const TextStyle(color: _primaryText)),
+        content: Text(l10n.removeDeviceQuestion(device.name),
             style: const TextStyle(color: _secondaryText)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child:
-                const Text('Cancel', style: TextStyle(color: _secondaryText)),
+            child: Text(l10n.cancel,
+                style: const TextStyle(color: _secondaryText)),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: FilledButton.styleFrom(backgroundColor: _danger),
-            child: const Text('Remove'),
+            child: Text(l10n.remove),
           ),
         ],
       ),
@@ -228,7 +234,7 @@ class _WearablesScreenState extends State<WearablesScreen> {
     if (confirmed == true) {
       await _wearableService.disconnectDevice(device.id);
       await _load();
-      if (mounted) _showStatus('${device.name} removed', true);
+      if (mounted) _showStatus(l10n.deviceRemoved(device.name), true);
     }
   }
 
@@ -355,7 +361,7 @@ class _WearablesScreenState extends State<WearablesScreen> {
                               ),
                               const SizedBox(width: 6),
                               Text(
-                                _lastSyncLabel,
+                                _lastSyncLabel(context),
                                 style: const TextStyle(
                                   color: _secondaryText,
                                   fontSize: 12,
@@ -367,9 +373,9 @@ class _WearablesScreenState extends State<WearablesScreen> {
                           const SizedBox(height: 24),
 
                           // Devices section
-                          const Text(
-                            'CONNECTED DEVICES',
-                            style: TextStyle(
+                          Text(
+                            context.l10n.connectedDevices,
+                            style: const TextStyle(
                               color: _secondaryText,
                               fontSize: 12,
                               fontWeight: FontWeight.w700,
@@ -397,22 +403,22 @@ class _WearablesScreenState extends State<WearablesScreen> {
                               borderRadius: BorderRadius.circular(16),
                               border: Border.all(color: _border),
                             ),
-                            child: const Column(
+                            child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Row(children: [
-                                  Icon(Icons.info_outline_rounded,
+                                  const Icon(Icons.info_outline_rounded,
                                       color: _accent, size: 16),
-                                  SizedBox(width: 8),
-                                  Text('How syncing works',
-                                      style: TextStyle(
+                                  const SizedBox(width: 8),
+                                  Text(context.l10n.howSyncingWorks,
+                                      style: const TextStyle(
                                           color: _primaryText,
                                           fontWeight: FontWeight.w700)),
                                 ]),
-                                SizedBox(height: 8),
+                                const SizedBox(height: 8),
                                 Text(
-                                  'Tap "Sync Health Data" to pull the last 7 days from Samsung Health or Google Fit via Health Connect. Make sure Samsung Health is set to sync with Health Connect in its settings.',
-                                  style: TextStyle(
+                                  context.l10n.howSyncingWorksBody,
+                                  style: const TextStyle(
                                       color: _secondaryText,
                                       height: 1.5,
                                       fontSize: 13),
@@ -458,7 +464,7 @@ class _WearablesScreenState extends State<WearablesScreen> {
             const SizedBox(width: 10),
             Expanded(
               child: Text(
-                'Wearable Devices',
+                context.l10n.wearableDevices,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: Theme.of(context).textTheme.headlineSmall?.copyWith(
@@ -502,7 +508,7 @@ class _SyncButton extends StatelessWidget {
               )
             : const Icon(Icons.sync_rounded, color: Colors.white),
         label: Text(
-          syncing ? 'Syncing...' : 'Sync Health Data',
+          syncing ? context.l10n.syncing : context.l10n.syncHealthData,
           style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
         ),
       ),
@@ -534,16 +540,16 @@ class _EmptyDevices extends StatelessWidget {
         children: [
           const Icon(Icons.watch_outlined, size: 48, color: _secondaryText),
           const SizedBox(height: 16),
-          const Text('No devices connected',
-              style: TextStyle(
+          Text(context.l10n.noDevicesConnected,
+              style: const TextStyle(
                   color: _primaryText,
                   fontSize: 16,
                   fontWeight: FontWeight.w700)),
           const SizedBox(height: 8),
-          const Text(
-            'Add your wearable to track which device your data comes from',
+          Text(
+            context.l10n.addWearableDescription,
             textAlign: TextAlign.center,
-            style: TextStyle(color: _secondaryText, height: 1.4),
+            style: const TextStyle(color: _secondaryText, height: 1.4),
           ),
           const SizedBox(height: 20),
           FilledButton.icon(
@@ -554,8 +560,8 @@ class _EmptyDevices extends StatelessWidget {
                   borderRadius: BorderRadius.circular(12)),
             ),
             icon: const Icon(Icons.add_rounded),
-            label: const Text('Add Device',
-                style: TextStyle(fontWeight: FontWeight.w700)),
+            label: Text(context.l10n.addDevice,
+                style: const TextStyle(fontWeight: FontWeight.w700)),
           ),
         ],
       ),
@@ -680,14 +686,14 @@ class _AddDeviceSheet extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 20),
-          const Text('Add Wearable Device',
-              style: TextStyle(
+          Text(context.l10n.addWearableDevice,
+              style: const TextStyle(
                   color: _primaryText,
                   fontSize: 18,
                   fontWeight: FontWeight.w800)),
           const SizedBox(height: 6),
-          const Text('Select the type of device to register',
-              style: TextStyle(color: _secondaryText, fontSize: 13)),
+          Text(context.l10n.selectDeviceType,
+              style: const TextStyle(color: _secondaryText, fontSize: 13)),
           const SizedBox(height: 20),
           Wrap(
             spacing: 10,

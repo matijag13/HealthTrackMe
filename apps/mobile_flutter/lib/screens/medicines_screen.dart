@@ -3,6 +3,7 @@ import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../l10n/l10n.dart';
 import '../services/api_service.dart';
 import '../services/notification_service.dart';
 import '../widgets/dark_time_picker.dart';
@@ -307,14 +308,14 @@ class _MedicinesScreenState extends State<MedicinesScreen>
       await _refresh();
       if (mounted) {
         _hasChanges = true;
-        _showMedicineToast(context, 'Marked as taken',
+        _showMedicineToast(context, context.l10n.markedAsTaken,
             type: _MedicineToastType.success);
       }
     } catch (e) {
       if (mounted) {
         _showMedicineToast(
           context,
-          'Network error',
+          context.l10n.networkError,
           type: _MedicineToastType.error,
         );
       }
@@ -341,12 +342,12 @@ class _MedicinesScreenState extends State<MedicinesScreen>
       await _refresh();
       if (mounted) {
         _hasChanges = true;
-        _showMedicineToast(context, 'Dose removed',
+        _showMedicineToast(context, context.l10n.doseRemoved,
             type: _MedicineToastType.warning);
       }
     } catch (e) {
       if (mounted) {
-        _showMedicineToast(context, 'Could not undo dose',
+        _showMedicineToast(context, context.l10n.couldNotUndoDose,
             type: _MedicineToastType.error);
       }
     } finally {
@@ -361,21 +362,21 @@ class _MedicinesScreenState extends State<MedicinesScreen>
         backgroundColor: _surface,
         surfaceTintColor: Colors.transparent,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text(
-          'Undo dose?',
-          style: TextStyle(
+        title: Text(
+          context.l10n.undoDoseQuestion,
+          style: const TextStyle(
             color: _primaryText,
             fontWeight: FontWeight.w800,
           ),
         ),
         content: Text(
-          "Remove today's last logged dose of ${m.name}?",
+          context.l10n.removeTodaysLastDose(m.name),
           style: const TextStyle(color: _mutedText),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
+            child: Text(context.l10n.cancel),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(ctx, true),
@@ -383,7 +384,7 @@ class _MedicinesScreenState extends State<MedicinesScreen>
               backgroundColor: const Color(0xFFF5B941),
               foregroundColor: Colors.black87,
             ),
-            child: const Text('Undo'),
+            child: Text(context.l10n.undo),
           ),
         ],
       ),
@@ -418,9 +419,11 @@ class _MedicinesScreenState extends State<MedicinesScreen>
     final dosage = m.dosage?.trim();
     final schedule = _formatFrequency(m.frequency);
     final parts = <String>[];
-    if (dosage != null && dosage.isNotEmpty) parts.add('Dosage: $dosage');
+    if (dosage != null && dosage.isNotEmpty) {
+      parts.add(context.l10n.dosageValue(dosage));
+    }
     if (schedule != null) parts.add(schedule);
-    return parts.isEmpty ? 'No schedule set' : parts.join(' · ');
+    return parts.isEmpty ? context.l10n.noScheduleSet : parts.join(' · ');
   }
 
   String? _formatFrequency(String? frequency) {
@@ -429,11 +432,22 @@ class _MedicinesScreenState extends State<MedicinesScreen>
 
     final count = int.tryParse(value);
     if (count != null) {
-      return '${count}x daily';
+      return context.l10n.timesDaily(count);
     }
 
-    return value;
+    return _frequencyLabel(value);
   }
+
+  String _frequencyLabel(String value) => switch (value) {
+        'Once daily' => context.l10n.onceDaily,
+        'Twice daily' => context.l10n.twiceDaily,
+        'Three times daily' => context.l10n.threeTimesDaily,
+        'Four times daily' => context.l10n.fourTimesDaily,
+        'Every other day' => context.l10n.everyOtherDay,
+        'Once weekly' => context.l10n.onceWeekly,
+        'As needed' => context.l10n.asNeeded,
+        _ => value,
+      };
 
   // ─── Widgets ──────────────────────────────────────────────────────────────
 
@@ -455,7 +469,7 @@ class _MedicinesScreenState extends State<MedicinesScreen>
           const SizedBox(width: 14),
           Expanded(
             child: Text(
-              'Medicines',
+              context.l10n.medicines,
               style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                     color: _primaryText,
                     fontWeight: FontWeight.w900,
@@ -533,9 +547,9 @@ class _MedicinesScreenState extends State<MedicinesScreen>
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      "Today's overview",
-                      style: TextStyle(
+                    Text(
+                      context.l10n.todayOverview,
+                      style: const TextStyle(
                         color: _primaryText,
                         fontSize: 16,
                         fontWeight: FontWeight.w800,
@@ -556,7 +570,7 @@ class _MedicinesScreenState extends State<MedicinesScreen>
             children: [
               Expanded(
                 child: _summaryMetric(
-                  label: 'Active',
+                  label: context.l10n.active,
                   value: '$active',
                   icon: Icons.inventory_2_outlined,
                 ),
@@ -564,7 +578,7 @@ class _MedicinesScreenState extends State<MedicinesScreen>
               const SizedBox(width: 10),
               Expanded(
                 child: _summaryMetric(
-                  label: 'Taken today',
+                  label: context.l10n.takenToday,
                   value: '$taken',
                   icon: Icons.check_circle_outline_rounded,
                 ),
@@ -643,20 +657,20 @@ class _MedicinesScreenState extends State<MedicinesScreen>
               ),
             ),
             const SizedBox(height: 18),
-            const Text(
-              'No medicines yet',
+            Text(
+              context.l10n.noMedicinesYet,
               textAlign: TextAlign.center,
-              style: TextStyle(
+              style: const TextStyle(
                 color: _primaryText,
                 fontSize: 20,
                 fontWeight: FontWeight.w800,
               ),
             ),
             const SizedBox(height: 8),
-            const Text(
-              'Add medicines to track doses and reminders',
+            Text(
+              context.l10n.addMedicinesDescription,
               textAlign: TextAlign.center,
-              style: TextStyle(
+              style: const TextStyle(
                 color: _mutedText,
                 fontSize: 14,
                 height: 1.4,
@@ -752,7 +766,7 @@ class _MedicinesScreenState extends State<MedicinesScreen>
     final nonEmpty = groups.entries.where((e) => e.value.isNotEmpty).toList();
 
     return _section(
-      title: "Today's Schedule",
+      title: context.l10n.todaySchedule,
       child: Column(
         children: nonEmpty.map((e) {
           return Column(
@@ -768,6 +782,14 @@ class _MedicinesScreenState extends State<MedicinesScreen>
     );
   }
 
+  String _timeGroupLabel(String label) => switch (label) {
+        'Morning' => context.l10n.morning,
+        'Afternoon' => context.l10n.afternoon,
+        'Evening' => context.l10n.evening,
+        'Other' => context.l10n.other,
+        _ => label,
+      };
+
   Widget _timeGroupHeader(String label) {
     final icons = {
       'Morning': (Icons.wb_sunny_rounded, const Color(0xFFFF9500)),
@@ -782,7 +804,7 @@ class _MedicinesScreenState extends State<MedicinesScreen>
         Icon(pair.$1, size: 16, color: pair.$2),
         const SizedBox(width: 6),
         Text(
-          label,
+          _timeGroupLabel(label),
           style: TextStyle(
             fontSize: 13,
             fontWeight: FontWeight.w700,
@@ -830,7 +852,7 @@ class _MedicinesScreenState extends State<MedicinesScreen>
         ),
         subtitle: Text(
           multiDose
-              ? '${_medicineMetaLine(m)} · $doseCount/$expected today'
+              ? '${_medicineMetaLine(m)} · ${context.l10n.dosesToday(doseCount, expected)}'
               : _medicineMetaLine(m),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
@@ -856,14 +878,15 @@ class _MedicinesScreenState extends State<MedicinesScreen>
               borderRadius: BorderRadius.circular(12),
             ),
             child: taken
-                ? const Row(
+                ? Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.check_rounded, size: 17, color: _success),
-                      SizedBox(width: 4),
+                      const Icon(Icons.check_rounded,
+                          size: 17, color: _success),
+                      const SizedBox(width: 4),
                       Text(
-                        'Taken',
-                        style: TextStyle(
+                        context.l10n.taken,
+                        style: const TextStyle(
                           color: _success,
                           fontSize: 12,
                           fontWeight: FontWeight.w800,
@@ -936,8 +959,8 @@ class _MedicinesScreenState extends State<MedicinesScreen>
             },
             child: _ActionSegment(
               label: taken
-                  ? 'Undo'
-                  : (multiDose ? '$doseCount/$expected' : 'Take'),
+                  ? context.l10n.undo
+                  : (multiDose ? '$doseCount/$expected' : context.l10n.take),
               icon: taken ? Icons.undo_rounded : Icons.check_rounded,
               backgroundColor:
                   taken ? const Color(0xFF241B0D) : const Color(0xFF11141B),
@@ -961,12 +984,12 @@ class _MedicinesScreenState extends State<MedicinesScreen>
             padding: EdgeInsets.zero,
             backgroundColor: Colors.transparent,
             onPressed: (_) => _editMedicine(m),
-            child: const _ActionSegment(
-              label: 'Edit',
+            child: _ActionSegment(
+              label: context.l10n.edit,
               icon: Icons.edit_rounded,
-              backgroundColor: Color(0xFF101A31),
+              backgroundColor: const Color(0xFF101A31),
               foregroundColor: _MedicinesScreenState._accent,
-              borderColor: Color(0xFF284C98),
+              borderColor: const Color(0xFF284C98),
               isFirst: true,
               isLast: false,
             ),
@@ -980,7 +1003,7 @@ class _MedicinesScreenState extends State<MedicinesScreen>
               _confirmDelete(m);
             },
             child: _ActionSegment(
-              label: deleting ? 'Deleting' : 'Delete',
+              label: deleting ? context.l10n.deleting : context.l10n.delete,
               icon:
                   deleting ? Icons.hourglass_top_rounded : Icons.delete_rounded,
               backgroundColor:
@@ -1096,23 +1119,24 @@ class _MedicinesScreenState extends State<MedicinesScreen>
         backgroundColor: _surface,
         surfaceTintColor: Colors.transparent,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text(
-          'Delete medicine?',
-          style: TextStyle(color: _primaryText, fontWeight: FontWeight.w800),
+        title: Text(
+          context.l10n.deleteMedicineQuestion,
+          style:
+              const TextStyle(color: _primaryText, fontWeight: FontWeight.w800),
         ),
         content: Text(
-          'Remove "${m.name}" from your medicines list.',
+          context.l10n.removeMedicineFromList(m.name),
           style: const TextStyle(color: _mutedText),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
+            child: Text(context.l10n.cancel),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: FilledButton.styleFrom(backgroundColor: _danger),
-            child: const Text('Delete'),
+            child: Text(context.l10n.delete),
           ),
         ],
       ),
@@ -1135,7 +1159,7 @@ class _MedicinesScreenState extends State<MedicinesScreen>
       if (!mounted) return;
       _showMedicineToast(
         context,
-        'Could not delete medicine',
+        context.l10n.couldNotDeleteMedicine,
         type: _MedicineToastType.error,
       );
       return;
@@ -1155,7 +1179,7 @@ class _MedicinesScreenState extends State<MedicinesScreen>
       if (!mounted) return;
       _showMedicineToast(
         context,
-        '${m.name} removed. Could not refresh list.',
+        context.l10n.medicineRemovedRefreshFailed(m.name),
         type: _MedicineToastType.error,
       );
       return;
@@ -1164,7 +1188,7 @@ class _MedicinesScreenState extends State<MedicinesScreen>
     if (!mounted) return;
     _showMedicineToast(
       context,
-      '${m.name} removed',
+      context.l10n.medicineRemoved(m.name),
       type: _MedicineToastType.error,
     );
   }
@@ -1182,7 +1206,7 @@ class _MedicinesScreenState extends State<MedicinesScreen>
         if (mounted) {
           _showMedicineToast(
             context,
-            'Medicine updated',
+            context.l10n.medicineUpdated,
             type: _MedicineToastType.success,
           );
         }
@@ -1203,7 +1227,7 @@ class _MedicinesScreenState extends State<MedicinesScreen>
       if (mounted) {
         _showMedicineToast(
           context,
-          'Medicine added',
+          context.l10n.medicineAdded,
           type: _MedicineToastType.success,
         );
       }
@@ -1254,9 +1278,9 @@ class _MedicinesScreenState extends State<MedicinesScreen>
                     ),
                   ),
                   const SizedBox(height: 14),
-                  const Text(
-                    'Loading medicines',
-                    style: TextStyle(
+                  Text(
+                    context.l10n.loadingMedicines,
+                    style: const TextStyle(
                       color: _mutedText,
                       fontWeight: FontWeight.w600,
                     ),
@@ -1316,8 +1340,8 @@ class _MedicinesScreenState extends State<MedicinesScreen>
         backgroundColor: _accent,
         foregroundColor: Colors.white,
         icon: const Icon(Icons.add_rounded),
-        label: const Text('Add medicine',
-            style: TextStyle(fontWeight: FontWeight.w700)),
+        label: Text(context.l10n.addMedicine,
+            style: const TextStyle(fontWeight: FontWeight.w700)),
         elevation: 4,
       ),
     );
@@ -1424,10 +1448,10 @@ class _MedicinesListSectionState extends State<_MedicinesListSection> {
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
             child: Row(
               children: [
-                const Expanded(
+                Expanded(
                   child: Text(
-                    'Medicines',
-                    style: TextStyle(
+                    context.l10n.medicines,
+                    style: const TextStyle(
                       color: Color(0xFFF7F8FA),
                       fontSize: 16,
                       fontWeight: FontWeight.w800,
@@ -1455,12 +1479,13 @@ class _MedicinesListSectionState extends State<_MedicinesListSection> {
             ),
           ),
           if (list.isEmpty)
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 32),
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 32),
               child: Center(
                 child: Text(
-                  'No medicines here',
-                  style: TextStyle(color: Color(0xFF8B93A7), fontSize: 14),
+                  context.l10n.noMedicinesHere,
+                  style:
+                      const TextStyle(color: Color(0xFF8B93A7), fontSize: 14),
                 ),
               ),
             )
@@ -1570,6 +1595,17 @@ class _MedicineEditSheetState extends State<MedicineEditSheet> {
     super.dispose();
   }
 
+  String _frequencyLabel(String value) => switch (value) {
+        'Once daily' => context.l10n.onceDaily,
+        'Twice daily' => context.l10n.twiceDaily,
+        'Three times daily' => context.l10n.threeTimesDaily,
+        'Four times daily' => context.l10n.fourTimesDaily,
+        'Every other day' => context.l10n.everyOtherDay,
+        'Once weekly' => context.l10n.onceWeekly,
+        'As needed' => context.l10n.asNeeded,
+        _ => value,
+      };
+
   Future<void> _save() async {
     if (_saving) return;
     if (!_formKey.currentState!.validate()) return;
@@ -1599,7 +1635,7 @@ class _MedicineEditSheetState extends State<MedicineEditSheet> {
         if (mounted) {
           _showMedicineToast(
             context,
-            'Could not save medicine',
+            context.l10n.couldNotSaveMedicine,
             type: _MedicineToastType.error,
           );
         }
@@ -1609,7 +1645,7 @@ class _MedicineEditSheetState extends State<MedicineEditSheet> {
       if (mounted) {
         _showMedicineToast(
           context,
-          'Network error',
+          context.l10n.networkError,
           type: _MedicineToastType.error,
         );
       }
@@ -1633,7 +1669,7 @@ class _MedicineEditSheetState extends State<MedicineEditSheet> {
     final picked = await showDarkTimePicker(
       context: context,
       initialTime: const TimeOfDay(hour: 8, minute: 0),
-      title: 'Enter time',
+      title: context.l10n.enterTime,
     );
     if (picked == null || !mounted) return;
     final exists = _reminderTimes
@@ -1701,8 +1737,8 @@ class _MedicineEditSheetState extends State<MedicineEditSheet> {
         ],
         _DateButton(
           label: _reminderTimes.isEmpty
-              ? 'Add reminder time (optional)'
-              : 'Add another time',
+              ? context.l10n.addReminderTimeOptional
+              : context.l10n.addAnotherTime,
           placeholder: _reminderTimes.isEmpty,
           icon: Icons.notifications_outlined,
           onTap: _addReminderTime,
@@ -1798,18 +1834,18 @@ class _MedicineEditSheetState extends State<MedicineEditSheet> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Row(
+                    Row(
                       children: [
-                        Icon(
+                        const Icon(
                           Icons.calendar_month_outlined,
                           color: Color(0xFF5A8CFF),
                           size: 22,
                         ),
-                        SizedBox(width: 10),
+                        const SizedBox(width: 10),
                         Expanded(
                           child: Text(
-                            'Select date',
-                            style: TextStyle(
+                            context.l10n.selectDate,
+                            style: const TextStyle(
                               color: _MedicinesScreenState._primaryText,
                               fontSize: 18,
                               fontWeight: FontWeight.w800,
@@ -1938,7 +1974,9 @@ class _MedicineEditSheetState extends State<MedicineEditSheet> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    isEdit ? 'Edit medicine' : 'Add medicine',
+                                    isEdit
+                                        ? context.l10n.editMedicine
+                                        : context.l10n.addMedicine,
                                     style: const TextStyle(
                                       color: Color(0xFFF7F8FA),
                                       fontSize: 22,
@@ -1947,9 +1985,9 @@ class _MedicineEditSheetState extends State<MedicineEditSheet> {
                                     ),
                                   ),
                                   const SizedBox(height: 5),
-                                  const Text(
-                                    'Track doses, schedules, and notes.',
-                                    style: TextStyle(
+                                  Text(
+                                    context.l10n.trackDosesSchedulesNotes,
+                                    style: const TextStyle(
                                       color: Color(0xFF8B93A7),
                                       fontSize: 13,
                                       fontWeight: FontWeight.w500,
@@ -1986,12 +2024,13 @@ class _MedicineEditSheetState extends State<MedicineEditSheet> {
                           controller: _name,
                           style: const TextStyle(color: Color(0xFFF7F8FA)),
                           textCapitalization: TextCapitalization.words,
-                          decoration: const InputDecoration(
-                            labelText: 'Medicine name',
-                            prefixIcon: Icon(Icons.medication_rounded),
+                          decoration: InputDecoration(
+                            labelText: context.l10n.medicineName,
+                            prefixIcon: const Icon(Icons.medication_rounded),
                           ),
-                          validator: (v) =>
-                              (v ?? '').trim().isEmpty ? 'Required' : null,
+                          validator: (v) => (v ?? '').trim().isEmpty
+                              ? context.l10n.required
+                              : null,
                         ),
                         const SizedBox(height: 14),
                         Row(children: [
@@ -1999,8 +2038,8 @@ class _MedicineEditSheetState extends State<MedicineEditSheet> {
                             child: TextFormField(
                               controller: _dosage,
                               style: const TextStyle(color: Color(0xFFF7F8FA)),
-                              decoration: const InputDecoration(
-                                labelText: 'Dosage',
+                              decoration: InputDecoration(
+                                labelText: context.l10n.dosage,
                                 hintText: 'e.g. 500mg',
                               ),
                             ),
@@ -2013,12 +2052,13 @@ class _MedicineEditSheetState extends State<MedicineEditSheet> {
                               dropdownColor: _MedicinesScreenState._surfaceSoft,
                               iconEnabledColor: const Color(0xFF94A3B8),
                               style: const TextStyle(color: Color(0xFFF7F8FA)),
-                              decoration: const InputDecoration(
-                                labelText: 'Frequency',
+                              decoration: InputDecoration(
+                                labelText: context.l10n.frequency,
                               ),
-                              hint: const Text(
-                                'Select',
-                                style: TextStyle(color: Color(0xFF94A3B8)),
+                              hint: Text(
+                                context.l10n.select,
+                                style:
+                                    const TextStyle(color: Color(0xFF94A3B8)),
                               ),
                               items: [
                                 if (_selectedFrequency != null &&
@@ -2026,10 +2066,14 @@ class _MedicineEditSheetState extends State<MedicineEditSheet> {
                                         .contains(_selectedFrequency))
                                   DropdownMenuItem(
                                     value: _selectedFrequency,
-                                    child: Text(_selectedFrequency!),
+                                    child: Text(
+                                        _frequencyLabel(_selectedFrequency!)),
                                   ),
                                 for (final f in _frequencyOptions)
-                                  DropdownMenuItem(value: f, child: Text(f)),
+                                  DropdownMenuItem(
+                                    value: f,
+                                    child: Text(_frequencyLabel(f)),
+                                  ),
                               ],
                               onChanged: (v) =>
                                   setState(() => _selectedFrequency = v),
@@ -2040,8 +2084,9 @@ class _MedicineEditSheetState extends State<MedicineEditSheet> {
                         Row(children: [
                           Expanded(
                             child: _DateButton(
-                              label:
-                                  _start == null ? 'Start date' : _fmt(_start),
+                              label: _start == null
+                                  ? context.l10n.startDate
+                                  : _fmt(_start),
                               placeholder: _start == null,
                               icon: Icons.calendar_today_rounded,
                               onTap: () => _pickDate(true),
@@ -2050,7 +2095,9 @@ class _MedicineEditSheetState extends State<MedicineEditSheet> {
                           const SizedBox(width: 12),
                           Expanded(
                             child: _DateButton(
-                              label: _end == null ? 'End date' : _fmt(_end),
+                              label: _end == null
+                                  ? context.l10n.endDate
+                                  : _fmt(_end),
                               placeholder: _end == null,
                               icon: Icons.event_rounded,
                               onTap: () => _pickDate(false),
@@ -2061,9 +2108,9 @@ class _MedicineEditSheetState extends State<MedicineEditSheet> {
                         TextFormField(
                           controller: _reason,
                           style: const TextStyle(color: Color(0xFFF7F8FA)),
-                          decoration: const InputDecoration(
-                            labelText: 'Reason (optional)',
-                            prefixIcon: Icon(Icons.info_outline_rounded),
+                          decoration: InputDecoration(
+                            labelText: context.l10n.reasonOptional,
+                            prefixIcon: const Icon(Icons.info_outline_rounded),
                           ),
                         ),
                         const SizedBox(height: 14),
@@ -2071,10 +2118,10 @@ class _MedicineEditSheetState extends State<MedicineEditSheet> {
                           controller: _sideEffects,
                           style: const TextStyle(color: Color(0xFFF7F8FA)),
                           maxLines: 3,
-                          decoration: const InputDecoration(
-                            labelText: 'Side effects / notes',
+                          decoration: InputDecoration(
+                            labelText: context.l10n.sideEffectsNotes,
                             alignLabelWithHint: true,
-                            prefixIcon: Padding(
+                            prefixIcon: const Padding(
                               padding: EdgeInsets.only(bottom: 48),
                               child: Icon(Icons.notes_rounded),
                             ),
@@ -2105,9 +2152,9 @@ class _MedicineEditSheetState extends State<MedicineEditSheet> {
                                       color: Colors.white,
                                     ),
                                   )
-                                : const Text(
-                                    'Save',
-                                    style: TextStyle(
+                                : Text(
+                                    context.l10n.save,
+                                    style: const TextStyle(
                                       fontSize: 16,
                                       fontWeight: FontWeight.w800,
                                     ),

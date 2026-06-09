@@ -29,6 +29,7 @@ class DetectiveService {
   Future<DetectiveInsight> generateInsight({
     required int userId,
     int daysBack = 7,
+    String languageCode = 'en',
   }) async {
     try {
       await _api.ensureActiveUserId();
@@ -37,6 +38,7 @@ class DetectiveService {
         _uri('/detective/analyze', queryParameters: {
           'userId': userId.toString(),
           'days': daysBack.toString(),
+          'language': languageCode,
         }),
         headers: await _headers(),
       );
@@ -120,6 +122,7 @@ class DetectiveService {
   Future<String> askQuestion({
     required int userId,
     required String question,
+    String languageCode = 'en',
   }) async {
     try {
       await _api.ensureActiveUserId();
@@ -129,13 +132,16 @@ class DetectiveService {
           'userId': userId.toString(),
         }),
         headers: await _headers(extra: {'Content-Type': 'application/json'}),
-        body: jsonEncode({'question': question}),
+        body: jsonEncode({'question': question, 'language': languageCode}),
       );
 
       final data = jsonDecode(response.body) as Map<String, dynamic>;
 
       if (data['success'] == true) {
-        return data['data']?['answer'] ?? 'No response available';
+        return data['data']?['answer'] ??
+            (languageCode == 'sl'
+                ? 'Odgovor ni na voljo'
+                : 'No response available');
       } else {
         throw Exception(data['message'] ?? 'Failed to get response');
       }

@@ -6,8 +6,10 @@ import 'services/api_service.dart';
 import 'services/background_sync_service.dart';
 import 'services/notification_service.dart';
 import 'services/sleep_tracking_service.dart';
+import 'config/locale_provider.dart';
 import 'config/theme.dart';
 import 'config/app_router.dart';
+import 'l10n/app_localizations.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -36,11 +38,16 @@ Future<void> main() async {
 
   final themeProvider = ThemeProvider();
   await themeProvider.loadThemeMode();
+  final localeProvider = LocaleProvider();
+  await localeProvider.loadLocale();
   final router = createAppRouter();
 
   runApp(
-    ChangeNotifierProvider.value(
-      value: themeProvider,
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider.value(value: themeProvider),
+        ChangeNotifierProvider.value(value: localeProvider),
+      ],
       child: HealthTrackMeApp(router: router),
     ),
   );
@@ -64,8 +71,8 @@ class _HealthTrackMeAppState extends State<HealthTrackMeApp> {
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<ThemeProvider>(
-      builder: (context, themeProvider, _) {
+    return Consumer2<ThemeProvider, LocaleProvider>(
+      builder: (context, themeProvider, localeProvider, _) {
         // Update system UI overlay based on theme
         final isDark = themeProvider.themeMode == ThemeMode.dark;
         SystemChrome.setSystemUIOverlayStyle(
@@ -85,6 +92,9 @@ class _HealthTrackMeAppState extends State<HealthTrackMeApp> {
           theme: AppTheme.light,
           darkTheme: AppTheme.dark,
           themeMode: themeProvider.themeMode,
+          locale: localeProvider.locale,
+          supportedLocales: AppLocalizations.supportedLocales,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
           routerConfig: widget.router,
           debugShowCheckedModeBanner: false,
         );

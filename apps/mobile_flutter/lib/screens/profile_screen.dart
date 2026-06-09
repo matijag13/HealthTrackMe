@@ -4,8 +4,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../config/locale_provider.dart';
+import '../l10n/app_localizations.dart';
+import '../l10n/l10n.dart';
 import '../models/models.dart';
 import '../services/api_service.dart';
 import '../services/notification_service.dart';
@@ -204,10 +208,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
       final saved = await _api.updateUser(_user!.id, updated);
       setState(() => _user = saved);
       if (!mounted) return;
-      _showSnack('Profile photo updated');
+      _showSnack(context.l10n.profilePhotoUpdated);
     } catch (e) {
       if (!mounted) return;
-      _showSnack('Error uploading photo: $e');
+      _showSnack(context.l10n.errorUploadingPhoto(e.toString()));
     }
   }
 
@@ -233,30 +237,28 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final pending = await notifs.pendingCount();
     final tzName = notifs.localTimezoneName();
     if (!mounted) return;
+    final l10n = context.l10n;
 
     await showDialog<void>(
       context: context,
       builder: (ctx) => _DarkDialog(
-        title: 'Notification test',
+        title: l10n.notificationTest,
         content: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
             // Bumped on each notification fix so we can confirm the running
             // build actually contains the latest changes.
-            _debugLine('Build', 'notif-fix-6 (no-r8)'),
-            _debugLine('Notifications allowed', enabled ? 'Yes' : 'NO'),
-            _debugLine('Exact alarms allowed', canExact ? 'Yes' : 'NO'),
-            _debugLine('Timezone', tzName),
-            _debugLine('Scheduled (pending)', '$pending'),
+            _debugLine(l10n.build, 'notif-fix-6 (no-r8)'),
+            _debugLine(l10n.notificationsAllowed, enabled ? l10n.yes : l10n.no),
+            _debugLine(l10n.exactAlarmsAllowed, canExact ? l10n.yes : l10n.no),
+            _debugLine(l10n.timezone, tzName),
+            _debugLine(l10n.scheduledPending, '$pending'),
             const SizedBox(height: 12),
             Text(
               canExact
-                  ? 'Sent one now + one in 30s. If the 30s one never arrives, '
-                      'the OS (battery/Doze) is dropping it.'
-                  : 'Exact alarms are OFF — that is why scheduled reminders '
-                      'never fire. Allow "Alarms & reminders" for HealthTrackMe '
-                      'in Android settings.',
+                  ? l10n.sentNotificationTestExact
+                  : l10n.sentNotificationTestInexact,
               style: const TextStyle(color: _secondaryText, fontSize: 12),
             ),
           ],
@@ -264,7 +266,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Close'),
+            child: Text(context.l10n.close),
           ),
         ],
       ),
@@ -286,7 +288,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       if (!mounted) return;
       context.go('/auth');
     } else {
-      _showSnack('Could not delete account');
+      _showSnack(context.l10n.couldNotDeleteAccount);
     }
   }
 
@@ -294,7 +296,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     HapticFeedback.lightImpact();
     final userId = _user?.id;
     if (userId == null) {
-      _showSnack('No active user');
+      _showSnack(context.l10n.noActiveUser);
       return;
     }
 
@@ -305,7 +307,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       builder: (ctx) => _ChangePasswordSheet(userId: userId),
     );
     if (!mounted || changed != true) return;
-    _showSnack('Password updated');
+    _showSnack(context.l10n.passwordUpdated);
   }
 
   Future<void> _showPrivacyPolicy() async {
@@ -325,32 +327,39 @@ class _ProfileScreenState extends State<ProfileScreen> {
     await showDialog<void>(
       context: context,
       builder: (ctx) => _DarkDialog(
-        title: 'API Configuration',
+        title: context.l10n.apiConfiguration,
         content: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
-            _debugLine('Base URL', debugInfo['currentBaseUrl'].toString()),
-            _debugLine('Platform', debugInfo['isWeb'] ? 'Web' : 'Mobile'),
             _debugLine(
-              'API reachable',
-              debugInfo['canReachApi'] == true ? 'Yes' : 'No',
+                context.l10n.baseUrl, debugInfo['currentBaseUrl'].toString()),
+            _debugLine(
+              context.l10n.platform,
+              debugInfo['isWeb'] ? context.l10n.web : context.l10n.mobile,
+            ),
+            _debugLine(
+              context.l10n.apiReachable,
+              debugInfo['canReachApi'] == true
+                  ? context.l10n.yes
+                  : context.l10n.no,
             ),
           ],
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Close'),
+            child: Text(context.l10n.close),
           ),
           TextButton(
             onPressed: () async {
               await _api.resetApiConfiguration();
               if (!ctx.mounted || !mounted) return;
               Navigator.pop(ctx);
-              _showSnack('API configuration reset');
+              _showSnack(context.l10n.apiConfigurationReset);
             },
-            child: const Text('Reset API', style: TextStyle(color: _danger)),
+            child: Text(context.l10n.resetApi,
+                style: const TextStyle(color: _danger)),
           ),
         ],
       ),
@@ -428,45 +437,44 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     delegate: SliverChildListDelegate([
                       _profileHeaderCard(user),
                       const SizedBox(height: 24),
-                      _section('Account', [
+                      _section(context.l10n.account, [
                         _ProfileTile(
                           icon: Icons.person_outline,
                           accent: _accent,
-                          title: 'Personal details',
-                          subtitle: 'Name, DOB, gender, height',
+                          title: context.l10n.personalDetails,
+                          subtitle: context.l10n.personalDetailsSubtitle,
                           onTap: () => _openEditProfile(user),
                         ),
                         _ProfileTile(
                           icon: Icons.emoji_events_outlined,
                           accent: _orange,
-                          title: 'Friends & leaderboard',
-                          subtitle:
-                              'Compare streaks & Shield points with friends',
+                          title: context.l10n.friendsLeaderboard,
+                          subtitle: context.l10n.friendsLeaderboardSubtitle,
                           onTap: () => context.pushNamed('friends'),
                         ),
                         _ProfileTile(
                           icon: Icons.upload_file_outlined,
                           accent: _green,
-                          title: 'Export data',
-                          subtitle: 'Copy or email your health data',
+                          title: context.l10n.exportData,
+                          subtitle: context.l10n.exportDataSubtitle,
                           onTap: _exportData,
                         ),
                       ]),
                       const SizedBox(height: 22),
-                      _section('Preferences', [
+                      _section(context.l10n.preferences, [
                         const _UnitsTile(),
+                        const _LanguageTile(),
                         _StartOfWeekTile(showSnack: _showSnack),
                       ]),
                       const SizedBox(height: 22),
-                      _section('Manage permissions', [
+                      _section(context.l10n.managePermissions, [
                         _PreferenceToggleTile(
                           prefKey: 'pref_phone_tracking',
                           defaultValue: false,
                           icon: Icons.directions_walk_rounded,
                           accent: _green,
-                          title: 'Track steps on this phone',
-                          subtitle:
-                              "Count steps with the phone's own sensor — no Samsung Health needed",
+                          title: context.l10n.trackStepsOnPhone,
+                          subtitle: context.l10n.trackStepsOnPhoneSubtitle,
                           onChanged: (value) async {
                             if (value) {
                               await WearableService().requestPermissions();
@@ -479,18 +487,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           defaultValue: false,
                           icon: Icons.directions_run_rounded,
                           accent: _accent,
-                          title: 'Auto-detect walks & runs',
-                          subtitle:
-                              'Logs walking/running sessions automatically, even when the app is closed (keeps a quiet notification running)',
+                          title: context.l10n.autoDetectWalksRuns,
+                          subtitle: context.l10n.autoDetectWalksRunsSubtitle,
                           onChanged: (value) async {
+                            final couldNotStartDetection =
+                                context.l10n.couldNotStartDetection;
                             if (value) {
                               await WearableService().requestPermissions();
                             }
                             final running = await SleepTrackingService.instance
                                 .refreshService();
                             if (value && !running) {
-                              _showSnack(
-                                  'Could not start detection — check notification permission');
+                              _showSnack(couldNotStartDetection);
                             }
                           },
                         ),
@@ -499,33 +507,32 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           defaultValue: false,
                           icon: Icons.bedtime_rounded,
                           accent: _orange,
-                          title: 'Detect sleep in the background',
-                          subtitle:
-                              'Notices long overnight rest and logs your sleep — keeps a quiet notification running',
+                          title: context.l10n.detectSleepBackground,
+                          subtitle: context.l10n.detectSleepBackgroundSubtitle,
                           onChanged: (value) async {
+                            final couldNotStartSleepTracking =
+                                context.l10n.couldNotStartSleepTracking;
                             if (value) {
                               await WearableService().requestPermissions();
                             }
                             final running = await SleepTrackingService.instance
                                 .refreshService();
                             if (value && !running) {
-                              _showSnack(
-                                  'Could not start sleep tracking — check notification permission');
+                              _showSnack(couldNotStartSleepTracking);
                             }
                           },
                         ),
                       ]),
                       const SizedBox(height: 22),
-                      _section('Reminders', [
+                      _section(context.l10n.reminders, [
                         const _DiaryReminderTile(),
                         _PreferenceToggleTile(
                           prefKey: 'pref_streak_reminder',
                           defaultValue: false,
                           icon: Icons.local_fire_department_rounded,
                           accent: _orange,
-                          title: 'Morning streak reminder',
-                          subtitle:
-                              'A 9 AM nudge to log today and keep your streak alive',
+                          title: context.l10n.morningStreakReminder,
+                          subtitle: context.l10n.morningStreakReminderSubtitle,
                           onChanged: (value) async {
                             if (value) {
                               await NotificationService.instance
@@ -544,8 +551,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           defaultValue: true,
                           icon: Icons.medication_outlined,
                           accent: _green,
-                          title: 'Medicine reminders',
-                          subtitle: 'Turn all medicine reminders on or off',
+                          title: context.l10n.medicineReminders,
+                          subtitle: context.l10n.medicineRemindersSubtitle,
                           onChanged: (value) async {
                             // Off → cancel everything now. On → reminders are
                             // re-scheduled next time the Medicines screen loads.
@@ -559,42 +566,42 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         _ProfileTile(
                           icon: Icons.notifications_active_outlined,
                           accent: _accent,
-                          title: 'Test notifications',
-                          subtitle: 'Send one now + one in 30 seconds',
+                          title: context.l10n.testNotifications,
+                          subtitle: context.l10n.testNotificationsSubtitle,
                           onTap: _testNotifications,
                         ),
                       ]),
                       const SizedBox(height: 22),
-                      _section('Privacy / Account', [
+                      _section(context.l10n.privacyAccount, [
                         _ProfileTile(
                           icon: Icons.privacy_tip_outlined,
                           accent: _accent,
-                          title: 'Privacy policy',
-                          subtitle: 'Review privacy information',
+                          title: context.l10n.privacyPolicy,
+                          subtitle: context.l10n.privacyPolicySubtitle,
                           onTap: _showPrivacyPolicy,
                         ),
                         _ProfileTile(
                           icon: Icons.delete_outline,
                           accent: _danger,
-                          title: 'Delete all my data',
-                          subtitle: 'Permanent account data removal',
+                          title: context.l10n.deleteAllMyData,
+                          subtitle: context.l10n.deleteAllMyDataSubtitle,
                           onTap: _deleteAllData,
                         ),
                         _ProfileTile(
                           icon: Icons.lock_outline,
                           accent: _orange,
-                          title: 'Change password',
-                          subtitle: 'Update your account password',
+                          title: context.l10n.changePassword,
+                          subtitle: context.l10n.changePasswordSubtitle,
                           onTap: _showChangePasswordSheet,
                         ),
                       ]),
                       const SizedBox(height: 22),
-                      _section('Debug', [
+                      _section(context.l10n.debug, [
                         _ProfileTile(
                           icon: Icons.api_outlined,
                           accent: _accent,
-                          title: 'API Configuration',
-                          subtitle: 'View and reset API settings',
+                          title: context.l10n.apiConfiguration,
+                          subtitle: context.l10n.apiConfigurationSubtitle,
                           onTap: _showApiConfiguration,
                         ),
                       ]),
@@ -616,7 +623,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         const SizedBox(width: 14),
         Expanded(
           child: Text(
-            'Profile',
+            context.l10n.profile,
             style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                   color: _primaryText,
                   fontWeight: FontWeight.w900,
@@ -969,22 +976,22 @@ class _DeleteDataDialog extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(width: 14),
-                      const Expanded(
+                      Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'Delete all data?',
-                              style: TextStyle(
+                              context.l10n.deleteAllDataQuestion,
+                              style: const TextStyle(
                                 color: _ProfileScreenState._primaryText,
                                 fontSize: 22,
                                 fontWeight: FontWeight.w900,
                               ),
                             ),
-                            SizedBox(height: 6),
+                            const SizedBox(height: 6),
                             Text(
-                              'This permanently removes your account and health data from HealthTrackMe. This cannot be undone.',
-                              style: TextStyle(
+                              context.l10n.deleteAllDataDescription,
+                              style: const TextStyle(
                                 color: _ProfileScreenState._secondaryText,
                                 height: 1.42,
                                 fontSize: 13,
@@ -1004,18 +1011,18 @@ class _DeleteDataDialog extends StatelessWidget {
                       borderRadius: BorderRadius.circular(14),
                       border: Border.all(color: _ProfileScreenState._border),
                     ),
-                    child: const Row(
+                    child: Row(
                       children: [
-                        Icon(
+                        const Icon(
                           Icons.warning_amber_rounded,
                           color: _ProfileScreenState._danger,
                           size: 18,
                         ),
-                        SizedBox(width: 9),
+                        const SizedBox(width: 9),
                         Expanded(
                           child: Text(
-                            'Your login session will end after deletion.',
-                            style: TextStyle(
+                            context.l10n.deleteLoginSessionWarning,
+                            style: const TextStyle(
                               color: _ProfileScreenState._primaryText,
                               fontSize: 13,
                               fontWeight: FontWeight.w700,
@@ -1041,9 +1048,9 @@ class _DeleteDataDialog extends StatelessWidget {
                               borderRadius: BorderRadius.circular(14),
                             ),
                           ),
-                          child: const Text(
-                            'Cancel',
-                            style: TextStyle(fontWeight: FontWeight.w800),
+                          child: Text(
+                            context.l10n.cancel,
+                            style: const TextStyle(fontWeight: FontWeight.w800),
                           ),
                         ),
                       ),
@@ -1059,9 +1066,9 @@ class _DeleteDataDialog extends StatelessWidget {
                               borderRadius: BorderRadius.circular(14),
                             ),
                           ),
-                          child: const Text(
-                            'Delete',
-                            style: TextStyle(fontWeight: FontWeight.w900),
+                          child: Text(
+                            context.l10n.delete,
+                            style: const TextStyle(fontWeight: FontWeight.w900),
                           ),
                         ),
                       ),
@@ -1187,10 +1194,10 @@ class _ChangePasswordSheetState extends State<_ChangePasswordSheet> {
                 children: [
                   Row(
                     children: [
-                      const Expanded(
+                      Expanded(
                         child: Text(
-                          'Change password',
-                          style: TextStyle(
+                          context.l10n.changePassword,
+                          style: const TextStyle(
                             color: _ProfileScreenState._primaryText,
                             fontSize: 20,
                             fontWeight: FontWeight.w900,
@@ -1218,9 +1225,9 @@ class _ChangePasswordSheetState extends State<_ChangePasswordSheet> {
                     ],
                   ),
                   const SizedBox(height: 4),
-                  const Text(
-                    'Enter your current password and choose a new one.',
-                    style: TextStyle(
+                  Text(
+                    context.l10n.changePasswordDescription,
+                    style: const TextStyle(
                       color: _ProfileScreenState._secondaryText,
                       height: 1.4,
                     ),
@@ -1228,7 +1235,7 @@ class _ChangePasswordSheetState extends State<_ChangePasswordSheet> {
                   const SizedBox(height: 18),
                   _PasswordField(
                     controller: _currentController,
-                    label: 'Current password',
+                    label: context.l10n.currentPassword,
                     visible: _showCurrent,
                     onToggle: () =>
                         setState(() => _showCurrent = !_showCurrent),
@@ -1238,7 +1245,7 @@ class _ChangePasswordSheetState extends State<_ChangePasswordSheet> {
                   const SizedBox(height: 12),
                   _PasswordField(
                     controller: _newController,
-                    label: 'New password',
+                    label: context.l10n.newPassword,
                     visible: _showNew,
                     onToggle: () => setState(() => _showNew = !_showNew),
                     onChanged: (_) => _clearServerError(),
@@ -1247,7 +1254,7 @@ class _ChangePasswordSheetState extends State<_ChangePasswordSheet> {
                   const SizedBox(height: 12),
                   _PasswordField(
                     controller: _confirmController,
-                    label: 'Confirm new password',
+                    label: context.l10n.confirmNewPassword,
                     visible: _showConfirm,
                     onToggle: () =>
                         setState(() => _showConfirm = !_showConfirm),
@@ -1280,9 +1287,10 @@ class _ChangePasswordSheetState extends State<_ChangePasswordSheet> {
                                 color: Colors.white,
                               ),
                             )
-                          : const Text(
-                              'Update password',
-                              style: TextStyle(fontWeight: FontWeight.w800),
+                          : Text(
+                              context.l10n.updatePassword,
+                              style:
+                                  const TextStyle(fontWeight: FontWeight.w800),
                             ),
                     ),
                   ),
@@ -1469,22 +1477,22 @@ class _PrivacyPolicySheet extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: 12),
-                  const Expanded(
+                  Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Privacy policy',
-                          style: TextStyle(
+                          context.l10n.privacyPolicy,
+                          style: const TextStyle(
                             color: _ProfileScreenState._primaryText,
                             fontSize: 19,
                             fontWeight: FontWeight.w900,
                           ),
                         ),
-                        SizedBox(height: 2),
+                        const SizedBox(height: 2),
                         Text(
-                          'Last updated: June 7, 2026',
-                          style: TextStyle(
+                          context.l10n.privacyPolicyLastUpdated,
+                          style: const TextStyle(
                             color: _ProfileScreenState._secondaryText,
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
@@ -1517,52 +1525,46 @@ class _PrivacyPolicySheet extends StatelessWidget {
             Expanded(
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
-                children: const [
+                children: [
                   Text(
-                    'HealthTrackMe uses your health information only to show your dashboard, reminders, reports, and wearable sync results inside the app.',
-                    style: TextStyle(
+                    context.l10n.privacyPolicyIntro,
+                    style: const TextStyle(
                       color: _ProfileScreenState._primaryText,
                       height: 1.45,
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
-                  SizedBox(height: 18),
+                  const SizedBox(height: 18),
                   _PrivacyPolicyItem(
                     icon: Icons.favorite_border_rounded,
-                    title: 'Health data we store',
-                    body:
-                        'Profile details, symptoms, medicines, sleep, activity, steps, heart rate, calories, notes, reminders, and connected wearable device records.',
+                    title: context.l10n.privacyHealthDataTitle,
+                    body: context.l10n.privacyHealthDataBody,
                   ),
                   _PrivacyPolicyItem(
                     icon: Icons.sync_rounded,
-                    title: 'Wearable and sensor sync',
-                    body:
-                        'When you enable sync, the app reads permitted Health Connect or device data and uploads the selected health metrics to your HealthTrackMe account.',
+                    title: context.l10n.privacyWearableSyncTitle,
+                    body: context.l10n.privacyWearableSyncBody,
                   ),
                   _PrivacyPolicyItem(
                     icon: Icons.lock_outline_rounded,
-                    title: 'How your data is protected',
-                    body:
-                        'Account access is controlled by authentication. Health data is sent to the backend for your account features and is not sold for advertising.',
+                    title: context.l10n.privacyProtectionTitle,
+                    body: context.l10n.privacyProtectionBody,
                   ),
                   _PrivacyPolicyItem(
                     icon: Icons.notifications_none_rounded,
-                    title: 'Notifications',
-                    body:
-                        'Reminder settings are used to schedule medicine, diary, and health notifications. You can disable them from this screen or system settings.',
+                    title: context.l10n.privacyNotificationsTitle,
+                    body: context.l10n.privacyNotificationsBody,
                   ),
                   _PrivacyPolicyItem(
                     icon: Icons.delete_outline_rounded,
-                    title: 'Deleting your data',
-                    body:
-                        'Use "Delete all my data" in Privacy / Account to request permanent removal of your account data from the app backend.',
+                    title: context.l10n.privacyDeletingDataTitle,
+                    body: context.l10n.privacyDeletingDataBody,
                   ),
                   _PrivacyPolicyItem(
                     icon: Icons.mail_outline_rounded,
-                    title: 'Questions',
-                    body:
-                        'For privacy questions, contact the HealthTrackMe project owner or your course project maintainer.',
+                    title: context.l10n.privacyQuestionsTitle,
+                    body: context.l10n.privacyQuestionsBody,
                   ),
                 ],
               ),
@@ -1757,7 +1759,7 @@ class _UnitsTileState extends State<_UnitsTile> {
     if (mounted) {
       _showProfileToast(
         context,
-        'Units updated',
+        context.l10n.unitsUpdated,
         type: _ProfileToastType.success,
       );
     }
@@ -1765,11 +1767,11 @@ class _UnitsTileState extends State<_UnitsTile> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     return _ProfileTile(
       icon: Icons.swap_horiz,
-      title: 'Units',
-      subtitle:
-          'Weight: $_weight • Height: $_height • Distance: $_distance • Temp: $_temp',
+      title: l10n.units,
+      subtitle: l10n.unitsSubtitle(_weight, _height, _distance, _temp),
       accent: _ProfileScreenState._accent,
       onTap: () async {
         HapticFeedback.lightImpact();
@@ -1831,6 +1833,7 @@ class _UnitsDialogState extends State<_UnitsDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     return AlertDialog(
       backgroundColor: _ProfileScreenState._surface,
       shape: RoundedRectangleBorder(
@@ -1843,10 +1846,10 @@ class _UnitsDialogState extends State<_UnitsDialog> {
       actionsPadding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
       title: Row(
         children: [
-          const Expanded(
+          Expanded(
             child: Text(
-              'Units',
-              style: TextStyle(
+              l10n.units,
+              style: const TextStyle(
                 color: _ProfileScreenState._primaryText,
                 fontWeight: FontWeight.w900,
               ),
@@ -1862,7 +1865,7 @@ class _UnitsDialogState extends State<_UnitsDialog> {
           children: [
             _UnitOptionRow(
               icon: Icons.monitor_weight_outlined,
-              title: 'Weight',
+              title: l10n.weight,
               value: _weight,
               options: const ['kg', 'lbs'],
               onChanged: (value) => setState(() => _weight = value),
@@ -1870,7 +1873,7 @@ class _UnitsDialogState extends State<_UnitsDialog> {
             const SizedBox(height: 12),
             _UnitOptionRow(
               icon: Icons.height_rounded,
-              title: 'Height',
+              title: l10n.height,
               value: _height,
               options: const ['cm', 'ft'],
               onChanged: (value) => setState(() => _height = value),
@@ -1878,7 +1881,7 @@ class _UnitsDialogState extends State<_UnitsDialog> {
             const SizedBox(height: 12),
             _UnitOptionRow(
               icon: Icons.route_outlined,
-              title: 'Distance',
+              title: l10n.distance,
               value: _distance,
               options: const ['km', 'mi'],
               onChanged: (value) => setState(() => _distance = value),
@@ -1886,7 +1889,7 @@ class _UnitsDialogState extends State<_UnitsDialog> {
             const SizedBox(height: 12),
             _UnitOptionRow(
               icon: Icons.thermostat_outlined,
-              title: 'Temperature',
+              title: l10n.temperature,
               value: _temp,
               options: const ['C', 'F'],
               onChanged: (value) => setState(() => _temp = value),
@@ -1907,7 +1910,7 @@ class _UnitsDialogState extends State<_UnitsDialog> {
                 borderRadius: BorderRadius.circular(14),
               ),
             ),
-            child: const Text('Save'),
+            child: Text(l10n.save),
           ),
         ),
       ],
@@ -2112,6 +2115,165 @@ class _UnitSegment extends StatelessWidget {
   }
 }
 
+class _LanguageTile extends StatelessWidget {
+  const _LanguageTile();
+
+  Future<void> _pick(BuildContext context) async {
+    HapticFeedback.lightImpact();
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => const _LanguageDialog(),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final localeProvider = context.watch<LocaleProvider>();
+    return _ProfileTile(
+      icon: Icons.language_rounded,
+      accent: _ProfileScreenState._green,
+      title: l10n.language,
+      subtitle: l10n.languageSubtitle(
+        localeProvider.labelForCode(localeProvider.languageCode),
+      ),
+      onTap: () => _pick(context),
+    );
+  }
+}
+
+class _LanguageDialog extends StatelessWidget {
+  const _LanguageDialog();
+
+  Future<void> _select(BuildContext context, String languageCode) async {
+    await context.read<LocaleProvider>().setLocale(Locale(languageCode));
+    if (!context.mounted) return;
+    final selectedL10n = lookupAppLocalizations(Locale(languageCode));
+    Navigator.pop(context);
+    _showProfileToast(
+      context,
+      selectedL10n.languageUpdated,
+      type: _ProfileToastType.success,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final selectedCode = context.watch<LocaleProvider>().languageCode;
+    return AlertDialog(
+      backgroundColor: _ProfileScreenState._surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+        side: const BorderSide(color: _ProfileScreenState._border),
+      ),
+      insetPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 24),
+      titlePadding: const EdgeInsets.fromLTRB(20, 18, 12, 0),
+      contentPadding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
+      title: Row(
+        children: [
+          Expanded(
+            child: Text(
+              l10n.language,
+              style: const TextStyle(
+                color: _ProfileScreenState._primaryText,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ),
+          _DialogCloseButton(onTap: () => Navigator.pop(context)),
+        ],
+      ),
+      content: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: _ProfileScreenState._surfaceAlt,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: _ProfileScreenState._border),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _LanguageOption(
+              title: l10n.english,
+              selected: selectedCode == 'en',
+              onTap: () => _select(context, 'en'),
+            ),
+            const SizedBox(height: 10),
+            _LanguageOption(
+              title: l10n.slovenian,
+              selected: selectedCode == 'sl',
+              onTap: () => _select(context, 'sl'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _LanguageOption extends StatelessWidget {
+  final String title;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _LanguageOption({
+    required this.title,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final accent = selected
+        ? _ProfileScreenState._accent
+        : _ProfileScreenState._secondaryText;
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(14),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 160),
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: selected
+                ? _ProfileScreenState._accent.withValues(alpha: 0.14)
+                : _ProfileScreenState._surface,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: selected
+                  ? _ProfileScreenState._accent
+                  : _ProfileScreenState._border,
+            ),
+          ),
+          child: Row(
+            children: [
+              _IconTile(icon: Icons.translate_rounded, color: accent),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  title,
+                  style: const TextStyle(
+                    color: _ProfileScreenState._primaryText,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Icon(
+                selected ? Icons.check_circle_rounded : Icons.circle_outlined,
+                color: accent,
+                size: 22,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _StartOfWeekTile extends StatelessWidget {
   final ValueChanged<String> showSnack;
 
@@ -2128,17 +2290,21 @@ class _StartOfWeekTile extends StatelessWidget {
     );
     if (chosen != null) {
       await prefs.setString('pref_start_of_week', chosen);
-      showSnack('Start of week set to $chosen');
+      if (!context.mounted) return;
+      final day =
+          chosen == 'Sunday' ? context.l10n.sunday : context.l10n.monday;
+      showSnack(context.l10n.startOfWeekSetTo(day));
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     return _ProfileTile(
       icon: Icons.flag_outlined,
       accent: _ProfileScreenState._orange,
-      title: 'Start of week',
-      subtitle: 'Monday or Sunday',
+      title: l10n.startOfWeek,
+      subtitle: l10n.mondayOrSunday,
       onTap: () => _pick(context),
     );
   }
@@ -2168,6 +2334,7 @@ class _StartOfWeekDialogState extends State<_StartOfWeekDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     return AlertDialog(
       backgroundColor: _ProfileScreenState._surface,
       shape: RoundedRectangleBorder(
@@ -2180,10 +2347,10 @@ class _StartOfWeekDialogState extends State<_StartOfWeekDialog> {
       actionsPadding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
       title: Row(
         children: [
-          const Expanded(
+          Expanded(
             child: Text(
-              'Start of week',
-              style: TextStyle(
+              l10n.startOfWeek,
+              style: const TextStyle(
                 color: _ProfileScreenState._primaryText,
                 fontWeight: FontWeight.w900,
               ),
@@ -2209,7 +2376,7 @@ class _StartOfWeekDialogState extends State<_StartOfWeekDialog> {
                 borderRadius: BorderRadius.circular(14),
               ),
             ),
-            child: const Text('Save'),
+            child: Text(l10n.save),
           ),
         ),
       ],
@@ -2228,6 +2395,7 @@ class _WeekStartPicker extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -2240,16 +2408,16 @@ class _WeekStartPicker extends StatelessWidget {
         children: [
           _WeekStartOption(
             icon: Icons.calendar_view_week_outlined,
-            title: 'Monday',
-            subtitle: 'Use the ISO week format',
+            title: l10n.monday,
+            subtitle: l10n.useIsoWeekFormat,
             selected: value == 'Monday',
             onTap: () => onChanged('Monday'),
           ),
           const SizedBox(height: 10),
           _WeekStartOption(
             icon: Icons.calendar_month_outlined,
-            title: 'Sunday',
-            subtitle: 'Use the US week format',
+            title: l10n.sunday,
+            subtitle: l10n.useUsWeekFormat,
             selected: value == 'Sunday',
             onTap: () => onChanged('Sunday'),
           ),
@@ -2438,7 +2606,7 @@ class _DiaryReminderTileState extends State<_DiaryReminderTile> {
     final picked = await showDarkTimePicker(
       context: context,
       initialTime: _time,
-      title: 'Enter time',
+      title: context.l10n.enterTime,
     );
     if (picked != null) {
       final prefs = await SharedPreferences.getInstance();
@@ -2471,8 +2639,8 @@ class _DiaryReminderTileState extends State<_DiaryReminderTile> {
     return _ProfileTile(
       icon: Icons.notifications_active_outlined,
       accent: _ProfileScreenState._green,
-      title: 'Daily reminder',
-      subtitle: 'Time: ${_time.format(context)}',
+      title: context.l10n.dailyReminder,
+      subtitle: context.l10n.timeLabel(_time.format(context)),
       trailing: Switch(
         value: _enabled,
         onChanged: _toggle,
@@ -2521,7 +2689,7 @@ class _WeeklyReportTileState extends State<_WeeklyReportTile> {
       setState(() => _enabled = !value); // revert on failure
       _showProfileToast(
         context,
-        'Could not update weekly report setting',
+        context.l10n.couldNotUpdateWeeklyReport,
         type: _ProfileToastType.error,
       );
     }
@@ -2532,8 +2700,8 @@ class _WeeklyReportTileState extends State<_WeeklyReportTile> {
     return _ProfileTile(
       icon: Icons.bar_chart_outlined,
       accent: _ProfileScreenState._orange,
-      title: 'Weekly health report',
-      subtitle: 'AI summary emailed every Monday',
+      title: context.l10n.weeklyHealthReport,
+      subtitle: context.l10n.weeklyHealthReportSubtitle,
       trailing: _loading
           ? const SizedBox(
               width: 40,

@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import '../l10n/l10n.dart';
 import '../models/models.dart';
 import '../services/api_service.dart';
 
@@ -92,13 +93,16 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       if (!mounted) return;
       widget.onSaved();
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Profile was successfully updated')),
+        SnackBar(content: Text(context.l10n.profileUpdated)),
       );
       Navigator.of(context).pop();
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e'), backgroundColor: _danger),
+        SnackBar(
+          content: Text(context.l10n.genericError(e.toString())),
+          backgroundColor: _danger,
+        ),
       );
     } finally {
       if (mounted) {
@@ -193,18 +197,18 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Row(
+                      Row(
                         children: [
-                          Icon(
+                          const Icon(
                             Icons.calendar_month_outlined,
                             color: _accent,
                             size: 22,
                           ),
-                          SizedBox(width: 10),
+                          const SizedBox(width: 10),
                           Expanded(
                             child: Text(
-                              'Select date',
-                              style: TextStyle(
+                              context.l10n.selectDate,
+                              style: const TextStyle(
                                 color: _primaryText,
                                 fontSize: 18,
                                 fontWeight: FontWeight.w800,
@@ -253,7 +257,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error selecting date: $e')),
+        SnackBar(content: Text(context.l10n.errorSelectingDate(e.toString()))),
       );
     }
   }
@@ -284,17 +288,17 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   _profilePreviewCard(),
                   const SizedBox(height: 24),
                   _section(
-                    'Personal Information',
+                    context.l10n.personalInformation,
                     [
                       _darkTextField(
                         controller: _firstNameController,
-                        label: 'First name',
-                        hint: 'Enter your first name',
+                        label: context.l10n.firstName,
+                        hint: context.l10n.enterYourFirstName,
                         icon: Icons.person_outline,
                         textInputAction: TextInputAction.next,
                         validator: (value) {
                           if (value == null || value.trim().isEmpty) {
-                            return 'First name is required';
+                            return context.l10n.firstNameRequired;
                           }
                           return null;
                         },
@@ -302,13 +306,13 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       const SizedBox(height: 12),
                       _darkTextField(
                         controller: _lastNameController,
-                        label: 'Last name',
-                        hint: 'Enter your last name',
+                        label: context.l10n.lastName,
+                        hint: context.l10n.enterYourLastName,
                         icon: Icons.person_outline,
                         textInputAction: TextInputAction.next,
                         validator: (value) {
                           if (value == null || value.trim().isEmpty) {
-                            return 'Last name is required';
+                            return context.l10n.lastNameRequired;
                           }
                           return null;
                         },
@@ -316,7 +320,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       const SizedBox(height: 12),
                       _darkTextField(
                         controller: _dobController,
-                        label: 'Date of birth',
+                        label: context.l10n.dateOfBirth,
                         hint: 'YYYY-MM-DD',
                         icon: Icons.calendar_today_outlined,
                         textInputAction: TextInputAction.next,
@@ -326,10 +330,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                         ),
                         validator: (value) {
                           if (value == null || value.trim().isEmpty) {
-                            return 'Date of birth is required';
+                            return context.l10n.dateOfBirthRequired;
                           }
                           if (DateTime.tryParse(value) == null) {
-                            return 'Invalid date format (YYYY-MM-DD)';
+                            return context.l10n.invalidDateFormat;
                           }
                           return null;
                         },
@@ -338,12 +342,12 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   ),
                   const SizedBox(height: 24),
                   _section(
-                    'Health Information',
+                    context.l10n.healthInformation,
                     [
                       _darkTextField(
                         controller: _medicalController,
-                        label: 'Medical conditions',
-                        hint: 'e.g. Diabetes, asthma...',
+                        label: context.l10n.medicalConditions,
+                        hint: context.l10n.medicalConditionsHint,
                         icon: Icons.medical_information_outlined,
                         maxLines: 3,
                         textInputAction: TextInputAction.next,
@@ -351,8 +355,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       const SizedBox(height: 12),
                       _darkTextField(
                         controller: _allergiesController,
-                        label: 'Allergies',
-                        hint: 'e.g. Penicillin, peanuts...',
+                        label: context.l10n.allergies,
+                        hint: context.l10n.allergiesHint,
                         icon: Icons.warning_amber_outlined,
                         maxLines: 3,
                       ),
@@ -376,7 +380,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         const SizedBox(width: 14),
         Expanded(
           child: Text(
-            'Edit Profile',
+            context.l10n.editProfile,
             style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                   color: _primaryText,
                   fontWeight: FontWeight.w900,
@@ -545,7 +549,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   fontWeight: FontWeight.w800,
                 ),
               ),
-              child: const Text('Cancel'),
+              child: Text(context.l10n.cancel),
             ),
           ),
         ),
@@ -578,7 +582,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                         color: Colors.white,
                       ),
                     )
-                  : const Text('Save'),
+                  : Text(context.l10n.save),
             ),
           ),
         ),

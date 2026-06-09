@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../l10n/l10n.dart';
 import '../services/api_service.dart';
 
 const _bg = Color(0xFF070B13);
@@ -45,42 +46,52 @@ class _ExportSheetState extends State<_ExportSheet> {
 
   Future<void> _run(String key, Future<String> Function() action) async {
     if (_busy != null) return;
+    final l10n = context.l10n;
     setState(() => _busy = key);
     String message;
     var type = _ExportToastType.success;
     try {
       message = await action();
     } catch (e) {
-      message = 'Export failed';
+      message = l10n.exportFailed;
       type = _ExportToastType.error;
     }
     if (!mounted) return;
     setState(() => _busy = null);
-    if (message.startsWith('No ') || message.startsWith('Please ')) {
+    if (message == l10n.noSummaryAvailable ||
+        message == l10n.pleaseSignInFirst ||
+        message == l10n.noDataToExport) {
       type = _ExportToastType.warning;
     }
     _showExportToast(message, type: type);
   }
 
   Future<String> _copySummary() async {
+    final l10n = context.l10n;
     final summary = await _api.getHealthSummary();
-    if (summary == null || summary.isEmpty) return 'No summary available yet';
+    if (summary == null || summary.isEmpty) {
+      return l10n.noSummaryAvailable;
+    }
     await Clipboard.setData(ClipboardData(text: summary));
-    return 'Summary copied to clipboard';
+    return l10n.summaryCopied;
   }
 
   Future<String> _emailSummary() async {
+    final l10n = context.l10n;
     final result = await _api.emailHealthSummary();
-    return result.message;
+    if (result.success) return l10n.summaryEmailSent;
+    if (result.message == 'Not signed in') return l10n.pleaseSignInFirst;
+    return l10n.couldNotSendSummary;
   }
 
   Future<String> _copyCsv() async {
+    final l10n = context.l10n;
     final id = await _api.ensureActiveUserId();
-    if (id == null) return 'Please sign in first';
+    if (id == null) return l10n.pleaseSignInFirst;
     final csv = await _api.exportCsv('/export/all/$id');
-    if (csv == null || csv.isEmpty) return 'No data to export yet';
+    if (csv == null || csv.isEmpty) return l10n.noDataToExport;
     await Clipboard.setData(ClipboardData(text: csv));
-    return 'Full data (CSV) copied to clipboard';
+    return l10n.fullDataCsvCopied;
   }
 
   void _showExportToast(
@@ -215,36 +226,36 @@ class _ExportSheetState extends State<_ExportSheet> {
                 ),
               ),
               const SizedBox(height: 18),
-              const Text('Export your data',
-                  style: TextStyle(
+              Text(context.l10n.exportYourData,
+                  style: const TextStyle(
                       color: _primaryText,
                       fontSize: 18,
                       fontWeight: FontWeight.w800)),
               const SizedBox(height: 4),
-              const Text('Copy to clipboard or send to your email',
-                  style: TextStyle(color: _secondaryText, fontSize: 13)),
+              Text(context.l10n.copyClipboardOrEmail,
+                  style: const TextStyle(color: _secondaryText, fontSize: 13)),
               const SizedBox(height: 18),
               _ExportTile(
                 icon: Icons.content_copy_rounded,
                 color: _accent,
-                title: 'Copy summary',
-                subtitle: 'Readable health summary',
+                title: context.l10n.copySummary,
+                subtitle: context.l10n.readableHealthSummary,
                 loading: _busy == 'sum',
                 onTap: () => _run('sum', _copySummary),
               ),
               _ExportTile(
                 icon: Icons.mail_outline_rounded,
                 color: _green,
-                title: 'Email summary to me',
-                subtitle: 'Sent to your account email',
+                title: context.l10n.emailSummaryToMe,
+                subtitle: context.l10n.sentToAccountEmail,
                 loading: _busy == 'mail',
                 onTap: () => _run('mail', _emailSummary),
               ),
               _ExportTile(
                 icon: Icons.table_chart_outlined,
                 color: _accent,
-                title: 'Copy full data (CSV)',
-                subtitle: 'Entries + activities as CSV',
+                title: context.l10n.copyFullDataCsv,
+                subtitle: context.l10n.entriesActivitiesCsv,
                 loading: _busy == 'csv',
                 onTap: () => _run('csv', _copyCsv),
               ),

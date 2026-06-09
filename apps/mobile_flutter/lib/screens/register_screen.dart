@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../config/theme.dart';
+import '../l10n/l10n.dart';
 import '../widgets/design_system.dart';
 import '../services/api_service.dart';
 import '../services/google_auth_service.dart';
@@ -85,13 +86,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   String? _validateEmail(String? value) {
+    final l10n = context.l10n;
     final email = value?.trim() ?? '';
     if (email.isEmpty) {
-      return 'Email is required.';
+      return l10n.emailRequired;
     }
     final regex = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
     if (!regex.hasMatch(email)) {
-      return 'Enter a valid email.';
+      return l10n.enterValidEmail;
     }
     return null;
   }
@@ -120,7 +122,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       );
       await _api.setActiveUserId(user.id);
       if (!mounted) return;
-      _showAuthToast(context, 'Account created successfully');
+      _showAuthToast(context, context.l10n.accountCreatedSuccessfully);
       context.goNamed('home');
     } catch (error) {
       if (!mounted) return;
@@ -143,7 +145,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       await _loginWithGoogleIdToken(idToken);
     } on GoogleAuthCanceled {
       if (!mounted) return;
-      setState(() => _authError = 'Google sign-in was cancelled.');
+      setState(() => _authError = context.l10n.googleSignInCancelled);
     } catch (error) {
       if (!mounted) return;
       setState(() => _authError = _formatGoogleAuthError(error));
@@ -179,10 +181,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   String? _validateConfirmPassword(String? value) {
     if (value == null || value.isEmpty) {
-      return 'Confirm password is required.';
+      return context.l10n.confirmPasswordRequired;
     }
     if (value != _passwordController.text) {
-      return 'Passwords do not match.';
+      return context.l10n.passwordsDoNotMatch;
     }
     return null;
   }
@@ -190,31 +192,31 @@ class _RegisterScreenState extends State<RegisterScreen> {
   String _formatAuthError(Object error) {
     final text = error.toString().replaceFirst('Exception: ', '').trim();
     if (text.contains('Email already exists')) {
-      return 'Email already exists.';
+      return context.l10n.emailAlreadyExists;
     }
-    return text.isEmpty ? 'Could not create account.' : text;
+    return text.isEmpty ? context.l10n.couldNotCreateAccount : text;
   }
 
   String _formatGoogleAuthError(Object error) {
     final message = error.toString().replaceFirst('Exception: ', '').trim();
     if (message.contains('Google client ID is not configured')) {
-      return 'Google client ID is not configured.';
+      return context.l10n.googleClientIdNotConfigured;
     }
     if (message.contains('Google sign-in was cancelled')) {
-      return 'Google sign-in was cancelled.';
+      return context.l10n.googleSignInCancelled;
     }
     if (message.contains('Google did not return an ID token')) {
-      return 'Google did not return an ID token.';
+      return context.l10n.googleNoIdToken;
     }
     if (message.contains('not available on this platform')) {
-      return 'Google sign-in is not available on this platform yet.';
+      return context.l10n.googleSignInUnavailable;
     }
     if (message.startsWith('Google sign-in failed:')) {
       return message;
     }
     return message.isEmpty
-        ? 'Google sign-in failed. Please try again.'
-        : 'Google sign-in failed: $message';
+        ? context.l10n.googleSignInFailedTryAgain
+        : context.l10n.googleSignInFailed(message);
   }
 
   void _clearAuthError() {
@@ -232,6 +234,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   Future<void> _pickDateOfBirth() async {
+    final l10n = context.l10n;
     final now = DateTime.now();
     final picked = await showDialog<DateTime>(
       context: context,
@@ -311,18 +314,18 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Row(
+                    Row(
                       children: [
-                        Icon(
+                        const Icon(
                           Icons.calendar_month_outlined,
                           color: AppColors.primaryBlue,
                           size: 22,
                         ),
-                        SizedBox(width: 10),
+                        const SizedBox(width: 10),
                         Expanded(
                           child: Text(
-                            'Date of birth',
-                            style: TextStyle(
+                            l10n.dateOfBirth,
+                            style: const TextStyle(
                               color: _primaryText,
                               fontSize: 18,
                               fontWeight: FontWeight.w800,
@@ -526,14 +529,18 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   Widget _orDivider() {
+    final l10n = context.l10n;
     return Row(
       children: [
         Expanded(child: Container(height: 1, color: _border)),
-        const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 14),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14),
           child: Text(
-            'Or',
-            style: TextStyle(color: _mutedText, fontWeight: FontWeight.w600),
+            l10n.or,
+            style: const TextStyle(
+              color: _mutedText,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ),
         Expanded(child: Container(height: 1, color: _border)),
@@ -542,6 +549,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   Widget _googleButton() {
+    final l10n = context.l10n;
     if (_googleAuth.usesWebSignInButton) {
       return SizedBox(
         width: double.infinity,
@@ -570,7 +578,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 ),
               ),
         label: Text(
-          _isGoogleLoading ? 'Connecting...' : 'Continue with Google',
+          _isGoogleLoading ? l10n.connecting : l10n.continueWithGoogle,
         ),
         style: OutlinedButton.styleFrom(
           foregroundColor: _primaryText,
@@ -585,6 +593,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     return Scaffold(
       backgroundColor: _background,
       body: SafeArea(
@@ -627,18 +636,21 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         ),
                       ),
                       const SizedBox(height: 18),
-                      const Text(
-                        'Create account',
-                        style: TextStyle(
+                      Text(
+                        l10n.createAccount,
+                        style: const TextStyle(
                           color: _primaryText,
                           fontSize: 34,
                           fontWeight: FontWeight.w800,
                         ),
                       ),
                       const SizedBox(height: 8),
-                      const Text(
-                        'Set up your health profile to continue.',
-                        style: TextStyle(color: _mutedText, fontSize: 15),
+                      Text(
+                        l10n.setUpHealthProfileToContinue,
+                        style: const TextStyle(
+                          color: _mutedText,
+                          fontSize: 15,
+                        ),
                       ),
                       const SizedBox(height: 30),
                       LayoutBuilder(
@@ -647,15 +659,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           final firstName = Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              _fieldLabel('First name'),
+                              _fieldLabel(l10n.firstName),
                               TextFormField(
                                 controller: _firstNameController,
                                 validator: (v) => (v == null || v.isEmpty)
-                                    ? 'Required'
+                                    ? l10n.required
                                     : null,
                                 style: const TextStyle(color: _primaryText),
                                 decoration: _inputDecoration(
-                                  hintText: 'First name',
+                                  hintText: l10n.firstName,
                                   prefixIcon: Icons.person_outline,
                                 ),
                               ),
@@ -664,15 +676,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           final lastName = Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              _fieldLabel('Last name'),
+                              _fieldLabel(l10n.lastName),
                               TextFormField(
                                 controller: _lastNameController,
                                 validator: (v) => (v == null || v.isEmpty)
-                                    ? 'Required'
+                                    ? l10n.required
                                     : null,
                                 style: const TextStyle(color: _primaryText),
                                 decoration: _inputDecoration(
-                                  hintText: 'Last name',
+                                  hintText: l10n.lastName,
                                   prefixIcon: Icons.person_outline,
                                 ),
                               ),
@@ -700,7 +712,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         },
                       ),
                       const SizedBox(height: 18),
-                      _fieldLabel('Email'),
+                      _fieldLabel(l10n.email),
                       TextFormField(
                         controller: _emailController,
                         onChanged: (_) => _clearAuthError(),
@@ -713,7 +725,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         ),
                       ),
                       const SizedBox(height: 18),
-                      _fieldLabel('Date of birth'),
+                      _fieldLabel(l10n.dateOfBirth),
                       TextFormField(
                         key: ValueKey(
                           _selectedDateOfBirth?.toIso8601String() ?? 'empty',
@@ -725,7 +737,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         onTap: _pickDateOfBirth,
                         style: const TextStyle(color: _primaryText),
                         decoration: _inputDecoration(
-                          hintText: 'Select date',
+                          hintText: l10n.selectDate,
                           prefixIcon: Icons.calendar_today_outlined,
                           suffixIcon: IconButton(
                             onPressed: _pickDateOfBirth,
@@ -739,11 +751,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       ),
                       if (_showDateOfBirthError) ...[
                         const SizedBox(height: 8),
-                        const Padding(
-                          padding: EdgeInsets.only(left: 12),
+                        Padding(
+                          padding: const EdgeInsets.only(left: 12),
                           child: Text(
-                            'Date of birth is required.',
-                            style: TextStyle(
+                            l10n.dateOfBirthRequired,
+                            style: const TextStyle(
                               color: AppColors.danger,
                               fontSize: 12,
                               fontWeight: FontWeight.w500,
@@ -752,7 +764,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         ),
                       ],
                       const SizedBox(height: 18),
-                      _fieldLabel('Password'),
+                      _fieldLabel(l10n.password),
                       TextFormField(
                         controller: _passwordController,
                         obscureText: _obscurePassword,
@@ -762,11 +774,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           }
                         },
                         validator: (v) => (v == null || v.isEmpty)
-                            ? 'Password is required.'
+                            ? l10n.passwordRequired
                             : null,
                         style: const TextStyle(color: _primaryText),
                         decoration: _inputDecoration(
-                          hintText: 'Create a password',
+                          hintText: l10n.createPassword,
                           prefixIcon: Icons.lock_outline,
                           suffixIcon: IconButton(
                             icon: Icon(
@@ -782,7 +794,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         ),
                       ),
                       const SizedBox(height: 18),
-                      _fieldLabel('Confirm password'),
+                      _fieldLabel(l10n.confirmPassword),
                       TextFormField(
                         controller: _confirmPasswordController,
                         obscureText: _obscureConfirmPassword,
@@ -794,7 +806,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         validator: _validateConfirmPassword,
                         style: const TextStyle(color: _primaryText),
                         decoration: _inputDecoration(
-                          hintText: 'Confirm your password',
+                          hintText: l10n.confirmYourPassword,
                           prefixIcon: Icons.lock_outline,
                           suffixIcon: IconButton(
                             icon: Icon(
@@ -829,9 +841,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           ),
                           child: _isLoading
                               ? LoadingSkeleton.buttonSmall(context)
-                              : const Text(
-                                  'Create account',
-                                  style: TextStyle(
+                              : Text(
+                                  l10n.createAccount,
+                                  style: const TextStyle(
                                     fontWeight: FontWeight.w700,
                                   ),
                                 ),
@@ -845,18 +857,18 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const Flexible(
+                          Flexible(
                             child: Text(
-                              'Already have an account?',
-                              style: TextStyle(color: _mutedText),
+                              l10n.alreadyHaveAccount,
+                              style: const TextStyle(color: _mutedText),
                               overflow: TextOverflow.ellipsis,
                             ),
                           ),
                           TextButton(
                             onPressed: widget.onSwitchToLogin,
-                            child: const Text(
-                              'Log in',
-                              style: TextStyle(
+                            child: Text(
+                              l10n.logIn,
+                              style: const TextStyle(
                                 color: AppColors.primaryBlue,
                                 fontWeight: FontWeight.w700,
                               ),

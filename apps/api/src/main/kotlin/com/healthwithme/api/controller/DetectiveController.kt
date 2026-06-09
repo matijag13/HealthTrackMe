@@ -21,10 +21,11 @@ class DetectiveController(
     @GetMapping("/analyze")
     fun analyzeHealth(
         @RequestParam userId: Long,
-        @RequestParam(defaultValue = "7") days: Int
+        @RequestParam(defaultValue = "7") days: Int,
+        @RequestParam(defaultValue = "en") language: String
     ): ResponseEntity<ApiResponse<DetectiveInsightDto>> {
         return try {
-            val insight = detectiveService.generateHealthInsight(userId, days)
+            val insight = detectiveService.generateHealthInsight(userId, days, language)
             ResponseEntity.ok(
                 ApiResponse(
                     success = true,
@@ -117,7 +118,8 @@ class DetectiveController(
     ): ResponseEntity<ApiResponse<Map<String, String>>> {
         return try {
             val question = request["question"] ?: ""
-            val answer = detectiveService.answerQuestion(userId, question)
+            val language = request["language"] ?: "en"
+            val answer = detectiveService.answerQuestion(userId, question, language = language)
 
             ResponseEntity.ok(
                 ApiResponse(

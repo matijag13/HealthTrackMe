@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_timezone/flutter_timezone.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:timezone/data/latest_all.dart' as tz_data;
 import 'package:timezone/timezone.dart' as tz;
 
@@ -33,6 +34,74 @@ class NotificationService {
   static const String _activityChannelName = 'Auto-detected Activities';
   static const String _activityChannelDesc =
       'Notification when a walk or run is automatically logged';
+  static const String _localeKey = 'healthtrackme_locale';
+
+  Future<String> _languageCode() async {
+    final prefs = await SharedPreferences.getInstance();
+    final code = prefs.getString(_localeKey);
+    return code == 'sl' ? 'sl' : 'en';
+  }
+
+  Future<bool> _isSlovenian() async => await _languageCode() == 'sl';
+
+  NotificationDetails _medicineDetailsFor(bool sl) {
+    return NotificationDetails(
+      android: AndroidNotificationDetails(
+        _medicineChannelId,
+        sl ? 'Opomniki za odmerke zdravil' : _medicineChannelName,
+        channelDescription:
+            sl ? 'Opomniki za odmerke zdravil' : _medicineChannelDesc,
+        importance: Importance.high,
+        priority: Priority.high,
+      ),
+      iOS: const DarwinNotificationDetails(),
+    );
+  }
+
+  NotificationDetails _diaryDetailsFor(bool sl) {
+    return NotificationDetails(
+      android: AndroidNotificationDetails(
+        _diaryChannelId,
+        sl ? 'Dnevni opomniki za dnevnik' : _diaryChannelName,
+        channelDescription: sl
+            ? 'Dnevni opomnik za beleženje zdravstvenega vnosa'
+            : _diaryChannelDesc,
+        importance: Importance.high,
+        priority: Priority.high,
+      ),
+      iOS: const DarwinNotificationDetails(),
+    );
+  }
+
+  NotificationDetails _streakDetailsFor(bool sl) {
+    return NotificationDetails(
+      android: AndroidNotificationDetails(
+        _streakChannelId,
+        sl ? 'Opomniki za niz' : _streakChannelName,
+        channelDescription: sl
+            ? 'Jutranji opomnik za ohranjanje niza beleženja'
+            : _streakChannelDesc,
+        importance: Importance.high,
+        priority: Priority.high,
+      ),
+      iOS: const DarwinNotificationDetails(),
+    );
+  }
+
+  NotificationDetails _activityDetailsFor(bool sl) {
+    return NotificationDetails(
+      android: AndroidNotificationDetails(
+        _activityChannelId,
+        sl ? 'Samodejno zaznane aktivnosti' : _activityChannelName,
+        channelDescription: sl
+            ? 'Obvestilo, ko je hoja ali tek samodejno zabeležen'
+            : _activityChannelDesc,
+        importance: Importance.defaultImportance,
+        priority: Priority.defaultPriority,
+      ),
+      iOS: const DarwinNotificationDetails(),
+    );
+  }
 
   Future<void> initialize() async {
     tz_data.initializeTimeZones();
@@ -129,25 +198,33 @@ class NotificationService {
   /// Posts a notification immediately (not scheduled) to verify the whole
   /// pipeline — permission, channel, display — works on this device.
   Future<void> showTestNotification() async {
+    final sl = await _isSlovenian();
     await _plugin.show(
       424242,
       'HealthTrackMe test ✓',
-      'If you can see this, notifications work. Reminders use the same channel.',
-      _medicineDetails,
+      sl
+          ? 'Če vidiš to obvestilo, obvestila delujejo. Opomniki uporabljajo isti kanal.'
+          : 'If you can see this, notifications work. Reminders use the same channel.',
+      _medicineDetailsFor(sl),
     );
   }
 
   /// Schedules a one-off test reminder [seconds] from now (default 30s), so the
   /// scheduling/alarm path can be verified without waiting for a real reminder.
   Future<void> scheduleTestReminderIn({int seconds = 30}) async {
+    final sl = await _isSlovenian();
     final when = tz.TZDateTime.now(tz.local).add(Duration(seconds: seconds));
     Future<void> schedule(AndroidScheduleMode mode) {
       return _plugin.zonedSchedule(
         424243,
-        'HealthTrackMe scheduled test ✓',
-        'Scheduled ${seconds}s ago — scheduling works.',
+        sl
+            ? 'Načrtovani test HealthTrackMe ✓'
+            : 'HealthTrackMe scheduled test ✓',
+        sl
+            ? 'Načrtovano pred ${seconds}s — razporejanje deluje.'
+            : 'Scheduled ${seconds}s ago — scheduling works.',
         when,
-        _medicineDetails,
+        _medicineDetailsFor(sl),
         androidScheduleMode: mode,
         uiLocalNotificationDateInterpretation:
             UILocalNotificationDateInterpretation.absoluteTime,
@@ -179,6 +256,7 @@ class NotificationService {
     required RepeatInterval repeat,
   }) async {
     try {
+      final sl = await _isSlovenian();
       final now = tz.TZDateTime.now(tz.local);
 
       var scheduled = tz.TZDateTime(
@@ -197,18 +275,9 @@ class NotificationService {
       await _plugin.zonedSchedule(
         id,
         medicineName,
-        'Take $dosage',
+        sl ? 'Vzemi $dosage' : 'Take $dosage',
         scheduled,
-        const NotificationDetails(
-          android: AndroidNotificationDetails(
-            _medicineChannelId,
-            _medicineChannelName,
-            channelDescription: _medicineChannelDesc,
-            importance: Importance.high,
-            priority: Priority.high,
-          ),
-          iOS: DarwinNotificationDetails(),
-        ),
+        _medicineDetailsFor(sl),
         androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
         uiLocalNotificationDateInterpretation:
             UILocalNotificationDateInterpretation.absoluteTime,
@@ -240,6 +309,7 @@ class NotificationService {
     int dosesTakenToday = 0,
   }) async {
     await cancelMedicineReminders(medicineId);
+    final sl = await _isSlovenian();
 
     var index = 0;
     for (final raw in times) {
@@ -269,24 +339,13 @@ class NotificationService {
       await _zonedScheduleDailyWithFallback(
         id: notifId,
         title: medicineName,
-        body: 'Take $dosage',
+        body: sl ? 'Vzemi $dosage' : 'Take $dosage',
         when: scheduled,
         payload: 'medicine_$medicineId',
-        details: _medicineDetails,
+        details: _medicineDetailsFor(sl),
       );
     }
   }
-
-  static const NotificationDetails _medicineDetails = NotificationDetails(
-    android: AndroidNotificationDetails(
-      _medicineChannelId,
-      _medicineChannelName,
-      channelDescription: _medicineChannelDesc,
-      importance: Importance.high,
-      priority: Priority.high,
-    ),
-    iOS: DarwinNotificationDetails(),
-  );
 
   /// Schedule a daily-repeating notification. Tries an exact alarm first; if the
   /// OS denies exact alarms (Android 12+ without the permission granted), falls
@@ -337,18 +396,8 @@ class NotificationService {
   // DAILY DIARY
   // =========================
 
-  static const NotificationDetails _diaryDetails = NotificationDetails(
-    android: AndroidNotificationDetails(
-      _diaryChannelId,
-      _diaryChannelName,
-      channelDescription: _diaryChannelDesc,
-      importance: Importance.high,
-      priority: Priority.high,
-    ),
-    iOS: DarwinNotificationDetails(),
-  );
-
   Future<void> scheduleDailyDiaryReminder(TimeOfDay time) async {
+    final sl = await _isSlovenian();
     const int id = 999999;
     final now = tz.TZDateTime.now(tz.local);
     var scheduled = tz.TZDateTime(
@@ -364,11 +413,13 @@ class NotificationService {
     }
     await _zonedScheduleDailyWithFallback(
       id: id,
-      title: 'Daily Health Check',
-      body: 'Time to log your health entry',
+      title: sl ? 'Dnevni zdravstveni pregled' : 'Daily Health Check',
+      body: sl
+          ? 'Čas je za beleženje zdravstvenega vnosa'
+          : 'Time to log your health entry',
       when: scheduled,
       payload: 'diary_reminder',
-      details: _diaryDetails,
+      details: _diaryDetailsFor(sl),
     );
   }
 
@@ -382,19 +433,9 @@ class NotificationService {
 
   static const int _streakReminderId = 999998;
 
-  static const NotificationDetails _streakDetails = NotificationDetails(
-    android: AndroidNotificationDetails(
-      _streakChannelId,
-      _streakChannelName,
-      channelDescription: _streakChannelDesc,
-      importance: Importance.high,
-      priority: Priority.high,
-    ),
-    iOS: DarwinNotificationDetails(),
-  );
-
   /// Schedules a daily morning nudge to log today and keep the streak alive.
   Future<void> scheduleDailyStreakReminder(TimeOfDay time) async {
+    final sl = await _isSlovenian();
     final now = tz.TZDateTime.now(tz.local);
     var scheduled = tz.TZDateTime(
       tz.local,
@@ -409,11 +450,13 @@ class NotificationService {
     }
     await _zonedScheduleDailyWithFallback(
       id: _streakReminderId,
-      title: 'Good morning! ☀️',
-      body: 'Log your sleep & vitals to keep your streak alive.',
+      title: sl ? 'Dobro jutro! ☀️' : 'Good morning! ☀️',
+      body: sl
+          ? 'Zabeleži spanje in vitalne znake, da ohraniš svoj niz.'
+          : 'Log your sleep & vitals to keep your streak alive.',
       when: scheduled,
       payload: 'streak_reminder',
-      details: _streakDetails,
+      details: _streakDetailsFor(sl),
     );
   }
 
@@ -427,17 +470,6 @@ class NotificationService {
 
   static const int _activityNotifId = 777777;
 
-  static const NotificationDetails _activityDetails = NotificationDetails(
-    android: AndroidNotificationDetails(
-      _activityChannelId,
-      _activityChannelName,
-      channelDescription: _activityChannelDesc,
-      importance: Importance.defaultImportance,
-      priority: Priority.defaultPriority,
-    ),
-    iOS: DarwinNotificationDetails(),
-  );
-
   /// Shows an immediate notification confirming an auto-detected walk/run was
   /// logged. [distanceKm] is the GPS-adjusted distance, [steps] the final count.
   Future<void> showAutoActivityNotification({
@@ -447,16 +479,20 @@ class NotificationService {
     required int steps,
   }) async {
     if (kIsWeb) return;
+    final sl = await _isSlovenian();
     final emoji = type == 'Run' ? '🏃' : '🚶';
+    final typeLabel = sl ? (type == 'Run' ? 'Tek' : 'Hoja') : type;
     final distStr = distanceKm >= 0.1
         ? '${distanceKm.toStringAsFixed(1)} km'
         : '${(distanceKm * 1000).round()} m';
     try {
       await _plugin.show(
         _activityNotifId,
-        '$emoji $type logged',
-        '$durationMin min · $distStr · $steps steps',
-        _activityDetails,
+        sl ? '$emoji $typeLabel zabeležena' : '$emoji $typeLabel logged',
+        sl
+            ? '$durationMin min · $distStr · $steps korakov'
+            : '$durationMin min · $distStr · $steps steps',
+        _activityDetailsFor(sl),
         payload: 'auto_activity',
       );
     } catch (e) {

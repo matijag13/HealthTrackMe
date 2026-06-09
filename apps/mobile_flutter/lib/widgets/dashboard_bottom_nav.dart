@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../config/theme.dart';
+import '../l10n/l10n.dart';
 
 enum DashboardTab {
   dashboard(0, 'Dashboard', Icons.home),
@@ -82,7 +83,7 @@ class DashboardBottomNav extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           Text(
-            tab.label,
+            _labelFor(context, tab),
             style: Theme.of(context).textTheme.labelSmall?.copyWith(
                   color: isActive ? activeColor : inactiveColor,
                   fontWeight: isActive ? FontWeight.w600 : FontWeight.w500,
@@ -103,5 +104,15 @@ class DashboardBottomNav extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  String _labelFor(BuildContext context, DashboardTab tab) {
+    final l10n = context.l10n;
+    return switch (tab) {
+      DashboardTab.dashboard => l10n.dashboard,
+      DashboardTab.wearables => l10n.wearables,
+      DashboardTab.detective => l10n.detective,
+      DashboardTab.profile => l10n.profile,
+    };
   }
 }

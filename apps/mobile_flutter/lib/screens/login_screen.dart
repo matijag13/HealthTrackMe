@@ -6,6 +6,7 @@ import '../config/theme.dart';
 import '../services/api_service.dart';
 import '../services/google_auth_service.dart';
 import '../services/google_web_sign_in_button.dart';
+import '../l10n/l10n.dart';
 import '../widgets/app_logo.dart';
 import '../widgets/design_system.dart';
 
@@ -70,13 +71,14 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   String? _validateEmail(String? value) {
+    final l10n = context.l10n;
     final email = value?.trim() ?? '';
     if (email.isEmpty) {
-      return 'Email is required.';
+      return l10n.emailRequired;
     }
     final regex = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
     if (!regex.hasMatch(email)) {
-      return 'Enter a valid email.';
+      return l10n.enterValidEmail;
     }
     return null;
   }
@@ -102,7 +104,7 @@ class _LoginScreenState extends State<LoginScreen> {
     } catch (error) {
       if (!mounted) return;
       final message = error.toString().contains('Invalid email or password')
-          ? 'Invalid email or password.'
+          ? context.l10n.invalidEmailOrPassword
           : error.toString().replaceFirst('Exception: ', '');
       setState(() => _authError = message);
     } finally {
@@ -123,7 +125,7 @@ class _LoginScreenState extends State<LoginScreen> {
       await _loginWithGoogleIdToken(idToken);
     } on GoogleAuthCanceled {
       if (!mounted) return;
-      setState(() => _authError = 'Google sign-in was cancelled.');
+      setState(() => _authError = context.l10n.googleSignInCancelled);
     } catch (error) {
       if (!mounted) return;
       setState(() => _authError = _formatGoogleAuthError(error));
@@ -160,23 +162,23 @@ class _LoginScreenState extends State<LoginScreen> {
   String _formatGoogleAuthError(Object error) {
     final message = error.toString().replaceFirst('Exception: ', '').trim();
     if (message.contains('Google client ID is not configured')) {
-      return 'Google client ID is not configured.';
+      return context.l10n.googleClientIdNotConfigured;
     }
     if (message.contains('Google sign-in was cancelled')) {
-      return 'Google sign-in was cancelled.';
+      return context.l10n.googleSignInCancelled;
     }
     if (message.contains('Google did not return an ID token')) {
-      return 'Google did not return an ID token.';
+      return context.l10n.googleNoIdToken;
     }
     if (message.contains('not available on this platform')) {
-      return 'Google sign-in is not available on this platform yet.';
+      return context.l10n.googleSignInUnavailable;
     }
     if (message.startsWith('Google sign-in failed:')) {
       return message;
     }
     return message.isEmpty
-        ? 'Google sign-in failed. Please try again.'
-        : 'Google sign-in failed: $message';
+        ? context.l10n.googleSignInFailedTryAgain
+        : context.l10n.googleSignInFailed(message);
   }
 
   void _clearAuthError() {
@@ -267,14 +269,18 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Widget _orDivider() {
+    final l10n = context.l10n;
     return Row(
       children: [
         Expanded(child: Container(height: 1, color: _border)),
-        const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 14),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14),
           child: Text(
-            'Or',
-            style: TextStyle(color: _mutedText, fontWeight: FontWeight.w600),
+            l10n.or,
+            style: const TextStyle(
+              color: _mutedText,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ),
         Expanded(child: Container(height: 1, color: _border)),
@@ -283,6 +289,7 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Widget _googleButton() {
+    final l10n = context.l10n;
     if (_googleAuth.usesWebSignInButton) {
       return SizedBox(
         width: double.infinity,
@@ -311,7 +318,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
               ),
         label: Text(
-          _isGoogleLoading ? 'Connecting...' : 'Continue with Google',
+          _isGoogleLoading ? l10n.connecting : l10n.continueWithGoogle,
         ),
         style: OutlinedButton.styleFrom(
           foregroundColor: _primaryText,
@@ -326,6 +333,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     return Scaffold(
       backgroundColor: _background,
       body: SafeArea(
@@ -371,21 +379,24 @@ class _LoginScreenState extends State<LoginScreen> {
                         ],
                       ),
                       const SizedBox(height: 18),
-                      const Text(
-                        'Log in',
-                        style: TextStyle(
+                      Text(
+                        l10n.logIn,
+                        style: const TextStyle(
                           color: _primaryText,
                           fontSize: 34,
                           fontWeight: FontWeight.w800,
                         ),
                       ),
                       const SizedBox(height: 8),
-                      const Text(
-                        'Enter your credentials to continue.',
-                        style: TextStyle(color: _mutedText, fontSize: 15),
+                      Text(
+                        l10n.enterCredentialsToContinue,
+                        style: const TextStyle(
+                          color: _mutedText,
+                          fontSize: 15,
+                        ),
                       ),
                       const SizedBox(height: 30),
-                      _fieldLabel('Email'),
+                      _fieldLabel(l10n.email),
                       TextFormField(
                         controller: _emailController,
                         onChanged: (_) => _clearAuthError(),
@@ -398,17 +409,17 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                       ),
                       const SizedBox(height: 18),
-                      _fieldLabel('Password'),
+                      _fieldLabel(l10n.password),
                       TextFormField(
                         controller: _passwordController,
                         onChanged: (_) => _clearAuthError(),
                         obscureText: _obscurePassword,
                         validator: (v) => (v == null || v.isEmpty)
-                            ? 'Password is required.'
+                            ? l10n.passwordRequired
                             : null,
                         style: const TextStyle(color: _primaryText),
                         decoration: _inputDecoration(
-                          hintText: 'Enter your password',
+                          hintText: l10n.enterYourPassword,
                           prefixIcon: Icons.lock_outline,
                           suffixIcon: IconButton(
                             icon: Icon(
@@ -442,9 +453,9 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                           child: _isLoading
                               ? LoadingSkeleton.buttonSmall(context)
-                              : const Text(
-                                  'Log in',
-                                  style: TextStyle(
+                              : Text(
+                                  l10n.logIn,
+                                  style: const TextStyle(
                                     fontWeight: FontWeight.w700,
                                   ),
                                 ),
@@ -458,18 +469,18 @@ class _LoginScreenState extends State<LoginScreen> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const Flexible(
+                          Flexible(
                             child: Text(
-                              'Don\'t have an account?',
-                              style: TextStyle(color: _mutedText),
+                              l10n.dontHaveAccount,
+                              style: const TextStyle(color: _mutedText),
                               overflow: TextOverflow.ellipsis,
                             ),
                           ),
                           TextButton(
                             onPressed: widget.onSwitchToRegister,
-                            child: const Text(
-                              'Register',
-                              style: TextStyle(
+                            child: Text(
+                              l10n.register,
+                              style: const TextStyle(
                                 color: AppColors.primaryBlue,
                                 fontWeight: FontWeight.w700,
                               ),

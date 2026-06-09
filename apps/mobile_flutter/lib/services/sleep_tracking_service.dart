@@ -42,6 +42,12 @@ class SleepTrackingService {
 
   static const String _channelId = 'sleep_tracking';
   static const String _channelName = 'Sleep tracking';
+  static const String _localeKey = 'healthtrackme_locale';
+
+  Future<bool> _isSlovenian() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_localeKey) == 'sl';
+  }
 
   final ApiService _api = ApiService.instance;
   final Health _health = Health();
@@ -102,7 +108,8 @@ class SleepTrackingService {
         await FlutterForegroundTask.requestIgnoreBatteryOptimization();
       }
 
-      _init();
+      final sl = await _isSlovenian();
+      _init(sl);
 
       if (await FlutterForegroundTask.isRunningService) {
         return true;
@@ -112,7 +119,9 @@ class SleepTrackingService {
         serviceId: 7341,
         serviceTypes: const [ForegroundServiceTypes.health],
         notificationTitle: 'HealthTrackMe',
-        notificationText: 'Tracking your steps & sleep from this phone.',
+        notificationText: sl
+            ? 'Spremljanje korakov in spanja s tega telefona.'
+            : 'Tracking your steps & sleep from this phone.',
         callback: startSleepCallback,
       );
       return result is ServiceRequestSuccess;
@@ -153,12 +162,14 @@ class SleepTrackingService {
     }
   }
 
-  void _init() {
+  void _init(bool sl) {
     FlutterForegroundTask.init(
       androidNotificationOptions: AndroidNotificationOptions(
         channelId: _channelId,
-        channelName: _channelName,
-        channelDescription: 'Keeps detecting your sleep while you rest.',
+        channelName: sl ? 'Spremljanje spanja' : _channelName,
+        channelDescription: sl
+            ? 'Med počitkom zaznava tvoje spanje.'
+            : 'Keeps detecting your sleep while you rest.',
         channelImportance: NotificationChannelImportance.LOW,
         priority: NotificationPriority.LOW,
         onlyAlertOnce: true,
@@ -508,10 +519,13 @@ class _SleepTaskHandler extends TaskHandler {
 
       // Reflect it in the ongoing notification.
       try {
+        final sl = prefs.getString(SleepTrackingService._localeKey) == 'sl';
         await FlutterForegroundTask.updateService(
-          notificationTitle: 'Sleep tracking on',
-          notificationText:
-              'Detected ~${hours.toStringAsFixed(1)} h sleep last night.',
+          notificationTitle:
+              sl ? 'Spremljanje spanja vklopljeno' : 'Sleep tracking on',
+          notificationText: sl
+              ? 'Zaznano približno ${hours.toStringAsFixed(1)} h spanja prejšnjo noč.'
+              : 'Detected ~${hours.toStringAsFixed(1)} h sleep last night.',
         );
       } catch (_) {}
     } catch (e) {

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../config/theme.dart';
+import '../l10n/l10n.dart';
 import '../models/detective_insight.dart';
 
 /// Detailed view of a detective insight with correlations and recommendations
@@ -286,9 +287,9 @@ class DetectiveInsightDetail extends StatelessWidget {
   void _shareInsight(BuildContext context) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: const Text('Insight copied to clipboard'),
+        content: Text(context.l10n.insightCopiedToClipboard),
         action: SnackBarAction(
-          label: 'Dismiss',
+          label: context.l10n.dismiss,
           onPressed: () {},
         ),
       ),
@@ -297,9 +298,9 @@ class DetectiveInsightDetail extends StatelessWidget {
 
   void _exportInsight(BuildContext context) {
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Export feature coming soon'),
-        duration: Duration(seconds: 2),
+      SnackBar(
+        content: Text(context.l10n.exportFeatureComingSoon),
+        duration: const Duration(seconds: 2),
       ),
     );
   }
