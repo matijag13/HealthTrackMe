@@ -28,6 +28,20 @@ jobs:
         run: |
           echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > apps/mobile_flutter/android/app/healthtrackme.keystore
 
+      - name: Print release keystore SHA-1
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          keytool -list -v \
+            -keystore apps/mobile_flutter/android/app/healthtrackme.keystore \
+            -alias "$KEY_ALIAS" \
+            -storepass "$KEYSTORE_PASSWORD" \
+            -keypass "$KEY_PASSWORD" \
+            | grep -E "Alias name:|SHA1:"
+
       - name: Flutter pub get
         working-directory: apps/mobile_flutter
         run: flutter pub get

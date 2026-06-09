@@ -58,7 +58,6 @@ class GoogleAuthService {
         _listenForWebAuthenticationEvents();
       } else {
         await GoogleSignIn.instance.initialize(
-          clientId: GoogleAuthConfig.webClientId,
           serverClientId: GoogleAuthConfig.webClientId,
         );
       }
@@ -77,8 +76,9 @@ class GoogleAuthService {
     _webAuthSubscription = GoogleSignIn.instance.authenticationEvents.listen(
       _handleWebAuthenticationEvent,
       onError: (Object error) {
+        _logGoogleAuthError(error);
         _webErrorController.add(
-          GoogleAuthFailure('Google sign-in failed: ${error.toString()}'),
+          _googleAuthFailureFromError(error),
         );
       },
     );
@@ -125,16 +125,69 @@ class GoogleAuthService {
         );
       }
       return idToken;
-    } on GoogleSignInException catch (error) {
-      if (error.code == GoogleSignInExceptionCode.canceled ||
-          error.code == GoogleSignInExceptionCode.interrupted) {
+    } on GoogleSignInException catch (error, stackTrace) {
+      _logGoogleAuthError(error, stackTrace);
+      if (error.code == GoogleSignInExceptionCode.canceled) {
         throw const GoogleAuthCanceled();
       }
-      throw GoogleAuthFailure('Google sign-in failed: ${error.toString()}');
+      throw _googleAuthFailureFromGoogleSignInException(error);
     } on GoogleAuthFailure {
       rethrow;
-    } catch (error) {
+    } catch (error, stackTrace) {
+      _logGoogleAuthError(error, stackTrace);
       throw GoogleAuthFailure('Google sign-in failed: ${error.toString()}');
+    }
+  }
+
+  GoogleAuthFailure _googleAuthFailureFromError(Object error) {
+    if (error is GoogleSignInException) {
+      return _googleAuthFailureFromGoogleSignInException(error);
+    }
+    return GoogleAuthFailure('Google sign-in failed: ${error.toString()}');
+  }
+
+  GoogleAuthFailure _googleAuthFailureFromGoogleSignInException(
+    GoogleSignInException error,
+  ) {
+    final description = error.description?.trim();
+    final details = error.details?.toString().trim();
+    final buffer = StringBuffer('Google sign-in failed: ${error.code.name}');
+
+    if (description != null && description.isNotEmpty) {
+      buffer.write(' - $description');
+    }
+    if (details != null && details.isNotEmpty) {
+      buffer.write(' ($details)');
+    }
+
+    return GoogleAuthFailure(buffer.toString());
+  }
+
+  void _logGoogleAuthError(Object error, [StackTrace? stackTrace]) {
+    if (error is GoogleSignInException) {
+      debugPrint('GoogleSignInException code: ${error.code.name}');
+      debugPrint(
+        'GoogleSignInException description: '
+        '${error.description ?? '<none>'}',
+      );
+      if (error.details != null) {
+        debugPrint('GoogleSignInException details: ${error.details}');
+      }
+      if (stackTrace != null) {
+        debugPrintStack(
+          label: 'GoogleSignInException stacktrace',
+          stackTrace: stackTrace,
+        );
+      }
+      return;
+    }
+
+    debugPrint('Unknown Google sign-in exception: $error');
+    if (stackTrace != null) {
+      debugPrintStack(
+        label: 'Unknown Google sign-in exception stacktrace',
+        stackTrace: stackTrace,
+      );
     }
   }
 }
