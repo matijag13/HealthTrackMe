@@ -1,6 +1,7 @@
 name: Android Firebase Distribution
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - develop
@@ -64,4 +65,4 @@ jobs:
           serviceCredentialsFileContent: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
           groups: testers
           file: apps/mobile_flutter/build/app/outputs/flutter-apk/app-release.apk
-          releaseNotes: ${{ github.event.head_commit.message }}
+          releaseNotes: ${{ github.event.head_commit.message || 'Manual Android distribution build' }}
