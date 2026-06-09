@@ -1283,8 +1283,24 @@ class _HealthVitalsPageState extends State<HealthVitalsPage> {
                             sideTitles: SideTitles(showTitles: false)),
                         rightTitles: const AxisTitles(
                             sideTitles: SideTitles(showTitles: false)),
-                        leftTitles: const AxisTitles(
-                            sideTitles: SideTitles(showTitles: false)),
+                        leftTitles: AxisTitles(
+                          sideTitles: SideTitles(
+                            showTitles: true,
+                            reservedSize: 40,
+                            interval:
+                                _chartInterval(chartData.minY, chartData.maxY),
+                            getTitlesWidget: (value, meta) => Padding(
+                              padding: const EdgeInsets.only(right: 6),
+                              child: Text(
+                                value.abs() < 10
+                                    ? value.toStringAsFixed(1)
+                                    : value.toStringAsFixed(0),
+                                style: const TextStyle(
+                                    color: _secondaryText, fontSize: 10),
+                              ),
+                            ),
+                          ),
+                        ),
                         bottomTitles: AxisTitles(
                           sideTitles: SideTitles(
                             showTitles: true,
@@ -3982,6 +3998,60 @@ class _HealthActivityPageState extends State<HealthActivityPage> {
     );
   }
 
+  /// 1D view for non-step activities (running/cycling/swimming/workout): a
+  /// single day is one point, so show today's total for the selected type as a
+  /// hero stat. The stats card below still lists total / average / latest.
+  Widget _buildActivityOneDayHero(List<_ActivityPoint> points) {
+    final color = _typeColor(_selectedType);
+    final hasData = points.isNotEmpty;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: _surface,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: _border.withValues(alpha: 0.75)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.fitness_center_rounded, color: color, size: 20),
+              const SizedBox(width: 8),
+              Text(
+                _selectedType.label,
+                style: const TextStyle(
+                    color: _secondaryText,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700),
+              ),
+              const Spacer(),
+              const Text('Today',
+                  style: TextStyle(color: _secondaryText, fontSize: 12)),
+            ],
+          ),
+          const SizedBox(height: 20),
+          Text(
+            hasData ? _total(points) : 'No data',
+            style: const TextStyle(
+                color: _primaryText,
+                fontSize: 42,
+                fontWeight: FontWeight.w900,
+                height: 1.0),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            hasData
+                ? '${points.length} session${points.length == 1 ? '' : 's'} today'
+                : 'No ${_selectedType.label.toLowerCase()} logged today',
+            style: const TextStyle(color: _secondaryText, fontSize: 13),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _chartCard(_ActivityChartData chartData, List<_ActivityPoint> points) {
     final hasData = points.isNotEmpty;
     return Container(
@@ -4026,6 +4096,11 @@ class _HealthActivityPageState extends State<HealthActivityPage> {
   }
 
   Widget _chart(_ActivityChartData data, List<_ActivityPoint> points) {
+    final yInterval = data.maxY <= 90
+        ? 15.0
+        : data.maxY <= 300
+            ? 60.0
+            : (data.maxY / 4).ceilToDouble();
     return LineChart(
       LineChartData(
         minX: 0,
@@ -4035,11 +4110,7 @@ class _HealthActivityPageState extends State<HealthActivityPage> {
         gridData: FlGridData(
           show: true,
           drawVerticalLine: false,
-          horizontalInterval: data.maxY <= 90
-              ? 15
-              : data.maxY <= 300
-                  ? 60
-                  : (data.maxY / 4).ceilToDouble(),
+          horizontalInterval: yInterval,
           getDrawingHorizontalLine: (value) => FlLine(
             color: Colors.white.withValues(alpha: 0.06),
             strokeWidth: 1,
@@ -4052,8 +4123,20 @@ class _HealthActivityPageState extends State<HealthActivityPage> {
               const AxisTitles(sideTitles: SideTitles(showTitles: false)),
           rightTitles:
               const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-          leftTitles:
-              const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          leftTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: true,
+              reservedSize: 38,
+              interval: yInterval,
+              getTitlesWidget: (value, meta) => Padding(
+                padding: const EdgeInsets.only(right: 6),
+                child: Text(
+                  '${value.toInt()}m',
+                  style: const TextStyle(color: _secondaryText, fontSize: 10),
+                ),
+              ),
+            ),
+          ),
           bottomTitles: AxisTitles(
             sideTitles: SideTitles(
               showTitles: true,
@@ -4232,7 +4315,10 @@ class _HealthActivityPageState extends State<HealthActivityPage> {
                           if (_isWalkingTab)
                             _buildStepsBarChart(activities)
                           else ...[
-                            _chartCard(chartData, points),
+                            if (_selectedTimeRange == _ActivityTimeRange.day)
+                              _buildActivityOneDayHero(points)
+                            else
+                              _chartCard(chartData, points),
                             const SizedBox(height: 16),
                             _stats(points),
                           ],
@@ -5577,8 +5663,21 @@ class _HealthSleepPageState extends State<HealthSleepPage> {
                         rightTitles: const AxisTitles(
                           sideTitles: SideTitles(showTitles: false),
                         ),
-                        leftTitles: const AxisTitles(
-                          sideTitles: SideTitles(showTitles: false),
+                        leftTitles: AxisTitles(
+                          sideTitles: SideTitles(
+                            showTitles: true,
+                            reservedSize: 34,
+                            interval: _horizontalGridInterval(
+                                chartData.minY, chartData.maxY),
+                            getTitlesWidget: (value, meta) => Padding(
+                              padding: const EdgeInsets.only(right: 6),
+                              child: Text(
+                                '${value.toInt()}h',
+                                style: const TextStyle(
+                                    color: _secondaryText, fontSize: 10),
+                              ),
+                            ),
+                          ),
                         ),
                         bottomTitles: AxisTitles(
                           sideTitles: SideTitles(
