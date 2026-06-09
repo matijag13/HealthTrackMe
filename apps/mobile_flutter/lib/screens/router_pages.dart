@@ -1159,6 +1159,64 @@ class _HealthVitalsPageState extends State<HealthVitalsPage> {
     );
   }
 
+  /// 1D view: a single day has at most one aggregated value, so a chart is just
+  /// a dot or a flat line. Show a big hero stat instead. The stats card below
+  /// still lists latest / average / range.
+  Widget _buildOneDayHero(
+    _VitalsMetricDefinition definition,
+    String latestDisplay,
+    bool hasData,
+  ) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: _surface,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: _border.withValues(alpha: 0.75)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(definition.icon, color: _accent, size: 20),
+              const SizedBox(width: 8),
+              Text(
+                definition.label,
+                style: const TextStyle(
+                  color: _secondaryText,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const Spacer(),
+              const Text(
+                'Today',
+                style: TextStyle(color: _secondaryText, fontSize: 12),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          Text(
+            hasData ? latestDisplay : 'No data',
+            style: const TextStyle(
+              color: _primaryText,
+              fontSize: 42,
+              fontWeight: FontWeight.w900,
+              height: 1.0,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            hasData ? "Today's reading" : 'No reading logged today',
+            style: const TextStyle(color: _secondaryText, fontSize: 13),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildChartSection(
     _VitalsChartData chartData,
     List<_VitalsReading> readings,
@@ -1166,6 +1224,12 @@ class _HealthVitalsPageState extends State<HealthVitalsPage> {
   ) {
     final definition = _selectedDefinition;
     final hasData = readings.isNotEmpty;
+
+    // 1D: at most one daily value — a chart is just a dot/flat line. Show the
+    // hero stat instead (the stats card below still lists latest / avg / range).
+    if (_selectedTimeRange == _VitalsTimeRange.day) {
+      return _buildOneDayHero(definition, latestDisplay, hasData);
+    }
 
     return Container(
       padding: const EdgeInsets.all(18),
@@ -3633,6 +3697,66 @@ class _HealthActivityPageState extends State<HealthActivityPage> {
     return (today.difference(earliest).inDays + 1).clamp(7, 90);
   }
 
+  /// 1D step view: a single bar is pointless, so show today's count against the
+  /// goal with a progress bar (the same idea as the dashboard's step card).
+  Widget _buildStepsOneDayHero(int steps, int goal, Color color) {
+    final progress = (steps / goal).clamp(0.0, 1.0);
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: _surface,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: _border.withValues(alpha: 0.75)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.directions_walk_rounded, color: color, size: 20),
+              const SizedBox(width: 8),
+              const Text(
+                'Steps',
+                style: TextStyle(
+                    color: _secondaryText,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700),
+              ),
+              const Spacer(),
+              const Text('Today',
+                  style: TextStyle(color: _secondaryText, fontSize: 12)),
+            ],
+          ),
+          const SizedBox(height: 20),
+          Text(
+            '$steps',
+            style: const TextStyle(
+                color: _primaryText,
+                fontSize: 42,
+                fontWeight: FontWeight.w900,
+                height: 1.0),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'of $goal goal · ${(progress * 100).round()}%',
+            style: const TextStyle(color: _secondaryText, fontSize: 13),
+          ),
+          const SizedBox(height: 16),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(999),
+            child: LinearProgressIndicator(
+              minHeight: 10,
+              value: progress,
+              backgroundColor: _surfaceAlt,
+              valueColor: AlwaysStoppedAnimation<Color>(color),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   /// Build a bar-chart showing daily step totals for the selected time range.
   Widget _buildStepsBarChart(List<Map<String, dynamic>> allActivities) {
     final now = DateTime.now();
@@ -3668,6 +3792,11 @@ class _HealthActivityPageState extends State<HealthActivityPage> {
     final maxSteps =
         stepsByDay.values.fold(0, (m, v) => v > m ? v : m).clamp(goal, 999999);
     final typeColor = _typeColor(_ActivityType.walking);
+
+    // 1D: a single day is one bar — show today's count + goal progress instead.
+    if (_selectedTimeRange == _ActivityTimeRange.day) {
+      return _buildStepsOneDayHero(todaySteps, goal, typeColor);
+    }
 
     return Container(
       padding: const EdgeInsets.all(18),
@@ -5320,12 +5449,78 @@ class _HealthSleepPageState extends State<HealthSleepPage> {
     );
   }
 
+  /// 1D sleep view: one night is a single value, so show last night's hours and
+  /// quality as a hero stat rather than a one-point chart.
+  Widget _buildSleepOneDayHero(List<HealthEntry> entries) {
+    final entry = entries.isNotEmpty ? entries.last : null;
+    final hours = entry?.sleepHours;
+    final has = hours != null && hours > 0;
+    final h = hours ?? 0;
+    final hh = h.floor();
+    final mm = ((h - hh) * 60).round();
+    final rawQuality = entry?.sleepQuality;
+    final qualityLabel = (rawQuality == null || rawQuality.isEmpty)
+        ? (h >= 7 ? 'Good' : 'Fair')
+        : rawQuality[0].toUpperCase() + rawQuality.substring(1).toLowerCase();
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: _surface,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: _border.withValues(alpha: 0.75)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(Icons.bedtime_rounded, color: _accent, size: 20),
+              SizedBox(width: 8),
+              Text(
+                'Sleep',
+                style: TextStyle(
+                    color: _secondaryText,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700),
+              ),
+              Spacer(),
+              Text('Last night',
+                  style: TextStyle(color: _secondaryText, fontSize: 12)),
+            ],
+          ),
+          const SizedBox(height: 20),
+          Text(
+            has ? '${hh}h ${mm}m' : 'No data',
+            style: const TextStyle(
+                color: _primaryText,
+                fontSize: 42,
+                fontWeight: FontWeight.w900,
+                height: 1.0),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            has
+                ? '$qualityLabel · ${h >= 7 ? '7h goal met ✓' : 'below 7h goal'}'
+                : 'No sleep logged last night',
+            style: const TextStyle(color: _secondaryText, fontSize: 13),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildChartSection(
     _SleepChartData chartData,
     List<HealthEntry> entries,
   ) {
     final hasData = entries.isNotEmpty;
     final spots = chartData.spots;
+
+    // 1D: one night is a single point — show last night's hours + quality.
+    if (_selectedTimeRange == _SleepTimeRange.day) {
+      return _buildSleepOneDayHero(entries);
+    }
 
     return Container(
       padding: const EdgeInsets.all(18),
