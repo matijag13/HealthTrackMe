@@ -32,9 +32,11 @@ class SleepTrackingService {
   static final SleepTrackingService instance = SleepTrackingService._();
 
   static const String prefEnabled = 'pref_sleep_tracking';
+  static const String prefAutoActivity = 'pref_auto_activity';
 
   // Handoff + detector state (shared across the two isolates via shared-prefs).
   static const String _kPendingSleep = 'sleep_pending_json';
+  static const String _kPendingActivities = 'activity_pending_json';
   static const String _kLastWakeDate = 'sleep_last_wake_date';
   static const String _kUploadedWakeDate = 'sleep_uploaded_wake_date';
 
@@ -61,10 +63,17 @@ class SleepTrackingService {
   }
 
   void _onTaskData(Object data) {
-    // The background isolate sends the detected session as a JSON string.
-    if (data is String) {
-      _uploadFromJson(data);
-    }
+    // The background isolate sends a detected session as a JSON string, tagged
+    // with 'kind' ('sleep' or 'activity'). Older payloads have no kind → sleep.
+    if (data is! String) return;
+    try {
+      final map = jsonDecode(data) as Map<String, dynamic>;
+      if ((map['kind'] as String?) == 'activity') {
+        _uploadActivityFromMap(map);
+        return;
+      }
+    } catch (_) {}
+    _uploadFromJson(data);
   }
 
   Future<bool> isRunning() async {
@@ -102,8 +111,8 @@ class SleepTrackingService {
       final result = await FlutterForegroundTask.startService(
         serviceId: 7341,
         serviceTypes: const [ForegroundServiceTypes.health],
-        notificationTitle: 'Sleep tracking on',
-        notificationText: 'Detecting your sleep from this phone.',
+        notificationTitle: 'HealthTrackMe',
+        notificationText: 'Tracking your steps & sleep from this phone.',
         callback: startSleepCallback,
       );
       return result is ServiceRequestSuccess;
@@ -119,6 +128,28 @@ class SleepTrackingService {
       await FlutterForegroundTask.stopService();
     } catch (e) {
       debugPrint('Sleep tracking stop failed: $e');
+    }
+  }
+
+  /// Starts the foreground service when EITHER sleep or walk/run auto-detection
+  /// is enabled, and stops it only when both are off. Both detectors share the
+  /// one always-on service. Returns whether the service is running afterwards.
+  Future<bool> refreshService() async {
+    if (kIsWeb) return false;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.reload();
+      final want = (prefs.getBool(prefEnabled) ?? false) ||
+          (prefs.getBool(prefAutoActivity) ?? false);
+      if (want) {
+        await start();
+      } else {
+        await stop();
+      }
+      return await isRunning();
+    } catch (e) {
+      debugPrint('refreshService failed: $e');
+      return false;
     }
   }
 
@@ -152,6 +183,8 @@ class SleepTrackingService {
   /// session was uploaded (so the UI can surface a suggestion), else null.
   Future<double?> processPending() async {
     if (kIsWeb) return null;
+    // Drain any background-detected walks/runs too (fire-and-forget).
+    unawaited(_processPendingActivities());
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.reload(); // pick up the background isolate's write
@@ -222,6 +255,54 @@ class SleepTrackingService {
     }
   }
 
+  // ----- Activity (walk/run) upload path ------------------------------------
+
+  /// Uploads any walk/run sessions the background isolate detected. Idempotent:
+  /// the backend de-duplicates by type+date+duration+steps, so a session pushed
+  /// live AND replayed here on resume only ever creates one row.
+  Future<void> _processPendingActivities() async {
+    if (kIsWeb) return;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.reload();
+      final raw = prefs.getString(_kPendingActivities);
+      if (raw == null || raw.isEmpty) return;
+      final list = jsonDecode(raw) as List;
+      for (final item in list) {
+        if (item is Map) {
+          await _uploadActivityFromMap(Map<String, dynamic>.from(item));
+        }
+      }
+      await prefs.remove(_kPendingActivities);
+    } catch (e) {
+      debugPrint('processPendingActivities failed: $e');
+    }
+  }
+
+  Future<void> _uploadActivityFromMap(Map<String, dynamic> map) async {
+    try {
+      final userId = await _api.ensureActiveUserId();
+      if (userId == null) return;
+      final start =
+          DateTime.fromMillisecondsSinceEpoch((map['startMs'] as num).toInt());
+      final payload = <String, dynamic>{
+        'activityType': (map['type'] as String?) ?? 'WALKING',
+        'activityDate': _dateStr(start),
+        'duration': (map['durationMin'] as num?)?.toInt() ?? 0,
+        'steps': (map['steps'] as num?)?.toInt() ?? 0,
+        'notes': 'Auto-detected on this phone',
+      };
+      final dist = (map['distanceKm'] as num?)?.toDouble();
+      if (dist != null && dist > 0) payload['distance'] = dist;
+      final cal = (map['calories'] as num?)?.toInt();
+      if (cal != null && cal > 0) payload['caloriesBurned'] = cal;
+      await _api.createSportActivity(payload, userId: userId);
+      SyncEvents.instance.notifySynced();
+    } catch (e) {
+      debugPrint('Activity upload failed: $e');
+    }
+  }
+
   static String _dateStr(DateTime d) =>
       '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 
@@ -234,8 +315,9 @@ class SleepTrackingService {
 
   // ----- Detector tuning (shared with the isolate handler) ------------------
 
-  /// How often the service wakes to sample the step counter.
-  static const Duration _tickInterval = Duration(minutes: 10);
+  /// How often the service wakes to sample the step counter. 5 min is fine for
+  /// sleep and gives walk/run detection usable granularity.
+  static const Duration _tickInterval = Duration(minutes: 5);
 
   /// Below this many steps/hour the user is treated as "still" (asleep-ish).
   static const double _stillStepsPerHour = 120;
@@ -245,6 +327,28 @@ class SleepTrackingService {
 
   /// Ignore absurdly long stretches (phone left behind, not on the sleeper).
   static const double _maxSleepHours = 14;
+
+  // ----- Walk/run detection tuning ------------------------------------------
+
+  /// At or above this many steps/hour the user is treated as actively walking
+  /// (~50 steps/min). High enough to ignore incidental pottering around a room.
+  static const double _walkStepsPerHour = 3000;
+
+  /// An active stretch must clear both gates to be logged as a session.
+  static const int _minWalkSeconds = 240; // 4 min
+  static const int _minWalkSteps = 300;
+
+  /// At/above this cadence the session is logged as a run rather than a walk.
+  static const double _runStepsPerMin = 130;
+
+  /// Rough distance estimate: steps × stride.
+  static const double _strideMeters = 0.75;
+
+  /// Calorie estimate uses a default weight (the background isolate has no
+  /// profile access) × MET × hours.
+  static const double _defaultWeightKg = 70;
+  static const double _walkMet = 3.3;
+  static const double _runMet = 9.0;
 }
 
 /// Entry point for the foreground-service isolate. Must be top-level and
@@ -261,6 +365,8 @@ class _SleepTaskHandler extends TaskHandler {
   int? _lastSteps;
   int? _lastReadMs;
   int? _stillSinceMs;
+  int? _activeSinceMs;
+  int _activeSteps = 0;
 
   @override
   Future<void> onStart(DateTime timestamp, TaskStarter starter) async {
@@ -293,33 +399,70 @@ class _SleepTaskHandler extends TaskHandler {
       return;
     }
 
-    var delta = cur - _lastSteps!;
+    final delta = cur - _lastSteps!;
     final gapMs = nowMs - _lastReadMs!;
     if (gapMs <= 0) return;
 
-    // Reboot / counter reset → re-baseline, drop any in-progress still stretch.
+    // Reboot / counter reset → re-baseline, drop any in-progress stretches.
     if (delta < 0) {
       _lastSteps = cur;
       _lastReadMs = nowMs;
       _stillSinceMs = null;
+      _activeSinceMs = null;
+      _activeSteps = 0;
       return;
     }
 
     final stepsPerHour = delta / (gapMs / 3600000.0);
-    final still = stepsPerHour < SleepTrackingService._stillStepsPerHour;
 
-    if (still) {
-      // The phone was still across this whole gap; mark the stretch's start at
-      // the previous reading (when we last saw it quiet).
-      _stillSinceMs ??= _lastReadMs;
-    } else {
-      // Movement resumed. The still stretch (if any) ran until the last
-      // reading; evaluate it as possible sleep, with the wake at that point.
-      final stillStart = _stillSinceMs;
-      _stillSinceMs = null;
-      if (stillStart != null) {
-        await _maybeRecordSleep(stillStart, _lastReadMs!);
+    // Which detectors are enabled (best-effort; default off). The one service
+    // hosts both, so it may be running for only one of them.
+    var sleepOn = false;
+    var activityOn = false;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.reload();
+      sleepOn = prefs.getBool(SleepTrackingService.prefEnabled) ?? false;
+      activityOn =
+          prefs.getBool(SleepTrackingService.prefAutoActivity) ?? false;
+    } catch (_) {}
+
+    // ----- Sleep: long still stretch -----
+    if (sleepOn) {
+      final still = stepsPerHour < SleepTrackingService._stillStepsPerHour;
+      if (still) {
+        // Still across this whole gap; mark the stretch start at the last quiet
+        // reading.
+        _stillSinceMs ??= _lastReadMs;
+      } else {
+        final stillStart = _stillSinceMs;
+        _stillSinceMs = null;
+        if (stillStart != null) {
+          await _maybeRecordSleep(stillStart, _lastReadMs!);
+        }
       }
+    } else {
+      _stillSinceMs = null;
+    }
+
+    // ----- Activity: sustained active-stepping stretch -----
+    if (activityOn) {
+      final active = stepsPerHour >= SleepTrackingService._walkStepsPerHour;
+      if (active) {
+        _activeSinceMs ??= _lastReadMs;
+        _activeSteps += delta;
+      } else {
+        final activeStart = _activeSinceMs;
+        final activeSteps = _activeSteps;
+        _activeSinceMs = null;
+        _activeSteps = 0;
+        if (activeStart != null) {
+          await _maybeRecordWalk(activeStart, _lastReadMs!, activeSteps);
+        }
+      }
+    } else {
+      _activeSinceMs = null;
+      _activeSteps = 0;
     }
 
     _lastSteps = cur;
@@ -349,6 +492,7 @@ class _SleepTaskHandler extends TaskHandler {
       }
       final quality = SleepTrackingService._qualityFor(hours);
       final payload = jsonEncode({
+        'kind': 'sleep',
         'startMs': startMs,
         'endMs': endMs,
         'hours': hours,
@@ -372,6 +516,58 @@ class _SleepTaskHandler extends TaskHandler {
       } catch (_) {}
     } catch (e) {
       debugPrint('Record sleep failed: $e');
+    }
+  }
+
+  /// Records [startMs]..[endMs] as a walk/run if it clears the duration + step
+  /// gates. Stashes it for the app to upload and nudges the app if it's open.
+  Future<void> _maybeRecordWalk(int startMs, int endMs, int steps) async {
+    final durationSec = (endMs - startMs) ~/ 1000;
+    if (durationSec < SleepTrackingService._minWalkSeconds) return;
+    if (steps < SleepTrackingService._minWalkSteps) return;
+
+    final durationMin = (durationSec / 60).round().clamp(1, 9999);
+    final stepsPerMin = steps / (durationSec / 60.0);
+    final isRun = stepsPerMin >= SleepTrackingService._runStepsPerMin;
+    final distanceKm = steps * SleepTrackingService._strideMeters / 1000.0;
+    final met =
+        isRun ? SleepTrackingService._runMet : SleepTrackingService._walkMet;
+    final calories =
+        (met * SleepTrackingService._defaultWeightKg * (durationSec / 3600.0))
+            .round();
+
+    final payload = {
+      'kind': 'activity',
+      'startMs': startMs,
+      'endMs': endMs,
+      'durationMin': durationMin,
+      'steps': steps,
+      'type': isRun ? 'RUNNING' : 'WALKING',
+      'distanceKm': distanceKm,
+      'calories': calories,
+    };
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.reload();
+      final raw = prefs.getString(SleepTrackingService._kPendingActivities);
+      final list = <dynamic>[];
+      if (raw != null && raw.isNotEmpty) {
+        try {
+          list.addAll(jsonDecode(raw) as List);
+        } catch (_) {}
+      }
+      list.add(payload);
+      await prefs.setString(
+        SleepTrackingService._kPendingActivities,
+        jsonEncode(list),
+      );
+      // Nudge the running app (if any) to upload right away.
+      try {
+        FlutterForegroundTask.sendDataToMain(jsonEncode(payload));
+      } catch (_) {}
+    } catch (e) {
+      debugPrint('Record walk failed: $e');
     }
   }
 

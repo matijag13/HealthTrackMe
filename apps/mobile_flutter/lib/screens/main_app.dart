@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../services/activity_tracking_service.dart';
 import '../services/api_service.dart';
 import '../services/sleep_tracking_service.dart';
 import '../services/wearable_service.dart';
@@ -40,33 +39,11 @@ class _MainAppState extends State<MainApp> with WidgetsBindingObserver {
     _foregroundSync();
     _syncTimer =
         Timer.periodic(_foregroundSyncInterval, (_) => _foregroundSync());
-    _maybeStartActivityTracking();
-    _maybeStartSleepTracking();
-    // Upload any sleep the background detector recorded while the app was shut.
+    // One always-on foreground service hosts BOTH the sleep and walk/run
+    // detectors; it (re)starts here whenever either is enabled in Settings.
+    unawaited(SleepTrackingService.instance.refreshService());
+    // Upload anything the background detectors recorded while the app was shut.
     SleepTrackingService.instance.processPending();
-  }
-
-  /// Starts auto walk/run detection if the user enabled it.
-  Future<void> _maybeStartActivityTracking() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      if (prefs.getBool('pref_auto_activity') ?? false) {
-        await ActivityTrackingService.instance.start();
-      }
-    } catch (_) {}
-  }
-
-  /// Restarts the background sleep detector if the user enabled it (the service
-  /// also auto-runs on boot, but this covers a fresh install / first launch).
-  Future<void> _maybeStartSleepTracking() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      if (prefs.getBool(SleepTrackingService.prefEnabled) ?? false) {
-        if (!await SleepTrackingService.instance.isRunning()) {
-          await SleepTrackingService.instance.start();
-        }
-      }
-    } catch (_) {}
   }
 
   @override

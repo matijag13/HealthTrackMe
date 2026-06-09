@@ -29,7 +29,11 @@ class SportActivityService(
             val duplicate = existing.firstOrNull { ex ->
                 ex.notes == request.notes &&
                 ex.duration != null &&
-                kotlin.math.abs(ex.duration!! - request.duration!!) <= 5
+                kotlin.math.abs(ex.duration!! - request.duration!!) <= 5 &&
+                // Match step count too, so two genuinely separate same-length walks
+                // on one day aren't collapsed into one. A re-imported sync of the
+                // SAME session still has identical steps and is still de-duplicated.
+                ex.steps == request.steps
             }
             if (duplicate != null) return toActivityDto(duplicate)
         }

@@ -840,18 +840,31 @@ class _HealthScreenTabbedState extends State<HealthScreenTabbed>
       values.length,
       (i) => FlSpot(i.toDouble(), values[i]),
     );
+    // Pad the Y window so a flat-looking series still shows its real shape
+    // instead of being clipped to the top/bottom edge.
+    final lo = values.reduce((a, b) => a < b ? a : b);
+    final hi = values.reduce((a, b) => a > b ? a : b);
+    final pad = (hi - lo).abs() < 1 ? 1.0 : (hi - lo) * 0.2;
     return LineChart(
       LineChartData(
+        minY: lo - pad,
+        maxY: hi + pad,
         gridData: const FlGridData(show: false),
         titlesData: const FlTitlesData(show: false),
         borderData: FlBorderData(show: false),
+        lineTouchData: const LineTouchData(enabled: false),
         lineBarsData: [
           LineChartBarData(
             spots: spots,
             isCurved: true,
+            preventCurveOverShooting: true,
             color: color,
             dotData: const FlDotData(show: false),
             barWidth: 2,
+            belowBarData: BarAreaData(
+              show: true,
+              color: color.withValues(alpha: 0.12),
+            ),
           ),
         ],
       ),
@@ -1008,13 +1021,20 @@ class _HealthScreenTabbedState extends State<HealthScreenTabbed>
   }
 
   Widget _sleepBarChart(List<HealthEntry> entries) {
-    final spots = List.generate(
+    final maxHours = entries.fold<double>(
+      0,
+      (m, e) => (e.sleepHours ?? 0) > m ? (e.sleepHours ?? 0) : m,
+    );
+    final maxY = (maxHours < 8 ? 9.0 : maxHours + 1).ceilToDouble();
+    final groups = List.generate(
       entries.length,
       (i) => BarChartGroupData(
         x: i,
         barRods: [
           BarChartRodData(
             toY: entries[i].sleepHours ?? 0,
+            width: 9,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(3)),
             color: (entries[i].sleepHours ?? 0) >= 7
                 ? AppColors.success
                 : ((entries[i].sleepHours ?? 0) >= 5
@@ -1026,11 +1046,57 @@ class _HealthScreenTabbedState extends State<HealthScreenTabbed>
     );
     return BarChart(
       BarChartData(
-        barGroups: spots,
-        titlesData: const FlTitlesData(show: false),
-        gridData: const FlGridData(show: false),
-        borderData: FlBorderData(show: false),
+        maxY: maxY,
+        barGroups: groups,
         alignment: BarChartAlignment.spaceAround,
+        borderData: FlBorderData(show: false),
+        gridData: FlGridData(
+          show: true,
+          drawVerticalLine: false,
+          horizontalInterval: 2,
+          getDrawingHorizontalLine: (v) => FlLine(
+            color: Colors.grey.withValues(alpha: 0.18),
+            strokeWidth: 1,
+          ),
+        ),
+        titlesData: FlTitlesData(
+          show: true,
+          topTitles:
+              const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          rightTitles:
+              const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          bottomTitles:
+              const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          leftTitles: AxisTitles(
+            axisNameWidget: const Text('hours', style: TextStyle(fontSize: 11)),
+            sideTitles: SideTitles(
+              showTitles: true,
+              reservedSize: 28,
+              interval: 2,
+              getTitlesWidget: (value, meta) => Text(
+                value.toInt().toString(),
+                style: const TextStyle(fontSize: 11),
+              ),
+            ),
+          ),
+        ),
+        // 7-hour target line so each bar reads against the goal at a glance.
+        extraLinesData: ExtraLinesData(
+          horizontalLines: [
+            HorizontalLine(
+              y: 7,
+              color: AppColors.success.withValues(alpha: 0.6),
+              strokeWidth: 1,
+              dashArray: const [6, 4],
+              label: HorizontalLineLabel(
+                show: true,
+                alignment: Alignment.topRight,
+                labelResolver: (_) => '7h goal',
+                style: const TextStyle(fontSize: 10, color: AppColors.success),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1161,35 +1227,103 @@ class VitalDetailPage extends StatelessWidget {
       data.length,
       (i) => FlSpot(i.toDouble(), data[i]),
     );
-    final chartMax =
-        (spots.map((s) => s.y).fold(0.0, (a, b) => a > b ? a : b) + 5);
+
+    // Data-driven Y window (NOT zero-based) so real variation is actually
+    // visible — a 0-based axis squashed e.g. heart-rate 60-80 into a flat line.
+    // The normal range is kept in view, with ~15% padding above and below.
+    var lo = data.reduce((a, b) => a < b ? a : b);
+    var hi = data.reduce((a, b) => a > b ? a : b);
+    if (normalMin != null) {
+      lo = lo < normalMin!.toDouble() ? lo : normalMin!.toDouble();
+    }
+    if (normalMax != null) {
+      hi = hi > normalMax!.toDouble() ? hi : normalMax!.toDouble();
+    }
+    final span = (hi - lo).abs();
+    final pad = span < 1 ? 1.0 : span * 0.15;
+    final minY = lo - pad;
+    final maxY = hi + pad;
+    final yStep = ((maxY - minY) / 4).clamp(0.5, double.infinity);
+    final decimals = (unit == 'h' || maxY < 10) ? 1 : 0;
+
     return Scaffold(
       appBar: AppBar(title: Text(label)),
       body: Padding(
-        padding: const EdgeInsets.all(12.0),
+        padding: const EdgeInsets.all(16.0),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            SizedBox(
-              height: 300,
+            Text(
+              'Latest: ${data.last.toStringAsFixed(decimals)}${unit.isEmpty ? '' : ' $unit'}',
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 16),
+            Expanded(
               child: LineChart(
                 LineChartData(
-                  minY: 0,
-                  maxY: chartMax,
-                  gridData: const FlGridData(show: true),
-                  titlesData: const FlTitlesData(
+                  minX: 0,
+                  maxX: (data.length - 1).toDouble(),
+                  minY: minY,
+                  maxY: maxY,
+                  gridData: FlGridData(
                     show: true,
-                    bottomTitles: AxisTitles(
+                    drawVerticalLine: false,
+                    horizontalInterval: yStep,
+                    getDrawingHorizontalLine: (v) => FlLine(
+                      color: Colors.grey.withValues(alpha: 0.18),
+                      strokeWidth: 1,
+                    ),
+                  ),
+                  titlesData: FlTitlesData(
+                    show: true,
+                    topTitles: const AxisTitles(
+                        sideTitles: SideTitles(showTitles: false)),
+                    rightTitles: const AxisTitles(
+                        sideTitles: SideTitles(showTitles: false)),
+                    leftTitles: AxisTitles(
+                      axisNameWidget: unit.isEmpty
+                          ? null
+                          : Text(unit, style: const TextStyle(fontSize: 11)),
+                      sideTitles: SideTitles(
+                        showTitles: true,
+                        reservedSize: 40,
+                        interval: yStep,
+                        getTitlesWidget: (value, meta) => Text(
+                          value.toStringAsFixed(decimals),
+                          style: const TextStyle(fontSize: 11),
+                        ),
+                      ),
+                    ),
+                    bottomTitles: const AxisTitles(
+                      axisNameWidget: Text('oldest → most recent',
+                          style: TextStyle(fontSize: 10)),
                       sideTitles: SideTitles(showTitles: false),
                     ),
                   ),
+                  rangeAnnotations: (normalMin != null && normalMax != null)
+                      ? RangeAnnotations(
+                          horizontalRangeAnnotations: [
+                            HorizontalRangeAnnotation(
+                              y1: normalMin!.toDouble(),
+                              y2: normalMax!.toDouble(),
+                              color: AppColors.success.withValues(alpha: 0.10),
+                            ),
+                          ],
+                        )
+                      : null,
                   borderData: FlBorderData(show: false),
                   lineBarsData: [
                     LineChartBarData(
                       spots: spots,
                       isCurved: true,
+                      preventCurveOverShooting: true,
                       color: AppColors.navy,
                       barWidth: 3,
-                      dotData: const FlDotData(show: false),
+                      dotData: FlDotData(show: data.length <= 12),
+                      belowBarData: BarAreaData(
+                        show: true,
+                        color: AppColors.navy.withValues(alpha: 0.08),
+                      ),
                     ),
                   ],
                 ),
@@ -1197,7 +1331,20 @@ class VitalDetailPage extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             if (normalMin != null && normalMax != null)
-              Text('Normal range: $normalMin - $normalMax $unit'),
+              Row(
+                children: [
+                  Container(
+                    width: 14,
+                    height: 14,
+                    decoration: BoxDecoration(
+                      color: AppColors.success.withValues(alpha: 0.25),
+                      borderRadius: BorderRadius.circular(3),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text('Normal range: $normalMin–$normalMax $unit'),
+                ],
+              ),
           ],
         ),
       ),
