@@ -187,7 +187,6 @@ class WearableService {
       // Already per-session (each has its own date + duration) — upload first
       // so the dashboard activity card can show today's exercise after sync.
       final workouts = await _getWorkouts(startDate, endDate);
-      final distanceKm = await _getDistance(startDate, endDate);
       for (final w in workouts) {
         final wDate = (w['date'] as DateTime).toIso8601String().split('T')[0];
         final payload = <String, dynamic>{
@@ -298,22 +297,27 @@ class WearableService {
           }
         }
 
-        // Steps fallback for today only: if no workout sessions were synced,
-        // create a WALKING sport activity so the dashboard step count is visible.
-        if (isToday && workouts.isEmpty) {
-          final todaySteps = await _getSteps(day, nextDay);
-          if (todaySteps != null && todaySteps > 0) {
-            anySyncedData = true;
-            final stepPayload = <String, dynamic>{
-              'activityType': 'WALKING',
-              'activityDate': day.toIso8601String().split('T')[0],
-              'steps': todaySteps,
-            };
-            if (distanceKm != null) stepPayload['distance'] = distanceKm;
-            await _api.createSportActivity(stepPayload, userId: resolvedUserId);
+        // Per-day step total — for EVERY day in the window, not just today, so
+        // step history fills the whole range. Health Connect's aggregated total
+        // de-duplicates across sources. The backend keeps one daily-total row per
+        // user+type+date (idempotent re-sync), and the Activity views take
+        // max(daily-total, summed workout sessions), so this never double-counts
+        // against a workout logged on the same day.
+        final daySteps = await _getSteps(day, nextDay);
+        if (daySteps != null && daySteps > 0) {
+          anySyncedData = true;
+          final dayDistanceKm = await _getDistance(day, nextDay);
+          final stepPayload = <String, dynamic>{
+            'activityType': 'WALKING',
+            'activityDate': day.toIso8601String().split('T')[0],
+            'steps': daySteps,
+          };
+          if (dayDistanceKm != null) stepPayload['distance'] = dayDistanceKm;
+          await _api.createSportActivity(stepPayload, userId: resolvedUserId);
+          if (isToday) {
             todayData = WearableSyncData(
               date: day,
-              steps: todaySteps,
+              steps: daySteps,
               calories: todayData.calories,
               heartRateAvg: todayData.heartRateAvg,
               heartRateMax: todayData.heartRateMax,
