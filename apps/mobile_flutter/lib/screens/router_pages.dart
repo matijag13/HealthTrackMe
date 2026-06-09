@@ -4101,11 +4101,9 @@ class _HealthActivityPageState extends State<HealthActivityPage> {
         : data.maxY <= 300
             ? 60.0
             : (data.maxY / 4).ceilToDouble();
-    return LineChart(
-      LineChartData(
-        minX: 0,
-        maxX: data.spots.length == 1 ? 1 : (data.spots.length - 1).toDouble(),
-        minY: data.minY,
+    return BarChart(
+      BarChartData(
+        alignment: BarChartAlignment.spaceAround,
         maxY: data.maxY,
         gridData: FlGridData(
           show: true,
@@ -4164,19 +4162,23 @@ class _HealthActivityPageState extends State<HealthActivityPage> {
             ),
           ),
         ),
-        lineBarsData: [
-          LineChartBarData(
-            spots: data.spots,
-            isCurved: data.spots.length > 1,
-            color: _accent,
-            barWidth: 3,
-            isStrokeCapRound: true,
-            dotData: FlDotData(show: data.spots.length == 1),
-            belowBarData: BarAreaData(
-              show: data.spots.length > 1,
-              color: _accent.withValues(alpha: 0.12),
+        barGroups: [
+          for (var i = 0; i < data.spots.length; i++)
+            BarChartGroupData(
+              x: i,
+              barRods: [
+                BarChartRodData(
+                  toY: data.spots[i].y,
+                  width: data.spots.length <= 7
+                      ? 16.0
+                      : data.spots.length <= 14
+                          ? 11.0
+                          : 6.0,
+                  borderRadius: BorderRadius.circular(4),
+                  color: _accent,
+                ),
+              ],
             ),
-          ),
         ],
       ),
     );
@@ -5637,12 +5639,9 @@ class _HealthSleepPageState extends State<HealthSleepPage> {
           SizedBox(
             height: 280,
             child: hasData
-                ? LineChart(
-                    LineChartData(
-                      minX: 0,
-                      maxX:
-                          spots.length == 1 ? 1 : (spots.length - 1).toDouble(),
-                      minY: chartData.minY,
+                ? BarChart(
+                    BarChartData(
+                      alignment: BarChartAlignment.spaceAround,
                       maxY: chartData.maxY,
                       gridData: FlGridData(
                         show: true,
@@ -5705,19 +5704,27 @@ class _HealthSleepPageState extends State<HealthSleepPage> {
                           ),
                         ),
                       ),
-                      lineBarsData: [
-                        LineChartBarData(
-                          isCurved: spots.length > 1,
-                          color: _accent,
-                          barWidth: 3,
-                          isStrokeCapRound: true,
-                          dotData: FlDotData(show: spots.length == 1),
-                          belowBarData: BarAreaData(
-                            show: spots.length > 1,
-                            color: _accent.withValues(alpha: 0.12),
+                      barGroups: [
+                        for (var i = 0; i < spots.length; i++)
+                          BarChartGroupData(
+                            x: i,
+                            barRods: [
+                              BarChartRodData(
+                                toY: spots[i].y,
+                                width: spots.length <= 7
+                                    ? 16.0
+                                    : spots.length <= 14
+                                        ? 11.0
+                                        : 6.0,
+                                borderRadius: BorderRadius.circular(4),
+                                color: spots[i].y >= 7
+                                    ? Colors.green.shade400
+                                    : spots[i].y >= 5
+                                        ? Colors.orange.shade400
+                                        : Colors.red.shade400,
+                              ),
+                            ],
                           ),
-                          spots: spots,
-                        ),
                       ],
                     ),
                   )
