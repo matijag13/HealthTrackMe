@@ -12,7 +12,16 @@
           "package_name": "com.example.healthtrackme"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "46567361839-dab4vjjgl0rs5vo3ov7u07ft3234la2f.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.healthtrackme",
+            "certificate_hash": "3fbec4f849c73966d5c5e4bd11daedc097051879"
+          }
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyDRwf59-G_e4oN1vniIGDFCO_2mO0fbAsk"
