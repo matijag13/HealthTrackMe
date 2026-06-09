@@ -1216,6 +1216,46 @@ class _DashboardScreenState extends State<DashboardScreen>
     });
   }
 
+  /// Today's step count from synced/logged activities. Daily-total entries (no
+  /// duration — e.g. the Health Connect step sync) are taken as the MAX, while
+  /// individual workout sessions are summed; we then use whichever is larger.
+  /// Mirrors the Activity screen so synced steps always surface on the
+  /// dashboard, even when there are no duration-based "active minutes".
+  int _todayStepsFromActivities() {
+    final today = DateTime.now();
+    var bestDailyTotal = 0;
+    var sessionSum = 0;
+    for (final activity in _state.sportActivities) {
+      final date = _sportActivityDate(activity);
+      if (date == null || !_sameDay(date, today)) continue;
+      final steps = int.tryParse((activity['steps'] ?? '').toString()) ?? 0;
+      if (steps <= 0) continue;
+      if (_sportActivityDuration(activity) > 0) {
+        sessionSum += steps;
+      } else if (steps > bestDailyTotal) {
+        bestDailyTotal = steps;
+      }
+    }
+    return bestDailyTotal > sessionSum ? bestDailyTotal : sessionSum;
+  }
+
+  bool _hasActivityToday() =>
+      _todayActiveMinutes() > 0 || _todayStepsFromActivities() > 0;
+
+  /// Headline for the Activity card: prefer active minutes (real workouts), then
+  /// fall back to step count so synced steps still show, otherwise "No data".
+  String _activityCardValue() {
+    final minutes = _todayActiveMinutes();
+    if (minutes > 0) return _formatActivityDuration(minutes);
+    final steps = _todayStepsFromActivities();
+    if (steps > 0) return '$steps steps';
+    return 'No data';
+  }
+
+  String _activityCardSubtitle() => _hasActivityToday()
+      ? 'Activity logged today'
+      : 'No activity data for today';
+
   int _computedHomeRecentXp({
     required List<HealthEntry> entries,
     required List<Map<String, dynamic>> activities,
@@ -1628,15 +1668,10 @@ class _DashboardScreenState extends State<DashboardScreen>
         .map((option) {
           switch (option.key) {
             case 'activity':
-              final activeMinutes = _todayActiveMinutes();
               return _favoriteCard(
                 title: option.label,
-                value: activeMinutes > 0
-                    ? _formatActivityDuration(activeMinutes)
-                    : 'No data',
-                subtitle: activeMinutes > 0
-                    ? 'Activity logged today'
-                    : 'No activity data for today',
+                value: _activityCardValue(),
+                subtitle: _activityCardSubtitle(),
                 icon: Icons.directions_walk,
                 accent: _green,
                 onTap: _openActivity,
@@ -1743,7 +1778,6 @@ class _DashboardScreenState extends State<DashboardScreen>
 
     final activeMeds = _activeMedicinesCount();
     final homeShield = _state.homeShield;
-    final activeMinutes = _todayActiveMinutes();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1752,12 +1786,8 @@ class _DashboardScreenState extends State<DashboardScreen>
         _feedGap(),
         _feedCard(
           title: 'Activity',
-          value: activeMinutes > 0
-              ? _formatActivityDuration(activeMinutes)
-              : 'No data',
-          subtitle: activeMinutes > 0
-              ? 'Activity logged today'
-              : 'No activity data for today',
+          value: _activityCardValue(),
+          subtitle: _activityCardSubtitle(),
           icon: Icons.directions_run_outlined,
           accent: _green,
           onTap: _openActivity,

@@ -226,7 +226,8 @@ class WearableService {
         endDate,
         HealthDataType.HEART_RATE,
       );
-      final allSleepPts = await _fetchRawPoints(vitalsStart, endDate, sleepType);
+      final allSleepPts =
+          await _fetchRawPoints(vitalsStart, endDate, sleepType);
       final allCalPts = await _fetchRawPoints(
         vitalsStart,
         endDate,
@@ -247,8 +248,7 @@ class WearableService {
 
       while (!day.isAfter(endDay)) {
         final nextDay = day.add(const Duration(days: 1));
-        final isToday =
-            day.year == endDay.year &&
+        final isToday = day.year == endDay.year &&
             day.month == endDay.month &&
             day.day == endDay.day;
 
@@ -383,10 +383,8 @@ class WearableService {
         .where((p) => !p.dateFrom.isBefore(from) && p.dateFrom.isBefore(to))
         .toList();
     if (inWin.isEmpty) return null;
-    final vals = inWin
-        .map(_numericValue)
-        .where((v) => v > 0)
-        .toList(growable: false);
+    final vals =
+        inWin.map(_numericValue).where((v) => v > 0).toList(growable: false);
     if (vals.isEmpty) return null;
     final avg = vals.reduce((a, b) => a + b) / vals.length;
     final max = vals.reduce((a, b) => a > b ? a : b);
@@ -423,10 +421,10 @@ class WearableService {
     final quality = hours >= 7.5
         ? 'EXCELLENT'
         : hours >= 7
-        ? 'GOOD'
-        : hours < 5
-        ? 'POOR'
-        : 'FAIR';
+            ? 'GOOD'
+            : hours < 5
+                ? 'POOR'
+                : 'FAIR';
     return {'hours': hours, 'quality': quality};
   }
 
@@ -497,9 +495,8 @@ class WearableService {
         if (v is! WorkoutHealthValue) continue;
 
         // Use seconds to avoid dropping legitimate short sessions (< 1 min).
-        final durationSeconds = point.dateTo
-            .difference(point.dateFrom)
-            .inSeconds;
+        final durationSeconds =
+            point.dateTo.difference(point.dateFrom).inSeconds;
         if (durationSeconds <= 0) continue;
         final durationMinutes = (durationSeconds / 60).round().clamp(1, 9999);
 
@@ -507,14 +504,14 @@ class WearableService {
         double? distanceKm = v.totalDistance != null
             ? v.totalDistance! / 1000.0
             : _sumPointsInWindow(distancePoints, point.dateFrom, point.dateTo) >
-                  0
-            ? _sumPointsInWindow(distancePoints, point.dateFrom, point.dateTo) /
-                  1000.0
-            : null;
+                    0
+                ? _sumPointsInWindow(
+                        distancePoints, point.dateFrom, point.dateTo) /
+                    1000.0
+                : null;
 
         // Steps: use embedded value first, fall back to STEPS data points.
-        final int? steps =
-            v.totalSteps ??
+        final int? steps = v.totalSteps ??
             (_sumPointsInWindow(stepsPoints, point.dateFrom, point.dateTo) > 0
                 ? _sumPointsInWindow(
                     stepsPoints,
@@ -540,7 +537,7 @@ class WearableService {
         // meaningful steps or distance.
         final isWalkRun =
             v.workoutActivityType == HealthWorkoutActivityType.WALKING ||
-            v.workoutActivityType == HealthWorkoutActivityType.RUNNING;
+                v.workoutActivityType == HealthWorkoutActivityType.RUNNING;
         if (isWalkRun && (steps ?? 0) < 100 && (distanceKm ?? 0) < 0.1) {
           continue;
         }

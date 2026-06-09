@@ -1,4 +1,9 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Required for ALL network calls (login, API, wearable sync). Flutter only
+         auto-injects INTERNET into debug/profile builds, so without this line the
+         RELEASE APK has no network access — login and sync silently fail for
+         testers even though everything works in `flutter run` (debug). -->
+    <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
     <!-- USE_EXACT_ALARM is auto-granted for alarm/reminder apps (Android 13+), so
          medicine reminders fire on time without the user opening system settings. -->

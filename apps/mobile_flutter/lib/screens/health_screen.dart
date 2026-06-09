@@ -265,8 +265,7 @@ class _HealthScreenTabbedState extends State<HealthScreenTabbed>
     );
     final stepsPrevWeek = prevDays.map((d) => _sumStepsForDay(d)).toList();
 
-    final totalSteps =
-        _sportActivities.fold<int>(
+    final totalSteps = _sportActivities.fold<int>(
           0,
           (s, a) => s + ((a['steps'] as num?)?.toInt() ?? 0),
         ) +
@@ -382,10 +381,9 @@ class _HealthScreenTabbedState extends State<HealthScreenTabbed>
                   trailing: Text(
                     (act['activityDate'] ?? act['start']) != null
                         ? DateTime.tryParse(
-                                (act['activityDate'] ?? act['start'])
-                                    .toString(),
-                              )?.toLocal().toIso8601String().split('T').first ??
-                              ''
+                              (act['activityDate'] ?? act['start']).toString(),
+                            )?.toLocal().toIso8601String().split('T').first ??
+                            ''
                         : '',
                   ),
                 ),
@@ -475,17 +473,16 @@ class _HealthScreenTabbedState extends State<HealthScreenTabbed>
             Expanded(
               child: StatItem(
                 icon: '😴',
-                value:
-                    last14
+                value: last14
                                 .map((e) => e.sleepHours ?? 0)
                                 .fold(0.0, (a, b) => a + b) /
                             last14.length >
                         0
                     ? (last14
-                                  .map((e) => e.sleepHours ?? 0)
-                                  .fold(0.0, (a, b) => a + b) /
-                              last14.length)
-                          .toStringAsFixed(1)
+                                .map((e) => e.sleepHours ?? 0)
+                                .fold(0.0, (a, b) => a + b) /
+                            last14.length)
+                        .toStringAsFixed(1)
                     : '—',
                 label: 'Avg sleep',
                 valueColor: AppColors.sleep,
@@ -823,8 +820,7 @@ class _HealthScreenTabbedState extends State<HealthScreenTabbed>
     }
     // find last entry with that key
     for (final e in _entries) {
-      final has =
-          (key == 'energy' && e.energyLevel != null) ||
+      final has = (key == 'energy' && e.energyLevel != null) ||
           (key == 'sleep' && e.sleepHours != null) ||
           (key == 'stress' && e.stressLevel != null) ||
           (key == 'wellbeing');
@@ -958,7 +954,7 @@ class _HealthScreenTabbedState extends State<HealthScreenTabbed>
   Widget _weeklyBarChart(List<int> thisWeek, List<int> prevWeek) {
     final maxY =
         (thisWeek + prevWeek).fold<int>(0, (a, b) => a > b ? a : b).toDouble() +
-        1000;
+            1000;
     final groups = List.generate(
       7,
       (i) => BarChartGroupData(
@@ -1022,8 +1018,8 @@ class _HealthScreenTabbedState extends State<HealthScreenTabbed>
             color: (entries[i].sleepHours ?? 0) >= 7
                 ? AppColors.success
                 : ((entries[i].sleepHours ?? 0) >= 5
-                      ? AppColors.warning
-                      : AppColors.danger),
+                    ? AppColors.warning
+                    : AppColors.danger),
           ),
         ],
       ),
@@ -1051,7 +1047,8 @@ class _HealthScreenTabbedState extends State<HealthScreenTabbed>
     // Simple dots showing bedtime if notes contained bedtime (best-effort). We'll fallback to random for demo.
     final spots = <Widget>[];
     for (var i = 0; i < uniqueEntries.length; i++) {
-      final label = uniqueEntries[i].entryDate
+      final label = uniqueEntries[i]
+          .entryDate
           .toLocal()
           .toIso8601String()
           .split('T')
@@ -1538,9 +1535,7 @@ class _DevicesTabState extends State<_DevicesTab> {
               ),
             )
           else
-            ..._syncHistory
-                .take(10)
-                .map(
+            ..._syncHistory.take(10).map(
                   (event) => Card(
                     child: ListTile(
                       leading: Icon(
