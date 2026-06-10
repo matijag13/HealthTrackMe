@@ -399,6 +399,91 @@ class _DashboardScreenState extends State<DashboardScreen>
     await SleepTrackingService.instance.dismissSleepSuggestion();
   }
 
+  /// Lets the user tweak the detected bedtime / wake time, then saves it.
+  Future<void> _adjustSleep(
+      DateTime detectedStart, DateTime detectedEnd) async {
+    var startT = TimeOfDay.fromDateTime(detectedStart);
+    var endT = TimeOfDay.fromDateTime(detectedEnd);
+    const sleep = Color(0xFF7E7BF5);
+
+    DateTime composeStart() => DateTime(detectedStart.year, detectedStart.month,
+        detectedStart.day, startT.hour, startT.minute);
+    DateTime composeEnd() {
+      var e = DateTime(detectedEnd.year, detectedEnd.month, detectedEnd.day,
+          endT.hour, endT.minute);
+      if (!e.isAfter(composeStart())) e = e.add(const Duration(days: 1));
+      return e;
+    }
+
+    final saved = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setLocal) {
+          final mins = composeEnd().difference(composeStart()).inMinutes;
+          final hh = mins ~/ 60;
+          final mm = mins % 60;
+          Widget tile(String label, TimeOfDay value, VoidCallback onTap) =>
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                title: Text(label, style: const TextStyle(color: _primaryText)),
+                trailing: Text(value.format(ctx),
+                    style: const TextStyle(
+                        color: sleep,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 16)),
+                onTap: onTap,
+              );
+          return AlertDialog(
+            backgroundColor: _surfaceAlt,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+              side: const BorderSide(color: _border),
+            ),
+            title: const Text('Adjust sleep',
+                style: TextStyle(color: _primaryText)),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                tile('Bedtime', startT, () async {
+                  final p =
+                      await showTimePicker(context: ctx, initialTime: startT);
+                  if (p != null) setLocal(() => startT = p);
+                }),
+                tile('Wake time', endT, () async {
+                  final p =
+                      await showTimePicker(context: ctx, initialTime: endT);
+                  if (p != null) setLocal(() => endT = p);
+                }),
+                const SizedBox(height: 8),
+                Text('${hh}h ${mm}m',
+                    style: const TextStyle(
+                        color: _primaryText,
+                        fontSize: 22,
+                        fontWeight: FontWeight.w900)),
+              ],
+            ),
+            actions: [
+              TextButton(
+                  onPressed: () => Navigator.of(ctx).pop(false),
+                  child: const Text('Cancel')),
+              TextButton(
+                  onPressed: () => Navigator.of(ctx).pop(true),
+                  child: const Text('Save')),
+            ],
+          );
+        },
+      ),
+    );
+
+    if (saved == true) {
+      final s = composeStart();
+      final e = composeEnd();
+      setState(() => _sleepSuggestion = null);
+      await SleepTrackingService.instance.saveAdjustedSleep(s, e);
+      _refresh();
+    }
+  }
+
   /// Card offering the phone-detected sleep for the user to confirm — shown
   /// only when the background detector has a fresh, un-actioned suggestion.
   Widget _buildSleepSuggestionCard() {
@@ -464,7 +549,14 @@ class _DashboardScreenState extends State<DashboardScreen>
                     child: _sleepActionButton('Save',
                         filled: true, color: sleep, onTap: _confirmSleep),
                   ),
-                  const SizedBox(width: 10),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: _sleepActionButton('Adjust',
+                        filled: false,
+                        color: sleep,
+                        onTap: () => _adjustSleep(start, end)),
+                  ),
+                  const SizedBox(width: 8),
                   Expanded(
                     child: _sleepActionButton('Dismiss',
                         filled: false, color: sleep, onTap: _dismissSleep),

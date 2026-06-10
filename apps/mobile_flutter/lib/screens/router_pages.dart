@@ -5733,10 +5733,14 @@ class _HealthSleepPageState extends State<HealthSleepPage> {
                               if (index < 0 || index >= entries.length) {
                                 return const SizedBox.shrink();
                               }
-                              return Padding(
-                                padding: const EdgeInsets.only(top: 8),
+                              // Compact 'd/M' on longer ranges (1M / Max) so the
+                              // date labels don't overlap, and SideTitleWidget so
+                              // each one stays centred on its bar.
+                              final fmt = entries.length > 7 ? 'd/M' : 'd MMM';
+                              return SideTitleWidget(
+                                axisSide: meta.axisSide,
                                 child: Text(
-                                  DateFormat('d MMM')
+                                  DateFormat(fmt)
                                       .format(entries[index].entryDate),
                                   style: const TextStyle(
                                     color: _secondaryText,

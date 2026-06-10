@@ -246,15 +246,28 @@ class SleepTrackingService {
     }
   }
 
-  /// Save the pending detected sleep (upload + write to Health Connect).
+  /// Save the pending detected sleep as-is (upload + write to Health Connect).
   Future<double?> confirmSleepSuggestion() async {
     if (kIsWeb) return null;
     final prefs = await SharedPreferences.getInstance();
     await prefs.reload();
     final raw = prefs.getString(_kPendingSleep);
     if (raw == null || raw.isEmpty) return null;
-    return _uploadFromJson(raw);
+    try {
+      final map = jsonDecode(raw) as Map<String, dynamic>;
+      final start =
+          DateTime.fromMillisecondsSinceEpoch((map['startMs'] as num).toInt());
+      final end =
+          DateTime.fromMillisecondsSinceEpoch((map['endMs'] as num).toInt());
+      return await _uploadSleepSession(start, end);
+    } catch (_) {
+      return null;
+    }
   }
+
+  /// Save the detected sleep with user-adjusted bedtime / wake time.
+  Future<double?> saveAdjustedSleep(DateTime start, DateTime end) =>
+      _uploadSleepSession(start, end);
 
   /// Discard the suggestion so it's not offered again for that night.
   Future<void> dismissSleepSuggestion() async {
@@ -276,24 +289,16 @@ class SleepTrackingService {
     }
   }
 
-  /// Parses a detected-session JSON payload and uploads it once (idempotent by
-  /// wake date). Returns the sleep hours on a successful first upload.
-  Future<double?> _uploadFromJson(String raw) async {
+  /// Uploads a sleep session for [start]..[end] — backend entry + Health Connect
+  /// write — then clears the pending suggestion and marks the wake-day saved.
+  /// Shared by "save as detected" and "save adjusted"; hours are derived from
+  /// the (possibly user-edited) start/end.
+  Future<double?> _uploadSleepSession(DateTime start, DateTime end) async {
     try {
-      final map = jsonDecode(raw) as Map<String, dynamic>;
-      final startMs = (map['startMs'] as num).toInt();
-      final endMs = (map['endMs'] as num).toInt();
-      final hours = (map['hours'] as num).toDouble();
-      final quality = map['quality'] as String? ?? _qualityFor(hours);
-      final start = DateTime.fromMillisecondsSinceEpoch(startMs);
-      final end = DateTime.fromMillisecondsSinceEpoch(endMs);
+      if (!end.isAfter(start)) return null;
+      final hours = end.difference(start).inMinutes / 60.0;
+      final quality = _qualityFor(hours);
       final wakeDate = _dateStr(end);
-
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.reload();
-      if (prefs.getString(_kUploadedWakeDate) == wakeDate) {
-        return null; // already uploaded this night's sleep
-      }
 
       final userId = await _api.ensureActiveUserId();
       if (userId == null) return null;
@@ -321,6 +326,7 @@ class SleepTrackingService {
       }
 
       if (ok) {
+        final prefs = await SharedPreferences.getInstance();
         await prefs.setString(_kUploadedWakeDate, wakeDate);
         await prefs.remove(_kPendingSleep);
         SyncEvents.instance.notifySynced();
