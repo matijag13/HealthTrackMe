@@ -10,6 +10,7 @@ import '../l10n/l10n.dart';
 import '../models/models.dart';
 import '../services/api_service.dart';
 import '../services/sync_events.dart';
+import '../services/sleep_tracking_service.dart';
 import '../utils/streak.dart';
 import '../widgets/ai_assistant.dart';
 import '../widgets/app_logo.dart';
@@ -153,6 +154,7 @@ class _DashboardScreenState extends State<DashboardScreen>
   bool _loading = true;
   StreakResult _streak = StreakResult.empty;
   int _waterToday = 0;
+  Map<String, dynamic>? _sleepSuggestion;
   static const int _waterGoalMl = 2500;
   bool _onPaceDismissed = false;
   static const _prefsOnPaceDismissed = 'dashboard_onpace_dismissed';
@@ -275,6 +277,7 @@ class _DashboardScreenState extends State<DashboardScreen>
         _loading = false;
       });
       _maybeCelebrateStreak(streak.current);
+      unawaited(_loadSleepSuggestion());
     } catch (e) {
       debugPrint('Dashboard load error: $e');
       setState(() => _loading = false);
@@ -377,6 +380,127 @@ class _DashboardScreenState extends State<DashboardScreen>
     setState(() => _onPaceDismissed = true);
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_prefsOnPaceDismissed, true);
+  }
+
+  Future<void> _loadSleepSuggestion() async {
+    final s = await SleepTrackingService.instance.pendingSleepSuggestion();
+    if (!mounted) return;
+    setState(() => _sleepSuggestion = s);
+  }
+
+  Future<void> _confirmSleep() async {
+    setState(() => _sleepSuggestion = null);
+    await SleepTrackingService.instance.confirmSleepSuggestion();
+    _refresh(); // reload so the Sleep card reflects the saved sleep
+  }
+
+  Future<void> _dismissSleep() async {
+    setState(() => _sleepSuggestion = null);
+    await SleepTrackingService.instance.dismissSleepSuggestion();
+  }
+
+  /// Card offering the phone-detected sleep for the user to confirm — shown
+  /// only when the background detector has a fresh, un-actioned suggestion.
+  Widget _buildSleepSuggestionCard() {
+    final s = _sleepSuggestion;
+    if (s == null) return const SizedBox.shrink();
+    final hours = (s['hours'] as num).toDouble();
+    final hh = hours.floor();
+    final mm = ((hours - hh) * 60).round();
+    final start = s['start'] as DateTime;
+    final end = s['end'] as DateTime;
+    String t(DateTime d) =>
+        '${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
+    const sleep = Color(0xFF7E7BF5);
+    return Column(
+      children: [
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: _surface,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: sleep.withValues(alpha: 0.45)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 42,
+                    height: 42,
+                    decoration: BoxDecoration(
+                      color: sleep.withValues(alpha: 0.16),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.bedtime_rounded,
+                        color: sleep, size: 22),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('Sleep detected last night',
+                            style: TextStyle(
+                                color: _primaryText,
+                                fontSize: 15,
+                                fontWeight: FontWeight.w800)),
+                        const SizedBox(height: 2),
+                        Text('${hh}h ${mm}m  ·  ${t(start)}–${t(end)}',
+                            style: TextStyle(
+                                color: _primaryText.withValues(alpha: 0.6),
+                                fontSize: 12.5)),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              Row(
+                children: [
+                  Expanded(
+                    child: _sleepActionButton('Save',
+                        filled: true, color: sleep, onTap: _confirmSleep),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: _sleepActionButton('Dismiss',
+                        filled: false, color: sleep, onTap: _dismissSleep),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 24),
+      ],
+    );
+  }
+
+  Widget _sleepActionButton(String label,
+      {required bool filled,
+      required Color color,
+      required VoidCallback onTap}) {
+    return Material(
+      color: filled ? color : color.withValues(alpha: 0.12),
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 11),
+          child: Center(
+            child: Text(label,
+                style: TextStyle(
+                    color: filled ? Colors.white : color,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 13)),
+          ),
+        ),
+      ),
+    );
   }
 
   Widget _buildHydrationCard() {
@@ -1529,6 +1653,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                 delegate: SliverChildListDelegate([
                   _buildStreakBanner(),
                   const SizedBox(height: 18),
+                  _buildSleepSuggestionCard(),
                   _buildFavoritesSection(),
                   const SizedBox(height: 24),
                   _buildOnPaceCard(),

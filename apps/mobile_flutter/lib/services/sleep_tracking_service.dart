@@ -39,6 +39,7 @@ class SleepTrackingService {
   static const String _kPendingActivities = 'activity_pending_json';
   static const String _kLastWakeDate = 'sleep_last_wake_date';
   static const String _kUploadedWakeDate = 'sleep_uploaded_wake_date';
+  static const String _kDismissedWakeDate = 'sleep_dismissed_wake_date';
 
   static const String _channelId = 'sleep_tracking';
   static const String _channelName = 'Sleep tracking';
@@ -79,7 +80,10 @@ class SleepTrackingService {
         return;
       }
     } catch (_) {}
-    _uploadFromJson(data);
+    // Sleep is NOT auto-logged anymore — the background isolate already stashed
+    // it as a pending suggestion. Just nudge any open screen to surface the
+    // "save this sleep?" card (see pendingSleepSuggestion).
+    SyncEvents.instance.notifySynced();
   }
 
   Future<bool> isRunning() async {
@@ -192,20 +196,83 @@ class SleepTrackingService {
   /// Uploads any sleep session the background isolate detected while the app was
   /// closed. Call on app resume. Returns the human-readable hours if a fresh
   /// session was uploaded (so the UI can surface a suggestion), else null.
-  Future<double?> processPending() async {
-    if (kIsWeb) return null;
-    // Drain any background-detected walks/runs too (fire-and-forget).
+  /// Drains background-detected sessions on app open/resume. Walks/runs upload
+  /// automatically; SLEEP does NOT — it's surfaced as a suggestion the user
+  /// confirms (see [pendingSleepSuggestion]). We just nudge the UI so the
+  /// "save this sleep?" card appears when a suggestion is waiting.
+  Future<void> processPending() async {
+    if (kIsWeb) return;
     unawaited(_processPendingActivities());
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.reload(); // pick up the background isolate's write
+      if ((prefs.getString(_kPendingSleep) ?? '').isNotEmpty) {
+        SyncEvents.instance.notifySynced();
+      }
+    } catch (e) {
+      debugPrint('processPending failed: $e');
+    }
+  }
+
+  // ----- Sleep suggestion (user-confirmed, not auto-logged) -----------------
+
+  /// Last night's *detected but not-yet-saved* sleep, as a suggestion
+  /// {start, end, hours, quality} — or null if nothing is pending (or the user
+  /// already saved/dismissed that night).
+  Future<Map<String, dynamic>?> pendingSleepSuggestion() async {
+    if (kIsWeb) return null;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.reload();
       final raw = prefs.getString(_kPendingSleep);
       if (raw == null || raw.isEmpty) return null;
-      final hours = await _uploadFromJson(raw);
-      return hours;
+      final map = jsonDecode(raw) as Map<String, dynamic>;
+      final startMs = (map['startMs'] as num).toInt();
+      final endMs = (map['endMs'] as num).toInt();
+      final hours = (map['hours'] as num).toDouble();
+      final end = DateTime.fromMillisecondsSinceEpoch(endMs);
+      final wakeDate = _dateStr(end);
+      if (prefs.getString(_kUploadedWakeDate) == wakeDate) return null;
+      if (prefs.getString(_kDismissedWakeDate) == wakeDate) return null;
+      return {
+        'start': DateTime.fromMillisecondsSinceEpoch(startMs),
+        'end': end,
+        'hours': hours,
+        'quality': map['quality'] as String? ?? _qualityFor(hours),
+      };
     } catch (e) {
-      debugPrint('processPending sleep failed: $e');
+      debugPrint('pendingSleepSuggestion failed: $e');
       return null;
+    }
+  }
+
+  /// Save the pending detected sleep (upload + write to Health Connect).
+  Future<double?> confirmSleepSuggestion() async {
+    if (kIsWeb) return null;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.reload();
+    final raw = prefs.getString(_kPendingSleep);
+    if (raw == null || raw.isEmpty) return null;
+    return _uploadFromJson(raw);
+  }
+
+  /// Discard the suggestion so it's not offered again for that night.
+  Future<void> dismissSleepSuggestion() async {
+    if (kIsWeb) return;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.reload();
+      final raw = prefs.getString(_kPendingSleep);
+      if (raw != null && raw.isNotEmpty) {
+        final map = jsonDecode(raw) as Map<String, dynamic>;
+        final end =
+            DateTime.fromMillisecondsSinceEpoch((map['endMs'] as num).toInt());
+        await prefs.setString(_kDismissedWakeDate, _dateStr(end));
+      }
+      await prefs.remove(_kPendingSleep);
+      SyncEvents.instance.notifySynced();
+    } catch (e) {
+      debugPrint('dismissSleepSuggestion failed: $e');
     }
   }
 
