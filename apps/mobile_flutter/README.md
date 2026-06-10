@@ -1,176 +1,218 @@
-# Flutter Frontend za HealthTrackMe
+﻿# HealthTrackMe Flutter App
 
-Responsive Flutter frontend za HealthTrackMe. Deluje v brskalniku, na Android emulatorju in na fizičnem telefonu, ko je pravilno nastavljen API URL.
+Flutter frontend for HealthTrackMe. The app provides the user-facing mobile experience for logging health data, syncing wearable data, viewing dashboards and reports, managing medicines, editing profile/preferences, switching language, and using social/Health Shield features.
 
-## 📱 Zasloni aplikacije
+## Current App Surface
 
-1. **Domov (Dashboard)** - zdravstveni indeks, dnevni stats, zdravila, opozorila in stanje sinhronizacije
-2. **Dnevnik** - vnos razpoloženja, energije, simptomov, stresa in opomb
-3. **Zdravila** - seznam terapije
-4. **Poročila** - mesečni povzetek s trendi
-5. **Nastavitve** - nastavitev backend URL-ja in test povezave
+The current route tree is defined in `lib/config/app_router.dart` and includes:
 
-## 🎨 Design
+- `/auth` - login/register flow
+- `/onboarding` - onboarding screen
+- `/home` - dashboard
+- `/log` - diary and manual health logging
+- `/health` - tabbed health area
+- `/health/vitals` - vitals detail page
+- `/health/activity` - activity detail page
+- `/health/sleep` - sleep detail page
+- `/health/history` - reports/history
+- `/meds` - medicines
+- `/meds/add` - add medicine
+- `/meds/detail/:id` - medicine detail
+- `/profile` - profile and preferences
+- `/profile/edit` - edit profile
+- `/profile/medical-history` - medical history
+- `/profile/export` - export data
+- `/wearables` - wearable/device sync
+- `/health-shield` - Health Shield progress
+- `/friends` - friends and leaderboard
+- `/diary/:date` - date-specific diary entry view
 
-Aplikacija je oblikovana na podlagi mockupa s sledeči barvnega shemo:
+There are no old hidden dashboard routes in the current app.
 
-- **Navy**: #1A3A5C (glavni)
-- **Blue**: #4A90D9 (akcije)
-- **Teal**: #2EC4B6 (akcenti)
-- **Pisava**: DM Sans
+## Main Features
 
-## 📦 Setup in Installation
+- Email/password and Google Sign-In authentication.
+- Dashboard with current health summary, Health Shield, medicines, reminders, friends access, and quick navigation.
+- Diary/logging screen for wellbeing, symptoms, vitals, sleep, water, notes, and activity-related inputs.
+- Health tabs for vitals, activity, sleep, and historical reports.
+- Medicine management with reminder times, adherence, dose tracking, and local notifications.
+- Wearables/device screen for permissions, Health Connect sync, connected devices, and sync events.
+- Health Shield and gamified progress surfaces.
+- Friends and leaderboard screens.
+- Profile editing, profile photo upload, preferences, medical history, export, and account actions.
+- Localization for English and Slovenian through ARB files.
+- Foreground sync while the app is open plus background sync through Workmanager where supported.
+- Sleep/activity detection support through foreground task and sensor services.
 
-### Predpogoji
+## Stack
 
-- Flutter SDK 3.0+
-- Android Studio ali vsaj Android platform tools, če boš uporabljal emulator/telefon
-- Chrome ali Edge za web testiranje
+| Area | Package/Tool |
+| --- | --- |
+| Routing | `go_router` |
+| State | `provider`, local `ChangeNotifier`s, stateful screens |
+| API | `http`, `ApiService` singleton |
+| Charts | `fl_chart`, `percent_indicator` |
+| Device health | `health`, `pedometer`, `flutter_activity_recognition`, `flutter_foreground_task` |
+| Notifications | `flutter_local_notifications`, `timezone`, `flutter_timezone` |
+| Local state | `shared_preferences` |
+| Auth | `google_sign_in`, `google_sign_in_web` |
+| UI polish | `google_fonts`, `flex_color_scheme`, `lottie`, `shimmer`, `flutter_slidable` |
+| Media | `image_picker` |
 
-### Če platforme še niso generirane
+## Directory Structure
 
-Če v mapi še nimaš `android/`, `web/` ali drugih platformskih map, enkrat zaženi:
-
-```bash
-flutter create .
+```text
+apps/mobile_flutter/
+├── lib/
+│   ├── config/        router, theme, locale, auth config
+│   ├── l10n/          ARB files and generated localizations
+│   ├── models/        data models
+│   ├── screens/       app screens and route pages
+│   ├── services/      API, auth, sync, notifications, sensors
+│   ├── utils/         helpers
+│   └── widgets/       shared UI widgets
+├── assets/
+│   └── images/logo_1024.png
+├── test/              widget, model, and service tests
+├── android/ ios/ web/ macos/ linux/ windows/
+└── pubspec.yaml
 ```
 
-To ustvari manjkajoči Flutter scaffold. Potem lahko normalno uporabljaš `flutter run`, `flutter build apk` in `flutter build web`.
+## Local Setup
 
-### Installation
+### Prerequisites
 
-```bash
-# Instaliraj odvisnosti
+- Flutter stable SDK
+- Android Studio or Android SDK tools for Android builds
+- A device/emulator for Android testing
+- Chrome/Edge for web testing
+- Backend API running locally or deployed
+
+Check environment:
+
+```powershell
+flutter doctor
+```
+
+Install dependencies:
+
+```powershell
+cd apps/mobile_flutter
 flutter pub get
+```
 
-# Zaženi na računalniku v brskalniku (Chrome ali Edge)
-flutter run -d chrome
+## API Configuration
 
-# Zaženi na Android emulatorju ali telefonu
+The API base URL is controlled by `ApiService`.
+
+Current defaults:
+
+- Web: `http://localhost:8080/api/v1`
+- Android: `https://healthtrackme-production.up.railway.app/api/v1`
+- Other platforms: `http://localhost:8080/api/v1`
+
+The app stores the active user id and JWT token in `SharedPreferences`.
+
+## Google Sign-In
+
+For web/local runs, pass the Google web client id:
+
+```powershell
+flutter run -d edge --web-port=52145 --dart-define="GOOGLE_WEB_CLIENT_ID=your-web-client-id.apps.googleusercontent.com"
+```
+
+`GOOGLE_WEB_CLIENT_ID` must be the Web OAuth Client ID. Flutter uses it as the Google Sign-In `serverClientId`.
+
+The helper script reads this from the root `.env` file:
+
+```powershell
+./scripts/run-flutter-local.ps1
+```
+
+The backend variable `GOOGLE_OAUTH_ALLOWED_CLIENT_IDS` must contain the same Web OAuth Client ID so the API can verify Google Sign-In tokens.
+
+## Run the App
+
+Web:
+
+```powershell
+cd apps/mobile_flutter
+flutter run -d edge --web-port=52145 --dart-define="GOOGLE_WEB_CLIENT_ID=your-web-client-id.apps.googleusercontent.com"
+```
+
+Android debug:
+
+```powershell
 flutter run
-
-# Build APK za Android
-flutter build apk --release
-
-# Build web verzije
-flutter build web --release
 ```
 
-## 🔧 Arhitektura
+Release APK:
 
-```
-lib/
-├── main.dart                 # Glavna aplikacija
-├── config/
-│   └── theme.dart           # Tema, barve in stili
-├── screens/
-│   ├── dashboard_screen.dart # Domov
-│   ├── log_screen.dart       # Dnevnik
-│   └── reports_screen.dart   # Poročila
-├── widgets/
-│   └── widgets.dart          # Prilagojeni UI komponente
-├── models/
-│   └── models.dart           # Podatkovni modeli
-├── services/
-│   └── api_service.dart      # API integracijo s backendo
-└── utils/
-    └── ...                    # Pomožne funkcije
+```powershell
+flutter build apk --release --dart-define="GOOGLE_WEB_CLIENT_ID=your-web-client-id.apps.googleusercontent.com"
 ```
 
-## 🔗 API Integracija
+## Localization
 
-Aplikacija uporablja `ApiService`, ki si zapomni backend URL.
+Source files:
 
-### Privzete vrednosti
+- `lib/l10n/app_en.arb`
+- `lib/l10n/app_sl.arb`
 
-- **Brskalnik / računalnik:** `http://localhost:8080/api`
-- **Android emulator:** `http://10.0.2.2:8080/api`
-- **Fizični telefon:** nastavi LAN IP računalnika v zavihku **Nastavitve**
+Generated files are in `lib/l10n/`. If localization files change, run:
 
-Če backend teče na istem računalniku, lahko URL spremeniš v aplikaciji v zavihku **Nastavitve**.
+```powershell
+flutter gen-l10n
+```
 
-### Uporabljeni endpoints
+The app exposes language switching through the profile/preferences flow using `LocaleProvider`.
 
-- `GET /api/health-entries` - Pridobi vnose o zdravju
-- `POST /api/health-entries` - Ustvari nov vnos
-- `GET /api/medicines` - Pridobi seznam zdravil
-- `GET /api/health-alerts` - Pridobi opozorila
-- `GET /api/reports/monthly` - Pridobi mesečno poročilo
+## Assets and Icons
 
-Če backend trenutno ni dosegljiv, frontend uporablja demo podatke, da lahko UI še vedno preizkušaš.
+The app currently keeps `assets/images/logo_1024.png` as the launcher icon source. App icons are configured through `flutter_launcher_icons` in `pubspec.yaml`.
 
-## 📚 State Management
+Regenerate launcher icons after replacing the logo:
 
-Trenutno: enostaven `ApiService` singleton + `StatefulWidget`
+```powershell
+dart run flutter_launcher_icons
+```
 
-Priporočilo za kasnejšo nadgradnjo: Provider ali Riverpod
+## Testing and Quality Checks
 
-## 🧪 Testiranje
-
-Frontend vsebuje widget test v datoteki `test/widget_test.dart`.
-
-Test preverja:
-
-- uspešen zagon aplikacije
-- prisotnost `BottomNavigationBar`
-- navigacijo med zavihki
-- prikaz placeholderja za zaslon z zdravili (Medicines screen placeholder)
-
-Ukazi za preverjanje in testiranje kode:
-
-```bash
-flutter test
+```powershell
+cd apps/mobile_flutter
+dart format --output=none --set-exit-if-changed .
 flutter analyze
-dart format .
+flutter test
 ```
 
-## 🔄 Frontend CI/CD
+Expected checks:
 
-Projekt ima vzpostavljen GitHub Actions workflow za frontend:
-`.github/workflows/frontend-ci.yml`
+- `flutter analyze` passes
+- `flutter test` passes
 
-Pipeline se sproži ob vsaki spremembi v mapi `apps/mobile_flutter/**`.
+## Android/Firebase Distribution
 
-Pipeline izvaja naslednje korake:
+Release distribution is automated through `.github/workflows/android-distribute.yml`.
+
+The workflow builds a signed APK and uploads it to Firebase App Distribution. Required secrets:
+
+- `KEYSTORE_BASE64`
+- `KEYSTORE_PASSWORD`
+- `KEY_ALIAS`
+- `KEY_PASSWORD`
+- `GOOGLE_WEB_CLIENT_ID`
+- `FIREBASE_SERVICE_ACCOUNT`
+
+The workflow runs on `develop` changes under `apps/mobile_flutter/**` or manual dispatch.
+
+## Frontend CI
+
+GitHub Actions workflow: `.github/workflows/frontend-ci.yml`
+
+The pipeline runs:
 
 - `flutter pub get`
 - `dart format --output=none --set-exit-if-changed .`
 - `flutter analyze`
 - `flutter test`
-- `flutter build apk --debug`
-- upload debug APK artifacta
-
-## 🚀 Naslednji koraki
-
-1. [x] Implementacija osnovnih zaslonov
-2. [x] Nastavitve za API URL
-3. [x] Demo fallback podatki
-4. [ ] Dodajanje animacij in transitions
-5. [ ] Offline mode / caching za shranjene vnose
-6. [x] Unit in widget testi
-7. [x] CI/CD pipeline
-
-## ▶️ Hiter zagon
-
-```bash
-cd apps/mobile_flutter
-flutter pub get
-flutter run -d chrome
-```
-
-### Na fizičnem telefonu
-
-1. Zaženi backend na računalniku.
-2. Preveri IP računalnika v lokalnem omrežju.
-3. V aplikaciji odpri **Nastavitve** in vpiši URL npr. `http://192.168.1.20:8080`.
-4. Shrani in klikni **Test povezave**.
-
-### Na emulatorju
-
-1. Android emulator naj bo zagnan.
-2. Zaženi `flutter run`.
-3. Če je potrebno, v **Nastavitvah** uporabi `http://10.0.2.2:8080`.
-
-## 📝 Licence
-
-Projekt je del praktikuma na FERI
