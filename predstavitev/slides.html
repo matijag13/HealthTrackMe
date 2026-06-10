@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="sl">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>HealthTrackMe — predstavitev</title>
+<style>
+  :root{--bg:#070B13;--surface:#0F1624;--alt:#121B2C;--border:#243047;--text:#F5F7FB;
+    --muted:#94A3B8;--accent:#5B8DEF;--green:#5FB878;--sleep:#7E7BF5;--water:#3FA9F5;--orange:#D4956A;--danger:#FF6B6B}
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{background:radial-gradient(1200px 700px at 70% -10%,rgba(91,141,239,.18),transparent),
+        radial-gradient(900px 600px at 0% 110%,rgba(126,123,245,.14),transparent),var(--bg);
+    color:var(--text);font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;overflow:hidden}
+  .deck{height:100vh;width:100vw;position:relative}
+  .slide{position:absolute;inset:0;display:none;flex-direction:column;justify-content:center;
+    padding:8vh 9vw;animation:fade .35s ease}
+  .slide.on{display:flex}
+  @keyframes fade{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+  .kicker{color:var(--accent);font-weight:800;letter-spacing:3px;font-size:14px;text-transform:uppercase;margin-bottom:18px}
+  h1{font-size:64px;font-weight:900;letter-spacing:-1.5px;line-height:1.02}
+  h2{font-size:40px;font-weight:900;letter-spacing:-.6px;margin-bottom:28px}
+  .lead{font-size:22px;color:var(--muted);margin-top:18px;max-width:880px;line-height:1.5}
+  .grad{background:linear-gradient(120deg,#5B8DEF,#7E7BF5 60%,#3FA9F5);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .author{margin-top:42px;color:var(--muted);font-size:17px}
+  .author b{color:var(--text)}
+  .cards{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:8px;max-width:980px}
+  .c{background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:22px 24px}
+  .c .ic{font-size:26px}.c h3{font-size:20px;margin:10px 0 6px}.c p{color:var(--muted);font-size:15px;line-height:1.5}
+  .feat{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-top:8px;max-width:1060px}
+  .feat .c{padding:16px 18px}
+  .feat h3{font-size:17px;margin:8px 0 4px}.feat p{color:var(--muted);font-size:13px;line-height:1.4}
+  .d{width:14px;height:14px;border-radius:50%;display:inline-block}
+  .arch{display:flex;align-items:stretch;gap:16px;margin-top:6px;flex-wrap:wrap}
+  .node{flex:1;min-width:200px;background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:20px 22px}
+  .node .t{font-weight:900;font-size:18px}.node .s{color:var(--muted);font-size:14px;margin-top:8px;line-height:1.5}
+  .node small{display:block;color:#3b4a63;font-size:12px;margin-top:10px;letter-spacing:.5px}
+  .stack{display:flex;flex-wrap:wrap;gap:10px;margin-top:26px}
+  .chip{background:var(--alt);border:1px solid var(--border);border-radius:999px;padding:9px 16px;font-size:14px;font-weight:700;color:var(--muted)}
+  .pills{display:flex;flex-wrap:wrap;gap:12px;margin-top:8px;max-width:1040px}
+  .pill{border-radius:14px;padding:12px 16px;font-size:15px;font-weight:800;border:1px solid var(--border)}
+  .done{background:rgba(95,184,120,.14);color:var(--green)}
+  .next{background:rgba(212,149,106,.14);color:var(--orange)}
+  .demo{display:inline-flex;align-items:center;gap:14px;background:linear-gradient(120deg,rgba(91,141,239,.2),rgba(126,123,245,.2));
+    border:1px solid var(--accent);border-radius:18px;padding:20px 26px;font-size:24px;font-weight:900;margin:6px 0 26px}
+  .foot{position:absolute;bottom:26px;left:0;right:0;display:flex;justify-content:space-between;
+    padding:0 9vw;color:#3b4a63;font-size:13px;font-weight:700}
+  .dots{display:flex;gap:8px}.dot{width:9px;height:9px;border-radius:50%;background:#243047}.dot.on{background:var(--accent);width:24px;border-radius:6px}
+  .lessons{margin-top:22px;color:var(--muted);font-size:16px;line-height:1.7;max-width:980px}
+  .lessons b{color:var(--text)}
+</style>
+</head>
+<body>
+<div class="deck" id="deck">
+
+  <!-- 1 -->
+  <section class="slide on">
+    <div class="kicker">Praktikum 2 · FERI · 2025/26</div>
+    <h1>Health<span class="grad">TrackMe</span></h1>
+    <div class="lead">Tvoje zdravje, ki se spremlja <b style="color:#fff">samodejno</b> — brez ročnega vnašanja.
+      Koraki, spanje, srčni utrip in vadbe se iz telefona &amp; ure pretočijo na eno mesto,
+      nato pa postanejo vpogledi.</div>
+    <div class="author">avtorja <b>Matija Gusel &amp; Anej Vollmeier</b> &nbsp;·&nbsp; Flutter · Spring Boot · PostgreSQL · Railway</div>
+  </section>
+
+  <!-- 2 -->
+  <section class="slide">
+    <div class="kicker">Ideja</div>
+    <h2>Ročno beleženje zdravja je zamudno — zato ga ne počnemo.</h2>
+    <div class="cards">
+      <div class="c"><div class="ic">🔄</div><h3>Samodejna sinhronizacija</h3><p>Bere korake, srčni utrip, spanje &amp; vadbe iz Health Connecta — v ospredju in v ozadju. Brez tipkanja.</p></div>
+      <div class="c"><div class="ic">😴</div><h3>Zaznavanje na napravi</h3><p>Iz samega telefona zazna nočno spanje ter sprehode in teke, nato jih <i>predlaga</i> v potrditev.</p></div>
+      <div class="c"><div class="ic">✨</div><h3>Vpogledi in svetovanje</h3><p>Tedenski UI-povzetki in pomočnik »vprašaj svoje podatke«, z e-poštnimi poročili — na podlagi tvojih trendov.</p></div>
+      <div class="c"><div class="ic">🛡️</div><h3>Navade in igrifikacija</h3><p>Nizi, raven Zdravstvenega ščita, opomniki za zdravila in lestvica prijateljev te ohranjajo pri beleženju.</p></div>
+    </div>
+  </section>
+
+  <!-- 3 -->
+  <section class="slide">
+    <div class="kicker">Kaj ponuja</div>
+    <h2>Vse tvoje zdravje na enem mestu</h2>
+    <div class="feat">
+      <div class="c"><span class="d" style="background:#5B8DEF"></span><h3>Nadzorna plošča</h3><p>Pregled dneva in priljubljene kartice</p></div>
+      <div class="c"><span class="d" style="background:#5FB878"></span><h3>Aktivnost</h3><p>Koraki, hoja, tek in kolesarjenje</p></div>
+      <div class="c"><span class="d" style="background:#7E7BF5"></span><h3>Spanje</h3><p>Nočno spanje in cilj 7 h</p></div>
+      <div class="c"><span class="d" style="background:#FF6B6B"></span><h3>Vitalni znaki</h3><p>Utrip, stres, krvni tlak, SpO₂</p></div>
+      <div class="c"><span class="d" style="background:#D4956A"></span><h3>Zdravila</h3><p>Urnik, odmerki in opomniki</p></div>
+      <div class="c"><span class="d" style="background:#3FA9F5"></span><h3>Hidracija</h3><p>Dnevni vnos vode</p></div>
+      <div class="c"><span class="d" style="background:#5B8DEF"></span><h3>Vpogledi &amp; trendi</h3><p>Tedenski UI-povzetki</p></div>
+      <div class="c"><span class="d" style="background:#7E7BF5"></span><h3>Ščit &amp; nizi</h3><p>Ravni, XP in nizi (streaki)</p></div>
+      <div class="c"><span class="d" style="background:#5FB878"></span><h3>Prijatelji</h3><p>Lestvica in primerjava</p></div>
+    </div>
+  </section>
+
+  <!-- 4 -->
+  <section class="slide">
+    <div class="kicker">Kako je zgrajeno</div>
+    <h2>Čista, večplastna arhitektura</h2>
+    <div class="arch">
+      <div class="node"><div class="t">📱 Aplikacija Flutter</div><div class="s">Material UI za Android, go_router. Storitvi za sinhronizacijo v ospredju &amp; ozadju + zaznavanje na napravi.</div><small>HEALTH CONNECT · WORKMANAGER</small></div>
+      <div class="node"><div class="t">⚙️ Spring Boot · Kotlin</div><div class="s">REST API, avtentikacija JWT z lastništvom na uporabnika, JPA/ORM, migracije Flyway. Vpogledi Groq/LLM + e-pošta.</div><small>RAILWAY</small></div>
+      <div class="node"><div class="t">🗄️ PostgreSQL</div><div class="s">En vnos na dan za vitalne znake/spanje, aktivnosti, zdravila, vpoglede — verzionirana shema.</div><small>UPRAVLJA FLYWAY</small></div>
+    </div>
+    <div class="stack">
+      <span class="chip">Flutter</span><span class="chip">Kotlin / Spring Boot</span><span class="chip">PostgreSQL</span>
+      <span class="chip">Health Connect</span><span class="chip">JWT + prijava Google</span><span class="chip">Groq · Llama 3.3</span>
+      <span class="chip">E-pošta Brevo</span><span class="chip">GitHub Actions → Firebase</span><span class="chip">Railway</span>
+    </div>
+  </section>
+
+  <!-- 5 -->
+  <section class="slide">
+    <div class="kicker">V živo</div>
+    <div class="demo">▶ &nbsp;Demo v živo — prijava &amp; sprehod skozi aplikacijo</div>
+    <div class="pills">
+      <span class="pill done">✅ Samodejna sinhronizacija in zgodovina</span>
+      <span class="pill done">✅ Zaznavanje spanja in hoje</span>
+      <span class="pill done">✅ Pregledni grafi in dnevne kartice</span>
+      <span class="pill done">✅ UI vpogledi in tedenska e-pošta</span>
+      <span class="pill next">🔶 HRV iz Health Connecta</span>
+      <span class="pill next">🔶 Obvestila s predlogi v ozadju</span>
+    </div>
+    <div class="lessons">
+      <b>Kaj smo se naučili:</b> najtežji hrošč ni bil funkcija — sinhronizacija je delovala v razhroščevalni
+      različici, a je v <i>izdani</i> tiho odpovedala (manjkajoče dovoljenje v manifestu). Pravo vrednost je prineslo
+      testiranje na <b>svežem računu</b>, ne na razvijalčevem. CI samodejno zgradi &amp; pošlje APK testerjem; zaledje se samo namesti na Railway.
+    </div>
+  </section>
+
+  <div class="foot">
+    <span>HealthTrackMe</span>
+    <span class="dots" id="dots"></span>
+    <span id="pg">1 / 5</span>
+  </div>
+</div>
+
+<script>
+  const slides=[...document.querySelectorAll('.slide')];let i=0;
+  const dots=document.getElementById('dots');
+  slides.forEach((_,k)=>{const d=document.createElement('span');d.className='dot'+(k===0?' on':'');dots.appendChild(d);});
+  function show(n){i=Math.max(0,Math.min(slides.length-1,n));
+    slides.forEach((s,k)=>s.classList.toggle('on',k===i));
+    [...dots.children].forEach((d,k)=>d.classList.toggle('on',k===i));
+    document.getElementById('pg').textContent=(i+1)+' / '+slides.length;}
+  document.addEventListener('keydown',e=>{if(['ArrowRight',' ','PageDown','Enter'].includes(e.key))show(i+1);
+    if(['ArrowLeft','PageUp','Backspace'].includes(e.key))show(i-1);
+    if(e.key==='f'||e.key==='F'){if(!document.fullscreenElement)document.documentElement.requestFullscreen();else document.exitFullscreen();}});
+  document.getElementById('deck').addEventListener('click',e=>{show(i+(e.clientX>window.innerWidth*0.35?1:-1));});
+</script>
+</body>
+</html>
