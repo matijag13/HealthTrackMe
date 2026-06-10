@@ -1,0 +1,20 @@
+HealthTrackMe
+
+Osebna zdravstvena platforma za beleženje počutja, zdravil, aktivnosti in vpogledov v zdravje z mobilno aplikacijo ter zalednim API-jem.
+
+Leto izdelave: 2026
+
+Matija Gusel  
+Anej Vollmeier
+
+Domača stran: https://healthtrackme-production.up.railway.app/  
+Vir podatkov: uporabniški vnosi, podatki iz naprave/Health Connect, senzorji telefona  
+Koda: https://github.com/matijag13/HealthTrackMe
+
+Kategorizacija: celovita informacijska rešitev, mobilna aplikacija
+
+Oznake: Flutter, Dart, Kotlin, SpringBoot, PostgreSQL, Flyway, REST, JWT, GoogleSignIn, HealthConnect, Docker, Railway, Firebase, GitHubActions, UporabaAI, Groq, MobilnaAplikacija, Zdravje
+
+HealthTrackMe je celovita rešitev za osebno spremljanje zdravja. Uporabniku omogoča registracijo in prijavo, ročno beleženje zdravstvenih podatkov, spremljanje počutja, simptomov, vitalnih znakov, spanja, vnosa vode, zdravil in športnih aktivnosti. Aplikacija podpira tudi opomnike za zdravila, pregled adherentnosti, izvoz podatkov ter zgodovinske grafe in poročila.
+
+Mobilni del je razvit v Flutterju, zaledje pa predstavlja Kotlin/Spring Boot REST API s podatkovno bazo PostgreSQL. Sistem vključuje avtentikacijo z JWT in Google prijavo, migracije podatkovne baze s Flyway ter sinhronizacijo podatkov iz podprtih zdravstvenih virov, kot je Health Connect. Poseben del rešitve je Health Shield, ki uporabniku prikazuje napredek in konsistentnost, ter AI Health Detective, ki na podlagi zbranih podatkov pripravi zdravstvene vpoglede oziroma uporablja pravila, kadar AI storitev ni nastavljena. v nekaj odstavkih / vrsticah (cca 150 besed)
