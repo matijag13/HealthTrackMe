@@ -3,7 +3,6 @@ import '../screens/medicines_screen.dart';
 import '../screens/profile_screen.dart';
 import '../screens/auth_screen.dart';
 import '../screens/dashboard_screen.dart';
-import '../screens/dashboard_dark_mode.dart';
 import '../screens/log_screen.dart';
 import '../screens/main_app.dart';
 import '../screens/reports_screen.dart';
@@ -45,11 +44,6 @@ GoRouter createAppRouter() {
         path: '/onboarding',
         name: 'onboarding',
         builder: (context, state) => const OnboardingScreen(),
-      ),
-      GoRoute(
-        path: '/dark-dashboard',
-        name: 'darkDashboard',
-        builder: (context, state) => const DarkModeDashboardScreen(),
       ),
       GoRoute(
         path: '/friends',
