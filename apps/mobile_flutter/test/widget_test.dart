@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:healthtrackme/config/app_router.dart';
+import 'package:healthtrackme/config/locale_provider.dart';
 import 'package:healthtrackme/config/theme.dart';
 import 'package:healthtrackme/config/locale_provider.dart';
 import 'package:healthtrackme/main.dart';

@@ -65,7 +65,7 @@ lib/
 │   └── theme.dart           # Tema, barve in stili
 ├── screens/
 │   ├── dashboard_screen.dart # Domov
-│   ├── diary_screen.dart     # Dnevnik
+│   ├── log_screen.dart       # Dnevnik
 │   └── reports_screen.dart   # Poročila
 ├── widgets/
 │   └── widgets.dart          # Prilagojeni UI komponente
