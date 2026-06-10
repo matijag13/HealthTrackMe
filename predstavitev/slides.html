@@ -1,151 +1,746 @@
 <!doctype html>
 <html lang="sl">
-<head>
-<meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>HealthTrackMe — predstavitev</title>
-<style>
-  :root{--bg:#070B13;--surface:#0F1624;--alt:#121B2C;--border:#243047;--text:#F5F7FB;
-    --muted:#94A3B8;--accent:#5B8DEF;--green:#5FB878;--sleep:#7E7BF5;--water:#3FA9F5;--orange:#D4956A;--danger:#FF6B6B}
-  *{box-sizing:border-box;margin:0;padding:0}
-  html,body{height:100%}
-  body{background:radial-gradient(1200px 700px at 70% -10%,rgba(91,141,239,.18),transparent),
-        radial-gradient(900px 600px at 0% 110%,rgba(126,123,245,.14),transparent),var(--bg);
-    color:var(--text);font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;overflow:hidden}
-  .deck{height:100vh;width:100vw;position:relative}
-  .slide{position:absolute;inset:0;display:none;flex-direction:column;justify-content:center;
-    padding:8vh 9vw;animation:fade .35s ease}
-  .slide.on{display:flex}
-  @keyframes fade{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
-  .kicker{color:var(--accent);font-weight:800;letter-spacing:3px;font-size:14px;text-transform:uppercase;margin-bottom:18px}
-  h1{font-size:64px;font-weight:900;letter-spacing:-1.5px;line-height:1.02}
-  h2{font-size:40px;font-weight:900;letter-spacing:-.6px;margin-bottom:28px}
-  .lead{font-size:22px;color:var(--muted);margin-top:18px;max-width:880px;line-height:1.5}
-  .grad{background:linear-gradient(120deg,#5B8DEF,#7E7BF5 60%,#3FA9F5);-webkit-background-clip:text;background-clip:text;color:transparent}
-  .author{margin-top:42px;color:var(--muted);font-size:17px}
-  .author b{color:var(--text)}
-  .cards{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:8px;max-width:980px}
-  .c{background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:22px 24px}
-  .c .ic{font-size:26px}.c h3{font-size:20px;margin:10px 0 6px}.c p{color:var(--muted);font-size:15px;line-height:1.5}
-  .feat{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-top:8px;max-width:1060px}
-  .feat .c{padding:16px 18px}
-  .feat h3{font-size:17px;margin:8px 0 4px}.feat p{color:var(--muted);font-size:13px;line-height:1.4}
-  .d{width:14px;height:14px;border-radius:50%;display:inline-block}
-  .arch{display:flex;align-items:stretch;gap:16px;margin-top:6px;flex-wrap:wrap}
-  .node{flex:1;min-width:200px;background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:20px 22px}
-  .node .t{font-weight:900;font-size:18px}.node .s{color:var(--muted);font-size:14px;margin-top:8px;line-height:1.5}
-  .node small{display:block;color:#3b4a63;font-size:12px;margin-top:10px;letter-spacing:.5px}
-  .stack{display:flex;flex-wrap:wrap;gap:10px;margin-top:26px}
-  .chip{background:var(--alt);border:1px solid var(--border);border-radius:999px;padding:9px 16px;font-size:14px;font-weight:700;color:var(--muted)}
-  .pills{display:flex;flex-wrap:wrap;gap:12px;margin-top:8px;max-width:1040px}
-  .pill{border-radius:14px;padding:12px 16px;font-size:15px;font-weight:800;border:1px solid var(--border)}
-  .done{background:rgba(95,184,120,.14);color:var(--green)}
-  .next{background:rgba(212,149,106,.14);color:var(--orange)}
-  .demo{display:inline-flex;align-items:center;gap:14px;background:linear-gradient(120deg,rgba(91,141,239,.2),rgba(126,123,245,.2));
-    border:1px solid var(--accent);border-radius:18px;padding:20px 26px;font-size:24px;font-weight:900;margin:6px 0 26px}
-  .foot{position:absolute;bottom:26px;left:0;right:0;display:flex;justify-content:space-between;
-    padding:0 9vw;color:#3b4a63;font-size:13px;font-weight:700}
-  .dots{display:flex;gap:8px}.dot{width:9px;height:9px;border-radius:50%;background:#243047}.dot.on{background:var(--accent);width:24px;border-radius:6px}
-  .lessons{margin-top:22px;color:var(--muted);font-size:16px;line-height:1.7;max-width:980px}
-  .lessons b{color:var(--text)}
-</style>
-</head>
-<body>
-<div class="deck" id="deck">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>HealthTrackMe - predstavitev</title>
+    <style>
+      :root {
+        --bg: #070b13;
+        --surface: #0f1624;
+        --alt: #121b2c;
+        --border: #243047;
+        --text: #f5f7fb;
+        --muted: #94a3b8;
+        --accent: #5b8def;
+        --green: #5fb878;
+        --sleep: #7e7bf5;
+        --water: #3fa9f5;
+        --orange: #d4956a;
+        --danger: #ff6b6b;
+      }
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      html,
+      body {
+        height: 100%;
+      }
+      body {
+        background:
+          radial-gradient(
+            1200px 700px at 70% -10%,
+            rgba(91, 141, 239, 0.18),
+            transparent
+          ),
+          radial-gradient(
+            900px 600px at 0% 110%,
+            rgba(126, 123, 245, 0.14),
+            transparent
+          ),
+          var(--bg);
+        color: var(--text);
+        font-family:
+          -apple-system,
+          Segoe UI,
+          Roboto,
+          Helvetica,
+          Arial,
+          sans-serif;
+        overflow: hidden;
+      }
+      .deck {
+        height: 100vh;
+        width: 100vw;
+        position: relative;
+      }
+      .slide {
+        position: absolute;
+        inset: 0;
+        display: none;
+        flex-direction: column;
+        justify-content: center;
+        padding: 8vh 9vw;
+        animation: fade 0.35s ease;
+        overflow: hidden;
+      }
+      .slide > * {
+        position: relative;
+        z-index: 1;
+      }
+      .slide.on {
+        display: flex;
+      }
+      .slide.top {
+        justify-content: flex-start;
+        padding-top: 7vh;
+      }
+      @keyframes fade {
+        from {
+          opacity: 0;
+          transform: translateY(10px);
+        }
+        to {
+          opacity: 1;
+          transform: none;
+        }
+      }
+      .kicker {
+        color: var(--accent);
+        font-weight: 800;
+        letter-spacing: 3px;
+        font-size: 14px;
+        text-transform: uppercase;
+        margin-bottom: 18px;
+      }
+      h1 {
+        font-size: 64px;
+        font-weight: 900;
+        letter-spacing: -1.5px;
+        line-height: 1.02;
+      }
+      h2 {
+        font-size: 40px;
+        font-weight: 900;
+        letter-spacing: -0.6px;
+        margin-bottom: 28px;
+        max-width: 1060px;
+      }
+      .one-line-title {
+        font-size: 36px;
+        white-space: nowrap;
+        max-width: none;
+      }
+      .lead {
+        font-size: 22px;
+        color: var(--muted);
+        margin-top: 18px;
+        max-width: 880px;
+        line-height: 1.5;
+      }
+      .grad {
+        background: linear-gradient(120deg, #5b8def, #7e7bf5 60%, #3fa9f5);
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+      }
+      .author {
+        margin-top: 42px;
+        color: var(--muted);
+        font-size: 17px;
+      }
+      .author b {
+        color: var(--text);
+      }
+      .title-slide {
+        padding-right: 45vw;
+      }
+      .slide-visual {
+        position: absolute;
+        right: 5vw;
+        top: 50%;
+        z-index: 0;
+        width: min(29vw, 360px);
+        max-height: 82vh;
+        object-fit: contain;
+        opacity: 0.46;
+        transform: translateY(-50%);
+        filter: saturate(0.92) contrast(1.04);
+        pointer-events: none;
+      }
+      .side-slide {
+        align-items: flex-start;
+        padding-right: 38vw;
+      }
+      .side-slide .one-line-title {
+        max-width: 780px;
+        white-space: normal;
+      }
+      .side-slide .cards {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        max-width: 760px;
+      }
+      .side-slide .slide-visual {
+        right: 5vw;
+        width: min(29vw, 360px);
+        opacity: 0.46;
+        transform: translateY(-50%);
+      }
+      .architecture-slide {
+        align-items: flex-start;
+        padding-right: 35vw;
+      }
+      .architecture-slide .arch {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        max-width: 820px;
+      }
+      .architecture-slide .node:last-child {
+        grid-column: 1 / -1;
+      }
+      .architecture-slide .biggrid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        max-width: 820px;
+      }
+      .architecture-slide .big:first-child,
+      .architecture-slide .big:last-child {
+        grid-column: auto;
+      }
+      .architecture-slide .stack {
+        flex-wrap: wrap;
+        max-width: 820px;
+      }
+      .architecture-slide .slide-visual {
+        right: 5vw;
+        width: min(29vw, 360px);
+        opacity: 0.46;
+        transform: translateY(-50%);
+      }
+      .features-slide {
+        align-items: flex-start;
+        padding-right: 35vw;
+      }
+      .features-slide .feat {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        max-width: 820px;
+      }
+      .features-slide .slide-visual {
+        right: 5vw;
+        width: min(29vw, 360px);
+        opacity: 0.46;
+        transform: translateY(-50%);
+      }
+      .cards {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 16px;
+        margin-top: 8px;
+        max-width: 1130px;
+      }
+      .c {
+        background: rgba(15, 22, 36, 0.88);
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 20px 22px;
+        box-shadow: 0 12px 28px rgba(0, 0, 0, 0.12);
+      }
+      .c h3 {
+        font-size: 19px;
+        margin: 0 0 8px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .c p {
+        color: var(--muted);
+        font-size: 15px;
+        line-height: 1.5;
+      }
+      .mark {
+        width: 13px;
+        height: 13px;
+        border-radius: 4px;
+        display: inline-block;
+        flex: 0 0 auto;
+      }
+      .mark.blue {
+        background: var(--accent);
+        color: var(--accent);
+      }
+      .mark.green {
+        background: var(--green);
+        color: var(--green);
+      }
+      .mark.purple {
+        background: var(--sleep);
+        color: var(--sleep);
+      }
+      .mark.orange {
+        background: var(--orange);
+        color: var(--orange);
+      }
+      .mark.red {
+        background: var(--danger);
+        color: var(--danger);
+      }
+      .mark.cyan {
+        background: var(--water);
+        color: var(--water);
+      }
+      .feat {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 14px;
+        margin-top: 8px;
+        max-width: 1120px;
+      }
+      .feat .c {
+        padding: 18px 18px;
+        min-height: 124px;
+      }
+      .feat h3 {
+        font-size: 17px;
+        margin-bottom: 6px;
+      }
+      .feat p {
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.45;
+      }
+      .arch {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 16px;
+        margin-top: 6px;
+        max-width: 1130px;
+      }
+      .node {
+        background: rgba(15, 22, 36, 0.88);
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 20px 22px;
+        min-height: 178px;
+        box-shadow: 0 12px 28px rgba(0, 0, 0, 0.12);
+      }
+      .node .t {
+        font-weight: 900;
+        font-size: 18px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .node .s {
+        color: var(--muted);
+        font-size: 14px;
+        margin-top: 8px;
+        line-height: 1.5;
+      }
+      .node small {
+        display: block;
+        color: #53647f;
+        font-size: 12px;
+        margin-top: 12px;
+        letter-spacing: 0.5px;
+        font-weight: 800;
+      }
+      .arch,
+      .biggrid,
+      .stack {
+        width: 100%;
+      }
+      .biggrid {
+        display: grid;
+        grid-template-columns: repeat(6, 1fr);
+        gap: 16px;
+        margin-top: 16px;
+        max-width: 1130px;
+      }
+      .big {
+        min-height: 178px;
+        border-radius: 14px;
+        padding: 20px 22px;
+        border: 1px solid var(--border);
+        background: rgba(15, 22, 36, 0.88);
+        box-shadow: 0 12px 28px rgba(0, 0, 0, 0.12);
+      }
+      .big:first-child {
+        grid-column: 2 / 4;
+      }
+      .big:last-child {
+        grid-column: 4 / 6;
+      }
+      .big h3 {
+        font-size: 22px;
+        margin-bottom: 10px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .big p {
+        color: var(--muted);
+        font-size: 15px;
+        line-height: 1.55;
+      }
+      .stack {
+        display: flex;
+        flex-wrap: nowrap;
+        gap: 8px;
+        margin-top: 20px;
+        max-width: 1130px;
+      }
+      .chip {
+        background: rgba(18, 27, 44, 0.86);
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        padding: 8px 11px;
+        font-size: 13px;
+        font-weight: 700;
+        color: var(--muted);
+        white-space: nowrap;
+      }
+      .foot {
+        position: absolute;
+        bottom: 26px;
+        left: 0;
+        right: 0;
+        display: flex;
+        justify-content: space-between;
+        padding: 0 9vw;
+        color: #3b4a63;
+        font-size: 13px;
+        font-weight: 700;
+        z-index: 3;
+      }
+      .dots {
+        display: flex;
+        gap: 8px;
+      }
+      .dot {
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+        background: #243047;
+      }
+      .dot.on {
+        background: var(--accent);
+        width: 24px;
+        border-radius: 6px;
+      }
+      @media (max-width: 900px) {
+        .cards,
+        .biggrid {
+          grid-template-columns: 1fr;
+        }
+        .big:first-child,
+        .big:last-child {
+          grid-column: auto;
+        }
+        .arch,
+        .feat {
+          grid-template-columns: 1fr 1fr;
+        }
+        h1 {
+          font-size: 50px;
+        }
+        h2 {
+          font-size: 32px;
+        }
+        .title-slide {
+          padding-right: 9vw;
+        }
+        .slide-visual {
+          right: -18vw;
+          width: 54vw;
+          opacity: 0.12;
+        }
+        .side-slide {
+          padding-right: 9vw;
+        }
+        .side-slide .cards {
+          grid-template-columns: 1fr;
+        }
+        .side-slide .slide-visual {
+          right: -18vw;
+          width: 54vw;
+          opacity: 0.12;
+        }
+        .architecture-slide {
+          padding-right: 9vw;
+        }
+        .architecture-slide .arch,
+        .architecture-slide .biggrid {
+          grid-template-columns: 1fr;
+        }
+        .architecture-slide .node:last-child {
+          grid-column: auto;
+        }
+        .architecture-slide .slide-visual {
+          right: -18vw;
+          width: 54vw;
+          opacity: 0.12;
+        }
+        .features-slide {
+          padding-right: 9vw;
+        }
+        .features-slide .feat {
+          grid-template-columns: 1fr;
+        }
+        .features-slide .slide-visual {
+          right: -18vw;
+          width: 54vw;
+          opacity: 0.12;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="deck" id="deck">
+      <!-- 1 -->
+      <section class="slide on title-slide">
+        <img
+          class="slide-visual"
+          src="../docs/screenshot/slide1-phone.png"
+          alt=""
+          aria-hidden="true"
+        />
+        <div class="kicker">Praktikum 2 - FERI - 2025/26</div>
+        <h1>Health<span class="grad">TrackMe</span></h1>
+        <div class="lead">
+          Tvoje zdravje, ki se spremlja <b style="color: #fff">samodejno</b> -
+          brez ročnega vnašanja. Koraki, spanje, srčni utrip in vadbe se iz
+          telefona &amp; ure pretočijo na eno mesto, nato pa postanejo vpogledi.
+        </div>
+        <div class="author">
+          avtorja <b>Matija Gusel &amp; Anej Vollmeier</b> &nbsp;-&nbsp; Flutter
+          - Spring Boot - PostgreSQL - Railway
+        </div>
+      </section>
 
-  <!-- 1 -->
-  <section class="slide on">
-    <div class="kicker">Praktikum 2 · FERI · 2025/26</div>
-    <h1>Health<span class="grad">TrackMe</span></h1>
-    <div class="lead">Tvoje zdravje, ki se spremlja <b style="color:#fff">samodejno</b> — brez ročnega vnašanja.
-      Koraki, spanje, srčni utrip in vadbe se iz telefona &amp; ure pretočijo na eno mesto,
-      nato pa postanejo vpogledi.</div>
-    <div class="author">avtorja <b>Matija Gusel &amp; Anej Vollmeier</b> &nbsp;·&nbsp; Flutter · Spring Boot · PostgreSQL · Railway</div>
-  </section>
+      <!-- 2 -->
+      <section class="slide side-slide">
+        <img
+          class="slide-visual"
+          src="../docs/screenshot/slide2-phone.png"
+          alt=""
+          aria-hidden="true"
+        />
+        <div class="kicker">Ideja</div>
+        <h2 class="one-line-title">
+          Ročno beleženje zdravil je zamudno, zato smo ga odstranili
+        </h2>
+        <div class="cards">
+          <div class="c">
+            <h3><span class="mark blue"></span>Samodejna sinhronizacija</h3>
+            <p>
+              Health Connect prenaša korake, srčni utrip, spanje in vadbe v
+              ospredju ter v ozadju. Uporabnik ne izgublja časa z vnašanjem
+              podatkov.
+            </p>
+          </div>
+          <div class="c">
+            <h3><span class="mark green"></span>Zaznavanje in obvestila</h3>
+            <p>
+              Telefon zazna spanje, sprehode in teke, aplikacija pa pošlje
+              obvestilo s predlogom, ki ga uporabnik samo potrdi ali zavrne.
+            </p>
+          </div>
+          <div class="c">
+            <h3><span class="mark purple"></span>Tedenski povzetki na Gmail</h3>
+            <p>
+              Vsak teden uporabnik prejme kratek e-poštni pregled napredka,
+              trendov, slabših dni in področij, kjer je naredil največji premik.
+            </p>
+          </div>
+          <div class="c">
+            <h3><span class="mark cyan"></span>Svetovanje z AI chatbotom</h3>
+            <p>
+              Chatbot odgovarja na vprašanja o osebnih podatkih, razloži vzorce
+              in predlaga majhne, realne izboljšave glede aktivnosti, spanja in
+              navad.
+            </p>
+          </div>
+          <div class="c">
+            <h3><span class="mark orange"></span>Zdravstveni ščit</h3>
+            <p>
+              Igrifikacija z nizi, XP, ravnmi ščita in primerjavo s prijatelji
+              naredi spremljanje zdravja bolj igrivo ter uporabnika nagradi za
+              doslednost.
+            </p>
+          </div>
+          <div class="c">
+            <h3><span class="mark red"></span>Opomniki in opozorila</h3>
+            <p>
+              Uporabnik lahko dobi opomnike za zdravila, hidracijo, dnevne cilje
+              in predloge, ki jih aplikacija zazna v ozadju.
+            </p>
+          </div>
+        </div>
+      </section>
 
-  <!-- 2 -->
-  <section class="slide">
-    <div class="kicker">Ideja</div>
-    <h2>Ročno beleženje zdravja je zamudno — zato ga ne počnemo.</h2>
-    <div class="cards">
-      <div class="c"><div class="ic">🔄</div><h3>Samodejna sinhronizacija</h3><p>Bere korake, srčni utrip, spanje &amp; vadbe iz Health Connecta — v ospredju in v ozadju. Brez tipkanja.</p></div>
-      <div class="c"><div class="ic">😴</div><h3>Zaznavanje na napravi</h3><p>Iz samega telefona zazna nočno spanje ter sprehode in teke, nato jih <i>predlaga</i> v potrditev.</p></div>
-      <div class="c"><div class="ic">✨</div><h3>Vpogledi in svetovanje</h3><p>Tedenski UI-povzetki in pomočnik »vprašaj svoje podatke«, z e-poštnimi poročili — na podlagi tvojih trendov.</p></div>
-      <div class="c"><div class="ic">🛡️</div><h3>Navade in igrifikacija</h3><p>Nizi, raven Zdravstvenega ščita, opomniki za zdravila in lestvica prijateljev te ohranjajo pri beleženju.</p></div>
+      <!-- 3 -->
+      <section class="slide architecture-slide">
+        <img
+          class="slide-visual"
+          src="../docs/screenshot/slide3-phone.png"
+          alt=""
+          aria-hidden="true"
+        />
+        <div class="kicker">Kako je zgrajeno</div>
+        <h2>Čista, večplastna arhitektura</h2>
+        <div class="arch">
+          <div class="node">
+            <div class="t">
+              <span class="mark blue"></span>Aplikacija Flutter
+            </div>
+            <div class="s">
+              Mobilna aplikacija je napisana v Dartu. Uporablja Material UI,
+              go_router, Health Connect ter sinhronizacijo v ospredju in ozadju.
+            </div>
+            <small>DART - MOBILE - HEALTH CONNECT</small>
+          </div>
+          <div class="node">
+            <div class="t">
+              <span class="mark green"></span>Spring Boot in Kotlin
+            </div>
+            <div class="s">
+              REST API, JWT avtentikacija, Google prijava, lastništvo podatkov
+              po uporabniku, JPA entitete in Flyway migracije.
+            </div>
+            <small>BACKEND - API - SECURITY</small>
+          </div>
+          <div class="node">
+            <div class="t"><span class="mark purple"></span>PostgreSQL</div>
+            <div class="s">
+              Dnevni zapisi za vitalne znake, spanje, aktivnosti, zdravila,
+              prijatelje, dosežke in AI vpoglede v verzionirani shemi.
+            </div>
+            <small>DATABASE - FLYWAY</small>
+          </div>
+        </div>
+        <div class="biggrid">
+          <div class="big">
+            <h3><span class="mark orange"></span>Firebase deployment</h3>
+            <p>
+              Mobilna aplikacija se gradi prek GitHub Actions in objavi v
+              Firebase okolje, zato je nova različica hitro pripravljena za
+              testerje brez ročnega sestavljanja APK-ja.
+            </p>
+          </div>
+          <div class="big ai">
+            <h3><span class="mark cyan"></span>AI chatbot in poročila</h3>
+            <p>
+              Groq LLM poganja pogovorne vpoglede, Brevo pošilja tedenske Gmail
+              povzetke, spletni del pa omogoča predstavitev projekta in dostop
+              do ključnih informacij.
+            </p>
+          </div>
+        </div>
+        <div class="stack">
+          <span class="chip">Flutter</span
+          ><span class="chip">Kotlin / Spring Boot</span
+          ><span class="chip">PostgreSQL</span>
+          <span class="chip">Health Connect</span
+          ><span class="chip">JWT + Google prijava</span
+          ><span class="chip">Groq LLM</span> <span class="chip">Brevo</span
+          ><span class="chip">GitHub Actions</span
+          ><span class="chip">Firebase</span>
+        </div>
+      </section>
+
+      <!-- 4 -->
+      <section class="slide features-slide">
+        <img
+          class="slide-visual"
+          src="../docs/screenshot/slide4-phone.png"
+          alt=""
+          aria-hidden="true"
+        />
+        <div class="kicker">Kaj ponuja</div>
+        <h2>Vse tvoje zdravje na enem mestu</h2>
+        <div class="feat">
+          <div class="c">
+            <h3><span class="mark blue"></span>Nadzorna plošča</h3>
+            <p>
+              Hiter dnevni pregled korakov, spanja, vode, zdravil in
+              najpomembnejših kartic.
+            </p>
+          </div>
+          <div class="c">
+            <h3><span class="mark green"></span>Aktivnost</h3>
+            <p>
+              Koraki, hoja, tek in kolesarjenje z zgodovino ter primerjavo med
+              dnevi.
+            </p>
+          </div>
+          <div class="c">
+            <h3><span class="mark purple"></span>Spanje</h3>
+            <p>
+              Zaznano nočno spanje, cilj 7 ur in pregled, kako se spalni ritem
+              spreminja.
+            </p>
+          </div>
+          <div class="c">
+            <h3><span class="mark red"></span>Vitalni znaki</h3>
+            <p>
+              Srčni utrip, stres, krvni tlak in SpO2, prikazani kot razumljivi
+              trendi.
+            </p>
+          </div>
+          <div class="c">
+            <h3><span class="mark orange"></span>Zdravila</h3>
+            <p>
+              Urnik jemanja, odmerki, potrditve in opomniki, da uporabnik
+              ničesar ne spregleda.
+            </p>
+          </div>
+          <div class="c">
+            <h3><span class="mark cyan"></span>Hidracija</h3>
+            <p>
+              Dnevni cilj vode z enostavnim dodajanjem vnosov in pregledom
+              navade skozi teden.
+            </p>
+          </div>
+          <div class="c">
+            <h3><span class="mark blue"></span>Tedenski vpogledi</h3>
+            <p>
+              Samodejni povzetki, ki iz podatkov izluščijo napredek, padec
+              aktivnosti in uporabne vzorce.
+            </p>
+          </div>
+          <div class="c">
+            <h3><span class="mark purple"></span>Ščit in nizi</h3>
+            <p>
+              Ravni, XP in streaki spremenijo rutino v igro, kjer se doslednost
+              vidi in nagradi.
+            </p>
+          </div>
+          <div class="c">
+            <h3><span class="mark green"></span>Prijatelji</h3>
+            <p>
+              Lestvica, primerjava dosežkov in dodatna motivacija za premikanje
+              skupaj z drugimi.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <div class="foot">
+        <span>HealthTrackMe</span>
+        <span class="dots" id="dots"></span>
+        <span id="pg">1 / 4</span>
+      </div>
     </div>
-  </section>
 
-  <!-- 3 -->
-  <section class="slide">
-    <div class="kicker">Kaj ponuja</div>
-    <h2>Vse tvoje zdravje na enem mestu</h2>
-    <div class="feat">
-      <div class="c"><span class="d" style="background:#5B8DEF"></span><h3>Nadzorna plošča</h3><p>Pregled dneva in priljubljene kartice</p></div>
-      <div class="c"><span class="d" style="background:#5FB878"></span><h3>Aktivnost</h3><p>Koraki, hoja, tek in kolesarjenje</p></div>
-      <div class="c"><span class="d" style="background:#7E7BF5"></span><h3>Spanje</h3><p>Nočno spanje in cilj 7 h</p></div>
-      <div class="c"><span class="d" style="background:#FF6B6B"></span><h3>Vitalni znaki</h3><p>Utrip, stres, krvni tlak, SpO₂</p></div>
-      <div class="c"><span class="d" style="background:#D4956A"></span><h3>Zdravila</h3><p>Urnik, odmerki in opomniki</p></div>
-      <div class="c"><span class="d" style="background:#3FA9F5"></span><h3>Hidracija</h3><p>Dnevni vnos vode</p></div>
-      <div class="c"><span class="d" style="background:#5B8DEF"></span><h3>Vpogledi &amp; trendi</h3><p>Tedenski UI-povzetki</p></div>
-      <div class="c"><span class="d" style="background:#7E7BF5"></span><h3>Ščit &amp; nizi</h3><p>Ravni, XP in nizi (streaki)</p></div>
-      <div class="c"><span class="d" style="background:#5FB878"></span><h3>Prijatelji</h3><p>Lestvica in primerjava</p></div>
-    </div>
-  </section>
-
-  <!-- 4 -->
-  <section class="slide">
-    <div class="kicker">Kako je zgrajeno</div>
-    <h2>Čista, večplastna arhitektura</h2>
-    <div class="arch">
-      <div class="node"><div class="t">📱 Aplikacija Flutter</div><div class="s">Material UI za Android, go_router. Storitvi za sinhronizacijo v ospredju &amp; ozadju + zaznavanje na napravi.</div><small>HEALTH CONNECT · WORKMANAGER</small></div>
-      <div class="node"><div class="t">⚙️ Spring Boot · Kotlin</div><div class="s">REST API, avtentikacija JWT z lastništvom na uporabnika, JPA/ORM, migracije Flyway. Vpogledi Groq/LLM + e-pošta.</div><small>RAILWAY</small></div>
-      <div class="node"><div class="t">🗄️ PostgreSQL</div><div class="s">En vnos na dan za vitalne znake/spanje, aktivnosti, zdravila, vpoglede — verzionirana shema.</div><small>UPRAVLJA FLYWAY</small></div>
-    </div>
-    <div class="stack">
-      <span class="chip">Flutter</span><span class="chip">Kotlin / Spring Boot</span><span class="chip">PostgreSQL</span>
-      <span class="chip">Health Connect</span><span class="chip">JWT + prijava Google</span><span class="chip">Groq · Llama 3.3</span>
-      <span class="chip">E-pošta Brevo</span><span class="chip">GitHub Actions → Firebase</span><span class="chip">Railway</span>
-    </div>
-  </section>
-
-  <!-- 5 -->
-  <section class="slide">
-    <div class="kicker">V živo</div>
-    <div class="demo">▶ &nbsp;Demo v živo — prijava &amp; sprehod skozi aplikacijo</div>
-    <div class="pills">
-      <span class="pill done">✅ Samodejna sinhronizacija in zgodovina</span>
-      <span class="pill done">✅ Zaznavanje spanja in hoje</span>
-      <span class="pill done">✅ Pregledni grafi in dnevne kartice</span>
-      <span class="pill done">✅ UI vpogledi in tedenska e-pošta</span>
-      <span class="pill next">🔶 HRV iz Health Connecta</span>
-      <span class="pill next">🔶 Obvestila s predlogi v ozadju</span>
-    </div>
-    <div class="lessons">
-      <b>Kaj smo se naučili:</b> najtežji hrošč ni bil funkcija — sinhronizacija je delovala v razhroščevalni
-      različici, a je v <i>izdani</i> tiho odpovedala (manjkajoče dovoljenje v manifestu). Pravo vrednost je prineslo
-      testiranje na <b>svežem računu</b>, ne na razvijalčevem. CI samodejno zgradi &amp; pošlje APK testerjem; zaledje se samo namesti na Railway.
-    </div>
-  </section>
-
-  <div class="foot">
-    <span>HealthTrackMe</span>
-    <span class="dots" id="dots"></span>
-    <span id="pg">1 / 5</span>
-  </div>
-</div>
-
-<script>
-  const slides=[...document.querySelectorAll('.slide')];let i=0;
-  const dots=document.getElementById('dots');
-  slides.forEach((_,k)=>{const d=document.createElement('span');d.className='dot'+(k===0?' on':'');dots.appendChild(d);});
-  function show(n){i=Math.max(0,Math.min(slides.length-1,n));
-    slides.forEach((s,k)=>s.classList.toggle('on',k===i));
-    [...dots.children].forEach((d,k)=>d.classList.toggle('on',k===i));
-    document.getElementById('pg').textContent=(i+1)+' / '+slides.length;}
-  document.addEventListener('keydown',e=>{if(['ArrowRight',' ','PageDown','Enter'].includes(e.key))show(i+1);
-    if(['ArrowLeft','PageUp','Backspace'].includes(e.key))show(i-1);
-    if(e.key==='f'||e.key==='F'){if(!document.fullscreenElement)document.documentElement.requestFullscreen();else document.exitFullscreen();}});
-  document.getElementById('deck').addEventListener('click',e=>{show(i+(e.clientX>window.innerWidth*0.35?1:-1));});
-</script>
-</body>
+    <script>
+      const slides = [...document.querySelectorAll(".slide")];
+      let i = 0;
+      const dots = document.getElementById("dots");
+      slides.forEach((_, k) => {
+        const d = document.createElement("span");
+        d.className = "dot" + (k === 0 ? " on" : "");
+        dots.appendChild(d);
+      });
+      function show(n) {
+        i = Math.max(0, Math.min(slides.length - 1, n));
+        slides.forEach((s, k) => s.classList.toggle("on", k === i));
+        [...dots.children].forEach((d, k) => d.classList.toggle("on", k === i));
+        document.getElementById("pg").textContent =
+          i + 1 + " / " + slides.length;
+      }
+      document.addEventListener("keydown", (e) => {
+        if (["ArrowRight", " ", "PageDown", "Enter"].includes(e.key))
+          show(i + 1);
+        if (["ArrowLeft", "PageUp", "Backspace"].includes(e.key)) show(i - 1);
+        if (e.key === "f" || e.key === "F") {
+          if (!document.fullscreenElement)
+            document.documentElement.requestFullscreen();
+          else document.exitFullscreen();
+        }
+      });
+      document.getElementById("deck").addEventListener("click", (e) => {
+        show(i + (e.clientX > window.innerWidth * 0.35 ? 1 : -1));
+      });
+    </script>
+  </body>
 </html>
