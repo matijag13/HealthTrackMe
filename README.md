@@ -190,6 +190,7 @@ flutter test
 ---
 ## Useful Links
 
+- [DELUJOČA REŠITEV APK](https://github.com/matijag13/HealthTrackMe/releases)
 - [Backend README](apps/api/README.md)
 - [Flutter README](apps/mobile_flutter/README.md)
 - [ER diagram](docs/database/ER-diagram.png)
